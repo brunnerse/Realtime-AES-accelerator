@@ -1,7 +1,6 @@
-AES.sim
-AES.cache
-AES.gen
-AES.hw
-AES.ip_user_files
-AES.sim
-AES.xpr
+*.sim
+*.cache
+*.gen
+*.hw
+*.ip_user_files
+*.xpr
