@@ -4,3 +4,8 @@
 *.hw
 *.ip_user_files
 *.xpr
+*.xci
+*.ui
+*/bd/*
+bd/
+__pycache__
