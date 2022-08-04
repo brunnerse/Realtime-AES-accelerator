@@ -1,17 +1,19 @@
 def createConstArrayStr(arr):
     content = ""
     for i in range(len(arr)):
-        valStr = "x\"%s\""%(str(hex(sbox[i]))[2:])
-        content += "\t%3i => %s"%(i, valStr)
+        # Convert sbox[i] to hex string with exactly two digits
+        valStr = "%02s"%(str(hex(sbox[i]))[2:])
+        valStr = valStr.replace(' ', '0')
+
+        content += "\t%3i => x\"%s\""%(i, valStr)
         if i < len(arr)-1:
             content += ",\n"
     return content
 
 
+# Perform rotate left for byte i
 def rol(i, shifts):
-    result = i << shifts
-    result |= result >> 8
-    return result & 0xff
+    return (result << shifts) | (result >> (8-shifts)) & 0xff
 
 
 sbox = [0] * 256
