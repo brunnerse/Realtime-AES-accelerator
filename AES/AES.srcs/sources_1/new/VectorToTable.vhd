@@ -45,9 +45,9 @@ begin
 
 -- for KEY_SIZE != 128, this module must be adapted!
 
-table(0) <= vector(31 downto 0);
-table(1) <= vector(63 downto 32);
-table(2) <= vector(95 downto 64);
-table(3) <= vector(127 downto 96);
+table(3) <= vector(31 downto 0);
+table(2) <= vector(63 downto 32);
+table(1) <= vector(95 downto 64);
+table(0) <= vector(127 downto 96);
 
 end Behavioral;
