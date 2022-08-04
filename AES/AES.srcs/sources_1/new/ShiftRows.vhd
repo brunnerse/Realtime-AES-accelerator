@@ -70,16 +70,17 @@ if Reset = '0' then
     dout <= (others => '0');
 elsif rising_edge(Clock) then
     if encrypt = '1' then    
+        -- Rotate manually to avoid using ror or rol, which are only defined for bit_vector
         tableOut(0) <= tableIn(0);
-        -- Rotate left; rol x is the same as ror (32-x)
-        tableOut(1) <= tableIn(1) ror 24;
-        tableOut(2) <= tableIn(2) ror 16;
-        tableOut(3) <= tableIn(3) ror 8;
-    else
+        tableOut(1) <= tableIn(1)(23 downto 0) & tableIn(1)(31 downto 24);  -- rol 8
+        tableOut(2) <= tableIn(2)(15 downto 0) & tableIn(2)(31 downto 16);  -- rol 16
+        tableOut(3) <= tableIn(3)(7 downto 0) & tableIn(3)(31 downto 8);  -- rol 24
+    else 
+    -- decrypt: reverse the rotate direction
         tableOut(0) <= tableIn(0);
-        tableOut(1) <= tableIn(1) ror 8;
-        tableOut(2) <= tableIn(2) ror 16;
-        tableOut(3) <= tableIn(3) ror 24;
+        tableOut(1) <= tableIn(1)(7 downto 0) & tableIn(1)(31 downto 8);  -- ror 8
+        tableOut(2) <= tableIn(2)(15 downto 0) & tableIn(2)(31 downto 16);  -- ror 16
+        tableOut(3) <= tableIn(3)(23 downto 0) & tableIn(3)(31 downto 24);  -- ror 24
     end if;
 end if;
 end process;
