@@ -38,20 +38,10 @@ end TestComponents;
 
 architecture Behavioral of TestComponents is
 
-
-component ShiftRows is
-    Port ( din : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dout : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           encrypt : in STD_LOGIC;
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
-end component;
-
-component MixColumns is
+component AEA is
     Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            encrypt : in STD_LOGIC;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
@@ -59,28 +49,22 @@ component MixColumns is
            Reset : in STD_LOGIC);
 end component;
 
-component SubBytes is
-    Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           encrypt : in STD_LOGIC;
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
-end component;
 
 signal Clock, Reset : std_logic;
 
-signal testData, testKey : std_logic_vector(KEY_SIZE-1 downto 0);
+signal testPlaintext, testKey, testCiphertext, testDecCiphertext : std_logic_vector(KEY_SIZE-1 downto 0);
+signal EnEncI, EnEncO, EnDecI, EnDecO : std_logic;
 
 begin
 
-testData <= x"00010203101112132021222330313233";
+testPlaintext <= x"00010203101112132021222330313233";
 testKey <= x"000102030405060708090a0b0c0d0e0f";
 
-subBytesI : SubBytes port map (dIn => testData, encrypt => '1', EnI => '1', Clock => Clock, Reset => Reset);
-mixColI : MixColumns port map (dIn => testData, encrypt => '1', EnI => '1', Clock => Clock, Reset => Reset);
-shiftRowsI : ShiftRows port map (dIn => testData, encrypt => '1', EnI => '1', Clock => Clock, Reset => Reset);
+aeaEnc : AEA port map (testPlaintext, testCiphertext, testKey, '1', EnEncI, EnEncO, Clock, Reset);
+aeaDec : AEA port map (testCiphertext, testDecCiphertext, testKey, '0', EnDecI, EnDecO, Clock, Reset);
+
+EnDecI <= EnEncO;
+
 
 process begin
 Clock <= '0'; wait for 5ns;
@@ -89,6 +73,12 @@ end process;
 process begin
 Reset <= '0'; wait for 5ns;
 Reset <= '1'; wait;
+end process;
+
+-- Enable encryption once at the start, then disable it
+process begin
+EnEncI <= '1'; wait for 20ns;
+EnEncI <= '0'; wait;
 end process;
 
 
