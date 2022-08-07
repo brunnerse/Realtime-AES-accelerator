@@ -41,10 +41,12 @@ end KeyExpansion;
 
 architecture Behavioral of KeyExpansion is
 
-type WORD_TYPE is array ((NUM_ROUNDS+1)*4-1 downto 0) of STD_LOGIC_VECTOR(31 downto 0);
+type WORD_TYPE is array (0 to (NUM_ROUNDS+1)*4-1) of STD_LOGIC_VECTOR(31 downto 0);
 
 signal wordIndex : STD_LOGIC_VECTOR(7 downto 0);
 signal words : WORD_TYPE;
+signal RCon : STD_LOGIC_VECTOR (7 downto 0);
+
 
 begin
 
@@ -63,7 +65,6 @@ variable currentKey : STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
 variable word_1, word_4 : STD_LOGIC_VECTOR(31 downto 0);
 variable index : integer;
 
-variable RCon : STD_LOGIC_VECTOR (7 downto 0);
 
 begin
 if Reset = '0' then
@@ -82,33 +83,39 @@ elsif rising_edge(Clock) then
             word_1 := word_1(23 downto 0) & word_1(31 downto 24);
             -- perform substitution for each byte of word_1
             for i in 3 downto 0 loop
-                index := to_integer(unsigned(word_1(i*8-1 downto (i-1)*8)));
-                word_1(i*8-1 downto (i-1)*8) := sbox_encrypt(index);
+                index := to_integer(unsigned(word_1((i+1)*8-1 downto i*8)));
+                word_1((i+1)*8-1 downto i*8) := sbox_encrypt(index);
             end loop;
             -- xor with constant
+            word_1 := word_1 xor (Rcon & x"000000");
             -- Calculate new constant:  Old RCon * 'x' (i.e. 02), which means 2Rcon 
             if RCon(7) = '0' then -- RCon < 0x80
-                RCon := RCon(6 downto 0) & '0';
+                RCon <= RCon(6 downto 0) & '0';
             else
-                RCon := (RCon(6 downto 0) & '0') xor x"1b";
+                RCon <= (RCon(6 downto 0) & '0') xor x"1b";
             end if;
-            word_1 := word_1 xor (Rcon & x"000000");
+            
         end if;
         
         words(to_integer(unsigned(wordIndex))) <= word_1 xor word_4;
+        -- Increment wordIndex
+        wordIndex <= std_logic_vector(unsigned(wordIndex) + to_unsigned(1, 8));
         -- Check if all words have been calculated
-        if wordIndex = std_logic_vector(to_unsigned(NUM_ROUNDS*4-1, 8)) then
+        if wordIndex = std_logic_vector(to_unsigned((NUM_ROUNDS+1)*4-1, 8)) then
             wordIndex <= x"00";
-            EnO <= '0';
+            EnO <= '1';
         end if;
-    elsif EnI = '1' then -- start calculation when EnI is enabled
+
+    else
         EnO <= '0';
-        -- write user key in first four words
-        for i in 0 to KEY_SIZE/32-1 loop
-            words(i) <= userKey(KEY_SIZE-1-i*32 downto KEY_SIZE-(i+1)*32);
-        end loop;
-        wordIndex <= x"04";
-        RCon := x"01";
+        if EnI = '1' then -- start calculation when EnI is enabled
+            -- write user key in first four words
+            for i in 0 to KEY_SIZE/32-1 loop
+                words(i) <= userKey(KEY_SIZE-1-i*32 downto KEY_SIZE-(i+1)*32);
+            end loop;
+            wordIndex <= x"04";
+            RCon <= x"01";
+         end if;
     end if;
 end if;
 end process;

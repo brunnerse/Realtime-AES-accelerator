@@ -12,8 +12,10 @@ def createConstArrayStr(arr):
 
 
 # Perform rotate left for byte i
-def rol(i, shifts):
-    return (result << shifts) | (result >> (8-shifts)) & 0xff
+def rol(i, shifts, nBits = 8):
+    result = ((i << shifts) | (i >> (nBits-shifts)))
+    # set bits higher than nBits to 0
+    return result & (0xffffffff >> (32 - nBits))
 
 
 sbox = [0] * 256
@@ -39,8 +41,6 @@ while True:
         q ^= 0x09
     
     q &= 0xff
-    
-    print(p, q)
 
     xformed = q ^ rol(q,1) ^ rol(q, 2) ^ rol(q, 3) ^ rol(q, 4) ^ 0x63
 
@@ -79,8 +79,6 @@ content += '''
 
 end package;
 '''
-
-print(content)
 
 file = open("sbox_definition.vhd", "w")
 file.write(content)

@@ -1,4 +1,5 @@
 import numpy as np 
+from BuildSBox import *
 
 a = np.array([0x00, 0x10, 0x20, 0x30])
 
@@ -33,3 +34,48 @@ def mulGF(poly1, poly2):
     
     #print(hex(result))
     return result
+
+
+def keyExpansion(key):
+    words = [None] * 44
+    for i in range(4):
+        words[i] = key >> ((3-i)*32) & 0xffffffff
+    for i in range(4):
+        print(hex(words[i]))
+    Rcon = 1
+    for i in range(4, 44):
+        word_1 = words[i-1]
+        word_4 = words[i-4]
+        print(word_1, word_4)
+        print(hex(word_1), hex(word_4))
+        if i % 4 == 0:
+            print(format(word_1, "032b"))
+            word_1 = rol(word_1, 8, 32)
+            byte = [None] * 4
+            for j in range(4):
+                byte[j] = (word_1 >> ((3-j)*8)) & 0xff
+                print(format(byte[j], "08b"), format(sbox[byte[j]], "08b"))
+                byte[j] = sbox[byte[j]]
+                
+            word_1 = (byte[0] << 24) | (byte[1] << 16) | (byte[2] << 8) | byte[3]
+            print(format(word_1, "032b"))
+            word_1 ^= Rcon << 24
+            Rcon = mulGF(Rcon, 2)
+        print(hex(word_1), hex(word_4))
+        words[i] = word_1 ^ word_4
+        print(hex(words[i]))
+    keys = [None] * 11
+    print("\n Words:")
+    for w in words:
+        print(format(w, "08x"))
+    for i in range(11):
+        keys[i] = 0
+        for j in range(4):
+            keys[i] |= words[i*4+j] << (32 * (3-j)) 
+        print(format(keys[i], "032x"))
+    return keys
+
+
+
+testKey = 0x000102030405060708090a0b0c0d0e0f
+print(keyExpansion(testKey))
