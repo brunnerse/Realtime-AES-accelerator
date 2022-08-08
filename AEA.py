@@ -4,9 +4,16 @@ from BuildSBox import *
 a = np.array([0x00, 0x10, 0x20, 0x30])
 
 def mixcol(a):
-    b = np.zeros(4)
+    b = np.zeros(4, int)
     for i in range(4):
         b[i] = mul2(a[i]) ^ mul3(a[(i+1)%4]) ^ a[(i+2)%4] ^ a[(i+3)%4]
+        print("b[%d] = %s"%(i, hex(int(b[i]))))
+    return b
+
+def mixcol_inv(a):
+    b = np.zeros(4, int)
+    for i in range(4):
+        b[i] = mulGF(a[i], 0xe) ^ mulGF(a[(i+1)%4], 0xb) ^ mulGF(a[(i+2)%4], 0xd) ^ mulGF(a[(i+3)%4], 0x9)
         print("b[%d] = %s"%(i, hex(int(b[i]))))
     return b
 
@@ -49,16 +56,16 @@ def keyExpansion(key):
         print(word_1, word_4)
         print(hex(word_1), hex(word_4))
         if i % 4 == 0:
-            print(format(word_1, "032b"))
+            #print(format(word_1, "032b"))
             word_1 = rol(word_1, 8, 32)
             byte = [None] * 4
             for j in range(4):
                 byte[j] = (word_1 >> ((3-j)*8)) & 0xff
-                print(format(byte[j], "08b"), format(sbox[byte[j]], "08b"))
+                #print(format(byte[j], "08b"), format(sbox[byte[j]], "08b"))
                 byte[j] = sbox[byte[j]]
                 
             word_1 = (byte[0] << 24) | (byte[1] << 16) | (byte[2] << 8) | byte[3]
-            print(format(word_1, "032b"))
+            #print(format(word_1, "032b"))
             word_1 ^= Rcon << 24
             Rcon = mulGF(Rcon, 2)
         print(hex(word_1), hex(word_4))
@@ -77,5 +84,14 @@ def keyExpansion(key):
 
 
 
+
+
 testKey = 0x000102030405060708090a0b0c0d0e0f
+
 print(keyExpansion(testKey))
+
+# test MixColumns
+#result = mixcol(a)
+#result_inv = mixcol_inv(result)
+
+#print(a, result, result_inv, sep="\n\t")
