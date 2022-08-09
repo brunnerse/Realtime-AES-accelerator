@@ -64,7 +64,6 @@ signal Clock, Reset : std_logic;
 signal testPlaintext, testKey, testCiphertext, testDecCiphertext : std_logic_vector(KEY_SIZE-1 downto 0);
 signal EnEncI, EnEncO, EnDecI, EnDecO : std_logic;
 
-signal testvec : std_logic_vector(KEY_SIZE-1 downto 0);
 begin
 
 testPlaintext <= x"00102030011121310212223203132333";
@@ -73,10 +72,9 @@ testKey <= x"000102030405060708090a0b0c0d0e0f";
 aeaEnc : AEA port map (testPlaintext, testCiphertext, testKey, '1', EnEncI, EnEncO, Clock, Reset);
 aeaDec : AEA port map (testCiphertext, testDecCiphertext, testKey, '0', EnDecI, EnDecO, Clock, Reset);
 
-testMixCol: MixColumns port map(testPlaintext, testVec, '1', EnEncI, EnEncO, Clock, Reset);
-testInvMixCol : MixColumns port map(testVec, testDecCiphertext, '0', EnEncO, EnDecO, Clock, Reset);
-
 EnDecI <= EnEncO;
+
+
 
 
 process begin
@@ -84,13 +82,14 @@ Clock <= '0'; wait for 5ns;
 Clock <= '1'; wait for 5ns;
 end process;
 process begin
-Reset <= '0'; wait for 5ns;
+Reset <= '0'; wait for 10ns;
 Reset <= '1'; wait;
 end process;
 
 -- Enable encryption once at the start, then disable it
 process begin
-EnEncI <= '1'; wait for 20ns;
+EnEncI <= '0'; wait for 10ns; -- Wait until Reset is over
+EnEncI <= '1'; wait for 10ns;
 EnEncI <= '0'; wait;
 end process;
 

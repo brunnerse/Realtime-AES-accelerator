@@ -90,6 +90,7 @@ signal EnIKeyExp, EnOKeyExp : std_logic;
 
 begin
 
+
 preARK : AddRoundKey port map(dInPreARK, dOutPreARK, key, EnIPreARK, EnOPreARK, Clock, Reset);
 roundAEA : AEA_Round port map(dInRound, dOutRound, roundKey, encrypt, isLastRound, EnIRound, EnORound, roundIsLastCycle, Clock, Reset);
 keyExp : KeyExpansion port map(key, roundKeys, EnIKeyExp, EnOKeyExp, Clock, Reset); 
@@ -97,7 +98,7 @@ keyExp : KeyExpansion port map(key, roundKeys, EnIKeyExp, EnOKeyExp, Clock, Rese
 -- connect data signals of the components
 dInPreARK <= dIn when encrypt = '1' else dOutRound;
 dInRound <= dOutPreARK when encrypt = '1' and unsigned(currentRound) <= to_unsigned(1, 4) else
-            dIn when encrypt = '0' and currentRound = x"0" else  -- decryption
+            dIn when encrypt = '0' and unsigned(currentRound) = to_unsigned(10, 4) else  -- decryption
             dOutRound;  -- loop back the output of the round to the input
 dOut <= dOutRound when encrypt = '1' else dOutPreARK;
 
@@ -105,13 +106,14 @@ dOut <= dOutRound when encrypt = '1' else dOutPreARK;
 EnIKeyExp <= EnI; -- TODO muss das Enable-Signal einen Takt oder die ganze Zeit über gesendet werden?
 EnIPreARK <= EnOKeyExp when encrypt = '1' else EnORound;
 EnIRound <= EnOPreARK when encrypt = '1' and unsigned(currentRound) <= to_unsigned(1, 4) else
-            EnOKeyExp when currentRound = x"0" else -- decryption
+            EnOKeyExp when encrypt = '0' and unsigned(currentRound) = to_unsigned(10, 4) else -- decryption
             EnORound; -- loop back output of round to the input
 -- Set EnO to 0, except in the last round, where it is set to the enable signal of the last component
 EnO <= '0' when state /= Idle else 
         EnORound when encrypt = '1' else
         EnOPreARK; -- decryption
 
+roundKey <= roundKeys(to_integer(unsigned(currentRound)));
 
 process (Clock, Reset)
 begin
@@ -120,30 +122,45 @@ if Reset = '0' then
 elsif rising_edge(Clock) then
     case(state) is
         when Idle =>
-            currentRound <= x"0";
-            --roundKey <= roundKeys(to_integer(unsigned(currentRound)));
-            isLastRound <= '0';
-            
+            if encrypt = '1' then
+                currentRound <= x"0";
+                isLastRound <= '0';
+            else
+                -- for decryption, start with the last round
+                currentRound <= x"a";
+                isLastRound <= '1';
+            end if;
+            -- start calculation on enable signal
             if EnI = '1' then
                 state <= KeyExpState;
-               
             end if;
         when KeyExpState =>
             -- Wait in this state until keys have been calculated
             if EnOKeyExp = '1' then
                 state <= RoundState;
                 -- in this round, the preARK is running, so the next round is round 1
-                currentRound <= x"1";
-                roundKey <= roundKeys(to_integer(unsigned(currentRound))+1);
+                if encrypt = '1' then
+                    currentRound <= x"1"; -- TODO kann ich gleich in Idle currentRound = 0 setzen?
+                end if;
             end if;
         when RoundState =>
             -- Increment currentRound and set the next roundKey in the cycle before the round finishes
             if roundIsLastCycle = '1' then
-                roundKey <= roundKeys(to_integer(unsigned(currentRound))+1);
-                currentRound <= std_logic_vector(unsigned(currentRound) + to_unsigned(1, 4));
+                isLastRound <= '0'; -- set it to zero because in decryption, it is 1 in the first round
+                if encrypt = '1' then
+                    --roundKey <= roundKeys(to_integer(unsigned(currentRound))+1);
+                    currentRound <= std_logic_vector(unsigned(currentRound) + to_unsigned(1, 4));
+                else
+                    -- decrement for decryption 
+                    currentRound <= std_logic_vector(unsigned(currentRound) - to_unsigned(1, 4)); 
+                end if;
+                
                 -- Set isLastRound signal if the next round is the last one
-                if currentRound = std_logic_vector(to_unsigned(NUM_ROUNDS-1, 4)) then
+                if encrypt = '1' and currentRound = std_logic_vector(to_unsigned(NUM_ROUNDS-1, 4)) then
                     isLastRound <= '1';
+                    state <= LastRoundState;
+                elsif encrypt = '0' and currentRound = std_logic_vector(to_unsigned(1, 4)) then
+                    -- Next round is round 1, which is the last round, as round 0 is the preARK
                     state <= LastRoundState;
                 end if;
             end if;
