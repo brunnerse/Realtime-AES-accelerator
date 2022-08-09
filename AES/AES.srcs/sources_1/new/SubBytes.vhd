@@ -46,6 +46,7 @@ process (Clock, Reset)
 begin
 if Reset = '0' then
     dout <= (others => '0');
+    EnO <= '0';
 elsif rising_edge(Clock) then
     EnO <= EnI;
     if EnI = '1' then

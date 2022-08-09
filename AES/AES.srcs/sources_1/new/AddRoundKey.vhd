@@ -49,10 +49,13 @@ begin
 process (Clock, Reset)
 begin
 if Reset = '0' then
-    dout <= (others => '0');
+    dOut <= (others => '0');
+    EnO <= '0';
 elsif rising_edge(Clock) then
     EnO <= EnI;
-    dout <= din xor key;
+    if EnI = '1' then
+        dOut <= din xor key;
+    end if;
 end if;
 end process;
 end Behavioral;

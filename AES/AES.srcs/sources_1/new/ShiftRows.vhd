@@ -33,8 +33,8 @@ use IEEE.NUMERIC_STD.ALL;
 --use UNISIM.VComponents.all;
 
 entity ShiftRows is
-    Port ( din : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dout : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            encrypt : in STD_LOGIC;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
@@ -46,7 +46,7 @@ architecture Behavioral of ShiftRows is
 
 component VectorToTable Port
     ( vector : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           table  : out TABLE
+       table  : out TABLE
     );
 end component;
 component TableToVector is
@@ -56,25 +56,25 @@ component TableToVector is
     );
 end component;
 
-
 signal tableIn, tableOut : TABLE;
 
 begin
 
-dinToTable: VectorToTable port map(din, tableIn);
-tableToDout : TableToVector port map(tableOut, dout);
+dinToTable: VectorToTable port map(dIn, tableIn);
+tableToDout : TableToVector port map(tableOut, dOut);
 
 process (Clock, Reset)
 begin
 if Reset = '0' then
-    dout <= (others => '0');
+    EnO <= '0';
 elsif rising_edge(Clock) then
+    EnO <= EnI;
     if encrypt = '1' then    
         -- Rotate manually to avoid using ror or rol, which are only defined for bit_vector
-        tableOut(0) <= tableIn(0);
-        tableOut(1) <= tableIn(1)(23 downto 0) & tableIn(1)(31 downto 24);  -- rol 8
-        tableOut(2) <= tableIn(2)(15 downto 0) & tableIn(2)(31 downto 16);  -- rol 16
-        tableOut(3) <= tableIn(3)(7 downto 0) & tableIn(3)(31 downto 8);  -- rol 24
+        tableOut(0) <= tableIn(0)(31 downto 24) & tableIn(1)(23 downto 16) & tableIn(2)(15 downto 8) & tableIn(3)(7 downto 0);
+        tableOut(1) <= tableIn(1)(31 downto 24) & tableIn(2)(23 downto 16) & tableIn(3)(15 downto 8) & tableIn(0)(7 downto 0);
+        tableOut(2) <= tableIn(2)(31 downto 24) & tableIn(3)(23 downto 16) & tableIn(0)(15 downto 8) & tableIn(1)(7 downto 0); 
+        tableOut(3) <= tableIn(3)(31 downto 24) & tableIn(0)(23 downto 16) & tableIn(1)(15 downto 8) & tableIn(2)(7 downto 0);
     else 
     -- decrypt: reverse the rotate direction
         tableOut(0) <= tableIn(0);

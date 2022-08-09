@@ -36,6 +36,7 @@ entity AEA_Round is
            isLastRound : in STD_LOGIC;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
+           IsLastCycle : out STD_LOGIC;
            Clock : in STD_LOGIC;
            Reset : in STD_LOGIC);
 end AEA_Round;
@@ -112,11 +113,16 @@ EnISB <= EnI when encrypt = '1' else        EnOSR;
 EnISR <= EnOSB when encrypt = '1' else     
                                             EnOMC when isLastRound = '0' else
                                             EnOARK; -- skip MixColumns in the last round
-EnIMC <= EnOSR when encrypt = '1' else     EnOARK;
+EnIMC <= '0' when isLastRound = '1' else
+          EnOSR when encrypt = '1' else     EnOARK;
 EnIARK <=                                   EnI when encrypt = '0' else 
-    EnOMC when isLastRound = '0' else
-    EnOSR; -- Skip MixColumns in the last round
+          EnOMC when isLastRound = '0' else
+          EnOSR; -- Skip MixColumns in the last round
 EnO <= EnOARK when encrypt = '1' else     EnOSB;
+
+isLastCycle <= EnOMC when encrypt = '1' and isLastRound = '0' else  -- For encryption, the second last component is MixColumns
+               EnOSR when encrypt = '1' and isLastRound = '1' else
+               EnOSR;   -- For decryption, the second last component is SubBytes
 
 
 end Behavioral;

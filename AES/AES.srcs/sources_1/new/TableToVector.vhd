@@ -41,9 +41,10 @@ end TableToVector;
 
 architecture Behavioral of TableToVector is
 
+
 begin
 
--- for key sizes != 128, this module must be adapted!
+-- for KEY_SIZE != 128, this module must be adapted!
 
 vector <= table(0) & table(1) & table(2) & table(3);
 
