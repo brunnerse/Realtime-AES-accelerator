@@ -2,7 +2,7 @@ def createConstArrayStr(arr):
     content = ""
     for i in range(len(arr)):
         # Convert sbox[i] to hex string with exactly two digits
-        valStr = "%02s"%(str(hex(sbox[i]))[2:])
+        valStr = "%02s"%(str(hex(arr[i]))[2:])
         valStr = valStr.replace(' ', '0')
 
         content += "\t%3i => x\"%s\""%(i, valStr)
