@@ -38,7 +38,7 @@ end TestComponents;
 
 architecture Behavioral of TestComponents is
 
-component AEA is
+component PipelinedAEA is
     Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
@@ -66,15 +66,13 @@ signal EnEncI, EnEncO, EnDecI, EnDecO : std_logic;
 
 begin
 
-testPlaintext <= x"00102030011121310212223203132333";
+--testPlaintext <= x"00102030011121310212223203132333";
 testKey <= x"000102030405060708090a0b0c0d0e0f";
 
-aeaEnc : AEA port map (testPlaintext, testCiphertext, testKey, '1', EnEncI, EnEncO, Clock, Reset);
-aeaDec : AEA port map (testCiphertext, testDecCiphertext, testKey, '0', EnDecI, EnDecO, Clock, Reset);
+aeaEnc : PipelinedAEA port map (testPlaintext, testCiphertext, testKey, '1', EnEncI, EnEncO, Clock, Reset);
+aeaDec : PipelinedAEA port map (testCiphertext, testDecCiphertext, testKey, '0', EnDecI, EnDecO, Clock, Reset);
 
 EnDecI <= EnEncO;
-
-
 
 
 process begin
@@ -89,7 +87,13 @@ end process;
 -- Enable encryption once at the start, then disable it
 process begin
 EnEncI <= '0'; wait for 10ns; -- Wait until Reset is over
-EnEncI <= '1'; wait for 10ns;
+EnEncI <= '1'; 
+testPlaintext <= x"00102030011121310212223203132333";
+wait for 10ns;
+EnEncI <= '0'; wait for 110ns; -- Wait until Reset is over
+EnEncI <= '1'; 
+testPlaintext <= x"affedeadbeefdadcabbeadbeec0cabad";
+wait for 10ns;
 EnEncI <= '0'; wait;
 end process;
 
