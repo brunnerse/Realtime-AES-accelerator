@@ -52,7 +52,8 @@ entity ControlLogic is
     DIN : out std_logic_vector (KEY_SIZE-1 downto 0); -- TODO 32 oder 128 bit?
     DOUT : in std_logic_vector (KEY_SIZE-1 downto 0);
 -- Control to AES core
-    en : out std_logic;
+    enCoreOut : out std_logic;
+    enCoreIn : in std_logic;
     mode : out std_logic_vector (1 downto 0);
     chaining_mode : out std_logic_vector (2 downto 0)
   );
@@ -64,30 +65,49 @@ architecture Behavioral of ControlLogic is
 -- TODO Was mit SUSPRx anfangen?
 signal AES_SUSPRx  : std_logic_vector (31 downto 0);
 
+-- status signals TODO anything other than CCF needed?
+signal BUSY, WRERR, RDERR, CCF : std_logic;
+-- control signals
+signal DMAOUTEN, DMAINEN, ERRIE, CCFIE, ERRC, CCFC : std_logic;
+
 begin
 
-status <= AES_SR;
-AES_CR <= control;
-
+-- connect inputs with outputs
 DIN <= AES_DINR;
 AES_DOUTR <= DOUT;
-
 key <= AES_KEYRx;
 IV <= AES_IVRx;
 
 -- set AES control signals
-en <= AES_CR(0);
+enCoreOut <= AES_CR(0);
 mode <= AES_CR(4 downto 3);
 chaining_mode <= AES_CR(16) & AES_CR(6 downto 5);
+DMAOUTEN <= AES_CR(12);
+DMAINEN <= AES_CR(11);
+ERRIE <= AES_CR(10);
+CCFIE <= AES_CR(9);
+ERRC <= AES_CR(8);
+CCFC <= AES_CR(7);
+
+-- set status signal
+AES_SR <= x"0000000" & BUSY & WRERR & RDERR & CCF;
+
+-- set unused status flags to 0 for now 
+BUSY <= '0';
+WRERR <= '0';
+RDERR <= '0';
 
 
--- TODO Process to clear AES_SR
-process (RESETn)
+-- driver process for CCF status signal
+process (RESETn, EnCoreIn, CCFC)
 begin
-if RESETn = '0' then
-    AES_SR <= x"00000000";
+if RESETn = '0' or CCFC = '1' then -- Clear flag when CCFC is set or reset is asserted
+    CCF <= '0';
+elsif EnCoreIn = '1' then
+    CCF <= '1';
 end if;
 end process;
+
 
 
 end Behavioral;

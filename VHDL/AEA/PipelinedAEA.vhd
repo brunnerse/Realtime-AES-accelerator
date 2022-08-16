@@ -33,6 +33,8 @@ entity PipelinedAEA is
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            encrypt : in STD_LOGIC;
+           -- for encrypt = 1, keyExpandFlag = 1 means just keyExpansion, for encrypt = 0, keyExpandFlag=0 means no KeyExpansion
+           keyExpandFlag : in STD_LOGIC; 
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
@@ -104,11 +106,13 @@ roundAEA9 : AEA_Round port map(dInRound9, dOutRound9, roundKeys(9), encrypt, '0'
 roundAEA10 : AEA_Round port map(dInRound10, dOutRound10, roundKeys(10), encrypt, '1', EnIRound10, EnORound10, Clock=>Clock, Reset=>Reset);
 
 
--- connect KeyExpansion so it runs parallel to the rounds when the enable signal comes in
--- TODO only rerun it when the key changes?
-EnIKeyExp <= EnI;
-    -- '0' when key = roundKeys(0) else
-    --   EnI;
+-- connect KeyExpansion so it runs when the enable signal comes in
+-- for encryption, it runs parallel to it, for decryption, it runs before it (or doesnt run for keyExpandFlag=0)
+-- Key Expansion does not run for encrypt=0 and keyExpandFlag=0
+-- TODO can it run anyway? The expanded keys shouldn't change
+EnIKeyExp <= EnI when encrypt='1' or keyExpandFlag = '1' else 
+            '0';
+
 
 -- connect data signals
 dInPreARK <= dIn when encrypt = '1'            else dOutRound1;
@@ -126,7 +130,11 @@ dOut <= dOutRound10 when encrypt = '1'         else dOutPreARK;
 
 
 -- connect enable signals
-EnIPreARK <= EnI when encrypt = '1'           else EnORound1;
+EnIPreARK <= '0' when encrypt = '1' and keyExpandFlag = '0' else -- KeyExpansion mode
+            EnI when encrypt = '1' -- Encryption mode
+           else EnORound1; -- Decryption mode
+
+
 EnIRound1 <= EnOPreARK when encrypt = '1'     else EnORound2;
 EnIRound2 <= EnORound1 when encrypt = '1'     else EnORound3;
 EnIRound3 <= EnORound2 when encrypt = '1'     else EnORound4;
@@ -136,8 +144,14 @@ EnIRound6 <= EnORound5 when encrypt = '1'     else EnORound7;
 EnIRound7 <= EnORound6 when encrypt = '1'     else EnORound8;
 EnIRound8 <= EnORound7 when encrypt = '1'     else EnORound9;
 EnIRound9 <= EnORound8 when encrypt = '1'     else EnORound10;
-EnIRound10 <= EnORound9 when encrypt = '1'    else EnOKeyExp;  -- for decryption, wait until all keys have been calculated
-EnO <= EnORound10 when encrypt = '1'          else EnOPreARK;
+EnIRound10 <= EnORound9 when encrypt = '1'    else 
+              EnOKeyExp when keyExpandFlag = '1' else -- in decryption+keyexpansion mode, wait until all keys have been calculated
+              EnI; -- in decryption mode, start immediately  
+              
+
+EnO <= EnORound10 when encrypt = '1' and keyExpandFlag = '1' else -- encryption
+       EnOPreARK when encrypt = '0'  else  -- decryption
+       EnOKeyExp ; -- encrypt=1, keyExpandFlag=1, so only keyExpansion
 
 
 

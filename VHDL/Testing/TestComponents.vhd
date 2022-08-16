@@ -43,20 +43,26 @@ component PipelinedAEA is
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            encrypt : in STD_LOGIC;
+           keyExpandFlag : in STD_LOGIC; 
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
            Reset : in STD_LOGIC);
 end component;
 
-component MixColumns is
-    Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+component AES_Core is
+    Port ( Key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           encrypt : in STD_LOGIC;
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
+           --SaveRestore : inout std_logic;
+           EnI : in std_logic;
+           EnO : out std_logic;
+           mode : in std_logic_vector (1 downto 0);
+           chaining_mode : in std_logic_vector (2 downto 0);
+           Clock : in std_logic;
+           Reset : in std_logic
+           );
 end component;
 
 signal Clock, Reset : std_logic;
@@ -64,13 +70,16 @@ signal Clock, Reset : std_logic;
 signal testPlaintext, testKey, testCiphertext, testDecCiphertext : std_logic_vector(KEY_SIZE-1 downto 0);
 signal EnEncI, EnEncO, EnDecI, EnDecO : std_logic;
 
+signal keyExpandFlag : std_logic;
+
 begin
+
 
 --testPlaintext <= x"00102030011121310212223203132333";
 testKey <= x"000102030405060708090a0b0c0d0e0f";
 
-aeaEnc : PipelinedAEA port map (testPlaintext, testCiphertext, testKey, '1', EnEncI, EnEncO, Clock, Reset);
-aeaDec : PipelinedAEA port map (testCiphertext, testDecCiphertext, testKey, '0', EnDecI, EnDecO, Clock, Reset);
+aeaEnc : PipelinedAEA port map (testPlaintext, testCiphertext, testKey, '1', keyExpandFlag, EnEncI, EnEncO, Clock, Reset);
+aeaDec : PipelinedAEA port map (testCiphertext, testDecCiphertext, testKey, '0', keyExpandFlag, EnDecI, EnDecO, Clock, Reset);
 
 EnDecI <= EnEncO;
 
@@ -82,6 +91,11 @@ end process;
 process begin
 Reset <= '0'; wait for 10ns;
 Reset <= '1'; wait;
+end process;
+
+process begin
+keyExpandFlag <= '1';
+wait;
 end process;
 
 -- Enable encryption once at the start, then disable it

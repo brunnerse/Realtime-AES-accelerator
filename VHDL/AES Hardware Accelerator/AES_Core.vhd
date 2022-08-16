@@ -86,13 +86,15 @@ type state_type is (Idle, Busy);
 signal state : state_type;
 
 signal dInAEA, dOutAEA, keyAEA : std_logic_vector(KEY_SIZE-1 downto 0);
-signal encryptAEA, EnIAEA, EnOAEA : std_logic;
+signal encryptAEA, EnIAEA, EnOAEA, keyExpandFlagAEA : std_logic;
 
 begin
 
 -- TODO signal KeyExpansionOnly?
-algorithm : PipelinedAEA port map (dInaEA, dOutAEA, keyAEA, encryptAEA, EnIAEA, EnOAEA, Clock, Reset);
+algorithm : PipelinedAEA port map (dInaEA, dOutAEA, keyAEA, encryptAEA, keyExpandFlagAEA, EnIAEA, EnOAEA, Clock, Reset);
 
+
+EnO <= EnOAEA;
 
 process (Clock, Reset)
 begin
@@ -100,22 +102,25 @@ if Reset = '0' then
     dout <= (others => '0');
     state <= Idle;
     EnIAEA <= '0';
-    EnO <= '0';
 elsif rising_edge(Clock) then
     case state is
         when Idle =>
             -- Start calculation on EnI = '1'
             if EnI = '1' then
                 case mode is
+                    -- TODO encryptAEA und keyExpandFlagAEA entsprechen genau not mode(1) und mode(0)  -> vereinfachen
                     when MODE_ENCRYPTION =>
                         encryptAEA <= '1';
-                        
+                        keyExpandFlagAEA <= '0';
                     when MODE_KEYEXPANSION =>
-                        
+                        encryptAEA <= '1';
+                        keyExpandFlagAEA <= '1';
                     when MODE_DECRYPTION =>
                         encryptAEA <= '0';
+                        keyExpandFlagAEA <= '0';
                     when MODE_KEYEXPANSION_AND_DECRYPT =>
                         encryptAEA <= '0';
+                        keyExpandFlagAEA <= '1';
                 end case;
                 case chaining_mode is
                     when CHAINING_MODE_ECB =>
@@ -129,9 +134,16 @@ elsif rising_edge(Clock) then
                     when others =>
                         -- error state? As other modes are not implemented
                 end case;
+                
+                EnIAEA <= '1';
+                state <= Busy;
             end if;
         when Busy =>
-            -- TODO wait for AEA to finish, then set control bit
+            EnIAEA <= '0';
+            if EnOAEA <= '1' then
+                state <= Idle;
+               -- TODO set EnO = 1 
+            end if;
     end case;
 end if;
 end process;
