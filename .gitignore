@@ -7,6 +7,7 @@
 *.xci
 *.ui
 */bd/*
+*.bak
 bd/
 __pycache__
 

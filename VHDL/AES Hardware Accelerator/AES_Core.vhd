@@ -59,6 +59,7 @@ component PipelinedAEA is
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            encrypt : in STD_LOGIC;
+	   keyExpandFlag : in STD_LOGIC;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
@@ -121,6 +122,7 @@ elsif rising_edge(Clock) then
                     when MODE_KEYEXPANSION_AND_DECRYPT =>
                         encryptAEA <= '0';
                         keyExpandFlagAEA <= '1';
+		    when others =>
                 end case;
                 case chaining_mode is
                     when CHAINING_MODE_ECB =>

@@ -89,7 +89,9 @@ Clock <= '0'; wait for 5ns;
 Clock <= '1'; wait for 5ns;
 end process;
 process begin
+report "Starting";
 Resetn <= '0'; wait for 10ns;
+report "Deactivating reset...";
 Resetn <= '1'; wait;
 end process;
 

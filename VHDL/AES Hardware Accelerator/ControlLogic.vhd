@@ -73,8 +73,8 @@ signal DMAOUTEN, DMAINEN, ERRIE, CCFIE, ERRC, CCFC : std_logic;
 begin
 
 -- connect inputs with outputs
-DIN <= AES_DINR;
-AES_DOUTR <= DOUT;
+DIN <= AES_DINR & x"000000000000000000000000"; -- TODO DIn is written by four consecutive writes to DINR
+AES_DOUTR <= (others => '0'); -- TODO Dout is written by four consecutive reads to DOUT
 key <= AES_KEYRx;
 IV <= AES_IVRx;
 
