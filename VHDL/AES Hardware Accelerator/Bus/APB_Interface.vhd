@@ -72,7 +72,6 @@ begin
 process (pclk, presetn)
 begin
 if presetn = '0' then 
-    -- reset
     control <= '0';
 elsif rising_edge(pclk) then
     control <= '1';

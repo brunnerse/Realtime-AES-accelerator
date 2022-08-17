@@ -38,7 +38,7 @@ entity AEA_Round is
            EnO : out STD_LOGIC;
            IsLastCycle : out STD_LOGIC;
            Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
+           Resetn : in STD_LOGIC);
 end AEA_Round;
 
 architecture Behavioral of AEA_Round is
@@ -50,7 +50,7 @@ component SubBytes is
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
+           Resetn : in STD_LOGIC);
 end component;
 
 component ShiftRows is
@@ -60,7 +60,7 @@ component ShiftRows is
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
+           Resetn : in STD_LOGIC);
 end component;
 
 component AddRoundKey is
@@ -70,7 +70,7 @@ component AddRoundKey is
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
+           Resetn : in STD_LOGIC);
 end component;
 
 component MixColumns is
@@ -80,7 +80,7 @@ component MixColumns is
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
+           Resetn : in STD_LOGIC);
 end component;
 
 
@@ -91,10 +91,10 @@ signal EnOARK, EnOMC, EnOSB, EnOSR : std_logic;
 
 begin
 
-roundSB : SubBytes port map(dInSB, dOutSB, encrypt, EnISB, EnOSB, Clock, Reset);
-roundSR : ShiftRows port map(dInSR, dOutSR, encrypt, EnISR, EnOSR, Clock, Reset); 
-roundMC : MixColumns port map(dInMC, dOutMC, encrypt, EnIMC, EnOMC, Clock, Reset); 
-roundARK : AddRoundKey port map(dInARK, dOutARK, key, EnIARK, EnOARK, Clock, Reset);
+roundSB : SubBytes port map(dInSB, dOutSB, encrypt, EnISB, EnOSB, Clock, Resetn);
+roundSR : ShiftRows port map(dInSR, dOutSR, encrypt, EnISR, EnOSR, Clock, Resetn); 
+roundMC : MixColumns port map(dInMC, dOutMC, encrypt, EnIMC, EnOMC, Clock, Resetn); 
+roundARK : AddRoundKey port map(dInARK, dOutARK, key, EnIARK, EnOARK, Clock, Resetn);
 
 -- Define data between the components; for decryption, the order is reversed
 -- Left side is encryption, right side is decryption

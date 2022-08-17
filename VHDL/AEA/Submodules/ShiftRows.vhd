@@ -39,7 +39,7 @@ entity ShiftRows is
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
+           Resetn : in STD_LOGIC);
 end ShiftRows;
 
 architecture Behavioral of ShiftRows is
@@ -63,9 +63,9 @@ begin
 dinToTable: VectorToTable port map(dIn, tableIn);
 tableToDout : TableToVector port map(tableOut, dOut);
 
-process (Clock, Reset)
+process (Clock, Resetn)
 begin
-if Reset = '0' then
+if Resetn = '0' then
     EnO <= '0';
 elsif rising_edge(Clock) then
     EnO <= EnI;

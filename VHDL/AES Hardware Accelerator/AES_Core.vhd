@@ -39,7 +39,7 @@ entity AES_Core is
            mode : in std_logic_vector (1 downto 0);
            chaining_mode : in std_logic_vector (2 downto 0);
            Clock : in std_logic;
-           Reset : in std_logic
+           Resetn : in std_logic
            );
 end AES_Core;
 
@@ -51,7 +51,7 @@ component KeyExpansion is
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
+           Resetn : in STD_LOGIC);
 end component;
 
 component PipelinedAEA is
@@ -62,7 +62,7 @@ component PipelinedAEA is
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
+           Resetn : in STD_LOGIC);
 end component;
 
 
@@ -91,14 +91,14 @@ signal encryptAEA, EnIAEA, EnOAEA, keyExpandFlagAEA : std_logic;
 begin
 
 -- TODO signal KeyExpansionOnly?
-algorithm : PipelinedAEA port map (dInaEA, dOutAEA, keyAEA, encryptAEA, keyExpandFlagAEA, EnIAEA, EnOAEA, Clock, Reset);
+algorithm : PipelinedAEA port map (dInaEA, dOutAEA, keyAEA, encryptAEA, keyExpandFlagAEA, EnIAEA, EnOAEA, Clock, Resetn);
 
 
 EnO <= EnOAEA;
 
-process (Clock, Reset)
+process (Clock, Resetn)
 begin
-if Reset = '0' then
+if Resetn = '0' then
     dout <= (others => '0');
     state <= Idle;
     EnIAEA <= '0';

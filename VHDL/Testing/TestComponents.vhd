@@ -47,7 +47,7 @@ component PipelinedAEA is
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
+           Resetn : in STD_LOGIC);
 end component;
 
 component AES_Core is
@@ -61,11 +61,11 @@ component AES_Core is
            mode : in std_logic_vector (1 downto 0);
            chaining_mode : in std_logic_vector (2 downto 0);
            Clock : in std_logic;
-           Reset : in std_logic
+           Resetn : in std_logic
            );
 end component;
 
-signal Clock, Reset : std_logic;
+signal Clock, Resetn : std_logic;
 
 signal testPlaintext, testKey, testCiphertext, testDecCiphertext : std_logic_vector(KEY_SIZE-1 downto 0);
 signal EnEncI, EnEncO, EnDecI, EnDecO : std_logic;
@@ -78,8 +78,8 @@ begin
 --testPlaintext <= x"00102030011121310212223203132333";
 testKey <= x"000102030405060708090a0b0c0d0e0f";
 
-aeaEnc : PipelinedAEA port map (testPlaintext, testCiphertext, testKey, '1', keyExpandFlag, EnEncI, EnEncO, Clock, Reset);
-aeaDec : PipelinedAEA port map (testCiphertext, testDecCiphertext, testKey, '0', keyExpandFlag, EnDecI, EnDecO, Clock, Reset);
+aeaEnc : PipelinedAEA port map (testPlaintext, testCiphertext, testKey, '1', keyExpandFlag, EnEncI, EnEncO, Clock, Resetn);
+aeaDec : PipelinedAEA port map (testCiphertext, testDecCiphertext, testKey, '0', keyExpandFlag, EnDecI, EnDecO, Clock, Resetn);
 
 EnDecI <= EnEncO;
 
@@ -89,8 +89,8 @@ Clock <= '0'; wait for 5ns;
 Clock <= '1'; wait for 5ns;
 end process;
 process begin
-Reset <= '0'; wait for 10ns;
-Reset <= '1'; wait;
+Resetn <= '0'; wait for 10ns;
+Resetn <= '1'; wait;
 end process;
 
 process begin
@@ -100,11 +100,11 @@ end process;
 
 -- Enable encryption once at the start, then disable it
 process begin
-EnEncI <= '0'; wait for 10ns; -- Wait until Reset is over
+EnEncI <= '0'; wait for 10ns; -- Wait until Resetn is over
 EnEncI <= '1'; 
 testPlaintext <= x"00102030011121310212223203132333";
 wait for 10ns;
-EnEncI <= '0'; wait for 110ns; -- Wait until Reset is over
+EnEncI <= '0'; wait for 110ns; -- Wait until Resetn is over
 EnEncI <= '1'; 
 testPlaintext <= x"affedeadbeefdadcabbeadbeec0cabad";
 wait for 10ns;

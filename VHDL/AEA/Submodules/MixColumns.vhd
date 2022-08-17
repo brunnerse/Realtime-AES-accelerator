@@ -35,7 +35,7 @@ entity MixColumns is
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
+           Resetn : in STD_LOGIC);
 end MixColumns;
 
 architecture Behavioral of MixColumns is
@@ -102,7 +102,7 @@ dinToTable:   VectorToTable port map(dIn, tableIn);
 tableToDout : TableToVector port map(tableOut, dOut);
 
 
-process (Clock, Reset)
+process (Clock, Resetn)
 
 variable times2, times3, a3 : std_logic_vector(7 downto 0);
 variable temp1, temp2, temp3, temp4 : std_logic_vector(7 downto 0);
@@ -110,7 +110,7 @@ variable extendedCol : std_logic_vector(55 downto 0);
 variable extColLine : integer;
 
 begin
-if Reset = '0' then
+if Resetn = '0' then
     EnO <= '0';
 elsif rising_edge(Clock) then
     EnO <= EnI;

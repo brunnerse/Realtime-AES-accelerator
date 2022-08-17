@@ -35,16 +35,16 @@ entity SubBytes is
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
+           Resetn : in STD_LOGIC);
 end SubBytes;
 
 architecture Behavioral of SubBytes is
 	  
 begin
 
-process (Clock, Reset)
+process (Clock, Resetn)
 begin
-if Reset = '0' then
+if Resetn = '0' then
     dout <= (others => '0');
     EnO <= '0';
 elsif rising_edge(Clock) then

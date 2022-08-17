@@ -39,16 +39,16 @@ entity AddRoundKey is
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
+           Resetn : in STD_LOGIC);
 end AddRoundKey;
 
 architecture Behavioral of AddRoundKey is
 
 begin
 
-process (Clock, Reset)
+process (Clock, Resetn)
 begin
-if Reset = '0' then
+if Resetn = '0' then
     dOut <= (others => '0');
     EnO <= '0';
 elsif rising_edge(Clock) then

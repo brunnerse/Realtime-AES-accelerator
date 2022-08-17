@@ -35,7 +35,7 @@ entity KeyExpansion is
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
+           Resetn : in STD_LOGIC);
 end KeyExpansion;
 
 
@@ -51,13 +51,13 @@ begin
 roundKeys <= keys;
 
 
-process (Clock, Reset)
+process (Clock, Resetn)
 
 variable lastKey : STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
 variable word_1, word : STD_LOGIC_VECTOR(31 downto 0);
 
 begin
-if Reset = '0' then
+if Resetn = '0' then
     EnO <= '0';
     keyIndex <= x"0";
     for i in NUM_ROUNDS downto 0 loop

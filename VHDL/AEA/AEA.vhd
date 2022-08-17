@@ -33,7 +33,7 @@ entity AEA is
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
+           Resetn : in STD_LOGIC);
 end AEA;
 
 architecture Behavioral of AEA is
@@ -45,7 +45,7 @@ component AddRoundKey is
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
+           Resetn : in STD_LOGIC);
 end component;
 
 component AEA_Round is
@@ -58,7 +58,7 @@ component AEA_Round is
            EnO : out STD_LOGIC;
            IsLastCycle : out STD_LOGIC;
            Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
+           Resetn : in STD_LOGIC);
 end component;
 
 component KeyExpansion is
@@ -67,7 +67,7 @@ component KeyExpansion is
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
-           Reset : in STD_LOGIC);
+           Resetn : in STD_LOGIC);
 end component;
 
 function mulGFby2(val : std_logic_vector(7 downto 0)) return std_logic_vector is
@@ -132,11 +132,11 @@ signal Rcon : std_logic_vector(7 downto 0);
 begin
 
 
-preARK : AddRoundKey port map(dInPreARK, dOutPreARK, key, EnIPreARK, EnOPreARK, Clock, Reset);
-roundAEA : AEA_Round port map(dInRound, dOutRound, roundKey, encrypt, isLastRound, EnIRound, EnORound, roundIsLastCycle, Clock, Reset);
-keyExp : KeyExpansion port map(key, roundKeys, EnIKeyExp, EnOKeyExp, Clock, Reset); 
+preARK : AddRoundKey port map(dInPreARK, dOutPreARK, key, EnIPreARK, EnOPreARK, Clock, Resetn);
+roundAEA : AEA_Round port map(dInRound, dOutRound, roundKey, encrypt, isLastRound, EnIRound, EnORound, roundIsLastCycle, Clock, Resetn);
+keyExp : KeyExpansion port map(key, roundKeys, EnIKeyExp, EnOKeyExp, Clock, Resetn); 
 
--- TODO KeyExpansion für encrypt='1' überspringen
+-- TODO KeyExpansion fï¿½r encrypt='1' ï¿½berspringen
 -- connect data signals of the components
 dInPreARK <= dIn when encrypt = '1' else dOutRound;
 dInRound <= dOutPreARK when encrypt = '1' and unsigned(currentRound) <= to_unsigned(1, 4) else
@@ -161,9 +161,9 @@ EnO <= '0' when state /= Idle else
 roundKey <= encryptKey when encrypt = '1' else
             roundKeys(to_integer(unsigned(currentRound)));
 
-process (Clock, Reset)
+process (Clock, Resetn)
 begin
-if Reset = '0' then
+if Resetn = '0' then
     isLastRound <= '0';
 elsif rising_edge(Clock) then
     case(state) is
@@ -223,7 +223,7 @@ elsif rising_edge(Clock) then
             -- wait until the last component gives its enable signal, then return to idle state
             if (encrypt = '1' and roundIsLastCycle = '1') or (encrypt = '0' and EnIPreARK = '1') then
                 state <= Idle;
-                --currentRound <= x"0"; currentRound wird in Idle zurückgesetzt, das sollte reichen
+                --currentRound <= x"0"; currentRound wird in Idle zurï¿½ckgesetzt, das sollte reichen
                 IsLastRound <= '0';
             end if;
         when others =>
