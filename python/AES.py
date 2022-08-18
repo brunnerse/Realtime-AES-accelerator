@@ -48,7 +48,7 @@ for cipherMode in [cipher, cipherCBC, cipherCTR]:
         print("Plain:\t", end="")
         printAsHex(d)
         print("Cipher:\t", end="")
-        printAsHex(cipherMode.encrypt(d))
+        printAsHex(cipherMode.encrypt(d))   
         print()
 
-# For other modes:  ciphertext, tag = cipher.encrypt_and_digest(data)
+# For GCM mode: In last cycle do  ciphertext, tag = cipher.encrypt_and_digest(data)

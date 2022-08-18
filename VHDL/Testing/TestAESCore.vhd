@@ -63,7 +63,7 @@ begin
 --testPlaintext <= x"00102030011121310212223203132333";
 testKey <= x"000102030405060708090a0b0c0d0e0f";
 
-mode <= MODE_ENCRYPTION;
+mode <= MODE_KEYEXPANSION_AND_DECRYPT;
 chaining_mode <= CHAINING_MODE_CTR;
 
 core: AES_Core port map (testKey, testIV, testPlaintext, testCiphertext, newIV, EnCoreI, EnCoreO, mode, chaining_mode, Clock, Resetn);

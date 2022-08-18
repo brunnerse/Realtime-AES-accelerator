@@ -68,9 +68,18 @@ component PipelinedAEA is
            Resetn : in STD_LOGIC);
 end component;
 
+
+function incrementIV(IV : std_logic_vector(KEY_SIZE-1 downto 0)) return std_logic_vector is
+begin
+    return IV(KEY_SIZE-1 downto 32) & std_logic_vector(unsigned(IV(31 downto 0)) + to_unsigned(1,32));
+end function;
+
+
 -- signal definitions
 signal dInAEA, dOutAEA, dInXOR1, dInXOR2, dOutXOR : std_logic_vector(KEY_SIZE-1 downto 0);
 signal encryptAEA, EnIAEA, EnOAEA, keyExpandFlagAEA, EnIXOR, EnOXOR : std_logic;
+
+
 
 begin
 
@@ -79,42 +88,47 @@ algorithm : PipelinedAEA port map (dInaEA, dOutAEA, Key, encryptAEA, keyExpandFl
 xorUnit : AddRoundKey port map(dInXOR1, dOutXOR, dInXOR2, EnIXOR, EnOXOR, Clock, Resetn);
 
 
+-- Set encrypt and keyExpandFlag signals according to the mode
+encryptAEA <= not mode(1) when chaining_mode /= CHAINING_MODE_CTR else
+            '1'; -- always encrypt in CTR mode
+keyExpandFlagAEA <= mode(0) when chaining_mode /= CHAINING_MODE_CTR else
+            '0'; -- never key expand in CTR mode
 
-encryptAEA <= not mode(1);
-keyExpandFlagAEA <= mode(0);
 
-with chaining_mode select
-    dInAEA <=   dOutXOR when CHAINING_MODE_CBC,
-                IV when CHAINING_MODE_CTR,
-                dIn when others; -- CHAINING_MODE_ECB
+dInAEA <=   dOutXOR when chaining_mode = CHAINING_MODE_CBC and encryptAEA = '1' else
+            IV when chaining_mode = CHAINING_MODE_CTR  else
+            dIn;
 
--- First Input into XOR is always plaintext in any mode
-dInXOR1 <= dIn;
+-- First Input into XOR is always plaintext, except for decryption in CBC mode
+dInXOR1 <= dIn when encryptAEA = '1' or chaining_mode /= CHAINING_MODE_CBC else
+           dOutAEA;
+            
 -- Second Input of XOR depends on the mode
 with chaining_mode select
     dInXOR2 <=  IV when CHAINING_MODE_CBC,
                 dOutAEA when others; -- CHAINING_MODE_CTR; as XOR isn't used for mode ECB, input doesnt matter then
             
-with chaining_mode select
-    dOut <=     dOutXOR when CHAINING_MODE_CTR,
-                dOutAEA when others; -- CHAINING_MODE_ECB | CHAINING_MODE_CBC
 
-with chaining_mode select
-    EnIAEA <=   EnOXOR when CHAINING_MODE_CBC,
-                EnI when others; -- CHAINING_MODE_ECB | CHAINING_MODE_CTR
+dOut <=     dOutXOR when chaining_mode = CHAINING_MODE_CTR or (chaining_mode = CHAINING_MODE_CBC and encryptAEA = '0') else
+            dOutAEA; 
+
+
+-- For CBC mode, during encryption the input of the AEA is the output of XOR, except in KeyExpansion mode
+EnIAEA <=   EnOXOR when chaining_mode = CHAINING_MODE_CBC and encryptAEA = '1' and mode /= MODE_KEYEXPANSION else
+            EnI;
           
-with chaining_mode select
-    EnIXOR <=   EnI when CHAINING_MODE_CBC,
-                EnOAEA when CHAINING_MODE_CTR,
-                '0' when others; -- CHAINING_MODE_ECB
+-- TODO this can be simplified by setting the EnIXOR signal anyway and just ignoring the output EnO. Should I do it?
+EnIXOR <=   EnI when chaining_mode = CHAINING_MODE_CBC and encryptAEA = '1' else
+            EnOAEA when (chaining_mode = CHAINING_MODE_CBC and encryptAEA = '0') or chaining_mode = CHAINING_MODE_CTR else
+            '0'; -- XOR unit is unused in other modes
             
-with chaining_mode select
-    EnO <=  EnOXOR when CHAINING_MODE_CTR,
-            EnOAEA when others; -- CHAINING_MODE_ECB | CHAINING_MODE_CBC
+
+EnO <=  EnOXOR when chaining_mode = CHAINING_MODE_CTR or (chaining_mode = CHAINING_MODE_CBC and encryptAEA = '0') else
+        EnOAEA; -- CHAINING_MODE_ECB | CHAINING_MODE_CBC
  
 -- update IV
-with chaining_mode select
-    newIV <= IV(KEY_SIZE-1 downto 32) & std_logic_vector(unsigned(IV(31 downto 0)) + to_unsigned(1,32)) when CHAINING_MODE_CTR,
-             dOutAEA when others; -- CHAINING_MODE_CBC; ECB doesn't matter as the IV isn't used for that mode
+newIV <= incrementIV(IV) when chaining_mode =  CHAINING_MODE_CTR else
+         dIn when chaining_mode = CHAINING_MODE_CBC and encryptAEA = '0' else -- for decryption in CBC mode
+         dOutAEA; -- for encryption in CBC Mode. For ECB it does not matter as the IV isn't used
 
 end Behavioral;

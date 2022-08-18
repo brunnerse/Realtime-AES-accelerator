@@ -24,8 +24,6 @@ constant CHAINING_MODE_ECB : std_logic_vector := "000";
 constant CHAINING_MODE_CBC : std_logic_vector := "001";
 constant CHAINING_MODE_CTR : std_logic_vector := "010";
 constant CHAINING_MODE_GCM : std_logic_vector := "011";
--- TODO GMAC?
-constant CHAINING_MODE_CCM : std_logic_vector := "100";
 
 
 end package;
