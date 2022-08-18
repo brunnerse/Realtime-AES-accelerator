@@ -80,7 +80,6 @@ signal roundKeys : ROUNDKEYARRAY;
 signal EnIKeyExp, EnOKeyExp : std_logic;
 -- signals for calculating the key on-the-fly TODO needed?
 signal encryptKey : std_logic_vector(KEY_SIZE-1 downto 0);
-signal Rcon : std_logic_vector(7 downto 0);
 
 -- connection signals
 signal dInPreARK, dInRound1, dInRound2, dInRound3, dInRound4, dInRound5 : std_logic_vector(KEY_SIZE-1 downto 0);
@@ -130,9 +129,9 @@ dOut <= dOutRound10 when encrypt = '1'         else dOutPreARK;
 
 
 -- connect enable signals
-EnIPreARK <= '0' when encrypt = '1' and keyExpandFlag = '0' else -- KeyExpansion mode
-            EnI when encrypt = '1' -- Encryption mode
-           else EnORound1; -- Decryption mode
+EnIPreARK <= '0' when encrypt = '1' and keyExpandFlag = '1' else -- KeyExpansion mode
+            EnI when encrypt = '1' else -- Encryption mode
+            EnORound1; -- Decryption mode
 
 
 EnIRound1 <= EnOPreARK when encrypt = '1'     else EnORound2;
@@ -149,9 +148,9 @@ EnIRound10 <= EnORound9 when encrypt = '1'    else
               EnI; -- in decryption mode, start immediately  
               
 
-EnO <= EnORound10 when encrypt = '1' and keyExpandFlag = '1' else -- encryption
+EnO <= EnORound10 when encrypt = '1' and keyExpandFlag = '0' else -- encryption mode
        EnOPreARK when encrypt = '0'  else  -- decryption
-       EnOKeyExp ; -- encrypt=1, keyExpandFlag=1, so only keyExpansion
+       EnOKeyExp ; -- KeyExpansion mode
 
 
 
