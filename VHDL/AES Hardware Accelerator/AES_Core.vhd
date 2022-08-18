@@ -33,6 +33,7 @@ entity AES_Core is
            IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           newIV : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            --SaveRestore : inout std_logic;
            EnI : in std_logic;
            EnO : out std_logic;
@@ -45,9 +46,10 @@ end AES_Core;
 
 architecture Behavioral of AES_Core is
 
-component KeyExpansion is
-    Port ( userKey : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           roundKeys : out ROUNDKEYARRAY;
+component AddRoundKey is
+    Port ( din : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           dout : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
@@ -66,89 +68,53 @@ component PipelinedAEA is
            Resetn : in STD_LOGIC);
 end component;
 
-
--- constant definitions
-constant MODE_ENCRYPTION : std_logic_vector := "00";
-constant MODE_KEYEXPANSION : std_logic_vector := "01";
-constant MODE_DECRYPTION : std_logic_vector := "10";
-constant MODE_KEYEXPANSION_AND_DECRYPT : std_logic_vector := "11";
-
-constant CHAINING_MODE_ECB : std_logic_vector := "000";
-constant CHAINING_MODE_CBC : std_logic_vector := "001";
-constant CHAINING_MODE_CTR : std_logic_vector := "010";
-constant CHAINING_MODE_GCM : std_logic_vector := "011";
--- TODO GMAC?
-constant CHAINING_MODE_CCM : std_logic_vector := "100";
-
 -- signal definitions
-
-type state_type is (Idle, Busy);
-
-signal state : state_type;
-
-signal dInAEA, dOutAEA, keyAEA : std_logic_vector(KEY_SIZE-1 downto 0);
-signal encryptAEA, EnIAEA, EnOAEA, keyExpandFlagAEA : std_logic;
+signal dInAEA, dOutAEA, dInXOR1, dInXOR2, dOutXOR : std_logic_vector(KEY_SIZE-1 downto 0);
+signal encryptAEA, EnIAEA, EnOAEA, keyExpandFlagAEA, EnIXOR, EnOXOR : std_logic;
 
 begin
 
--- TODO signal KeyExpansionOnly?
-algorithm : PipelinedAEA port map (dInaEA, dOutAEA, keyAEA, encryptAEA, keyExpandFlagAEA, EnIAEA, EnOAEA, Clock, Resetn);
+algorithm : PipelinedAEA port map (dInaEA, dOutAEA, Key, encryptAEA, keyExpandFlagAEA, EnIAEA, EnOAEA, Clock, Resetn);
+-- Use an AddRoundKey unit as XOR
+xorUnit : AddRoundKey port map(dInXOR1, dOutXOR, dInXOR2, EnIXOR, EnOXOR, Clock, Resetn);
 
 
-EnO <= EnOAEA;
 
-process (Clock, Resetn)
-begin
-if Resetn = '0' then
-    dout <= (others => '0');
-    state <= Idle;
-    EnIAEA <= '0';
-elsif rising_edge(Clock) then
-    case state is
-        when Idle =>
-            -- Start calculation on EnI = '1'
-            if EnI = '1' then
-                case mode is
-                    -- TODO encryptAEA und keyExpandFlagAEA entsprechen genau not mode(1) und mode(0)  -> vereinfachen
-                    when MODE_ENCRYPTION =>
-                        encryptAEA <= '1';
-                        keyExpandFlagAEA <= '0';
-                    when MODE_KEYEXPANSION =>
-                        encryptAEA <= '1';
-                        keyExpandFlagAEA <= '1';
-                    when MODE_DECRYPTION =>
-                        encryptAEA <= '0';
-                        keyExpandFlagAEA <= '0';
-                    when MODE_KEYEXPANSION_AND_DECRYPT =>
-                        encryptAEA <= '0';
-                        keyExpandFlagAEA <= '1';
-		    when others =>
-                end case;
-                case chaining_mode is
-                    when CHAINING_MODE_ECB =>
-                        -- No extra action needed
-                    when CHAINING_MODE_CBC =>
-                    
-                    when CHAINING_MODE_CTR =>
-                    
-                    when CHAINING_MODE_GCM =>
-                    
-                    when others =>
-                        -- error state? As other modes are not implemented
-                end case;
-                
-                EnIAEA <= '1';
-                state <= Busy;
-            end if;
-        when Busy =>
-            EnIAEA <= '0';
-            if EnOAEA <= '1' then
-                state <= Idle;
-               -- TODO set EnO = 1 
-            end if;
-    end case;
-end if;
-end process;
+encryptAEA <= not mode(1);
+keyExpandFlagAEA <= mode(0);
 
+with chaining_mode select
+    dInAEA <=   dOutXOR when CHAINING_MODE_CBC,
+                IV when CHAINING_MODE_CTR,
+                dIn when others; -- CHAINING_MODE_ECB
+
+-- First Input into XOR is always plaintext in any mode
+dInXOR1 <= dIn;
+-- Second Input of XOR depends on the mode
+with chaining_mode select
+    dInXOR2 <=  IV when CHAINING_MODE_CBC,
+                dOutAEA when others; -- CHAINING_MODE_CTR; as XOR isn't used for mode ECB, input doesnt matter then
+            
+with chaining_mode select
+    dOut <=     dOutXOR when CHAINING_MODE_CTR,
+                dOutAEA when others; -- CHAINING_MODE_ECB | CHAINING_MODE_CBC
+
+with chaining_mode select
+    EnIAEA <=   EnOXOR when CHAINING_MODE_CBC,
+                EnI when others; -- CHAINING_MODE_ECB | CHAINING_MODE_CTR
+          
+with chaining_mode select
+    EnIXOR <=   EnI when CHAINING_MODE_CBC,
+                EnOAEA when CHAINING_MODE_CTR,
+                '0' when others; -- CHAINING_MODE_ECB
+            
+with chaining_mode select
+    EnO <=  EnOXOR when CHAINING_MODE_CTR,
+            EnOAEA when others; -- CHAINING_MODE_ECB | CHAINING_MODE_CBC
+ 
+-- update IV
+with chaining_mode select
+    newIV <= IV(KEY_SIZE-1 downto 32) & std_logic_vector(unsigned(IV(31 downto 0)) + to_unsigned(1,32)) when CHAINING_MODE_CTR,
+             dOutAEA when others; -- CHAINING_MODE_CBC; ECB doesn't matter as the IV isn't used for that mode
 
 end Behavioral;
