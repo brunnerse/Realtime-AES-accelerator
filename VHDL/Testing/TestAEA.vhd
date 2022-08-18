@@ -4,7 +4,7 @@
 -- 
 -- Create Date: 03.08.2022 21:58:39
 -- Design Name: 
--- Module Name: TestComponents - Behavioral
+-- Module Name: TestAEA - Behavioral
 -- Project Name: 
 -- Target Devices: 
 -- Tool Versions: 
@@ -32,11 +32,11 @@ use IEEE.NUMERIC_STD.ALL;
 --library UNISIM;
 --use UNISIM.VComponents.all;
 
-entity TestComponents is
+entity TestAEA is
 --  Port ( );
-end TestComponents;
+end TestAEA;
 
-architecture Behavioral of TestComponents is
+architecture Behavioral of TestAEA is
 
 component PipelinedAEA is
     Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
@@ -70,7 +70,7 @@ signal Clock, Resetn : std_logic;
 signal testPlaintext, testKey, testCiphertext, testDecCiphertext : std_logic_vector(KEY_SIZE-1 downto 0);
 signal EnEncI, EnEncO, EnDecI, EnDecO : std_logic;
 
-signal keyExpandFlag : std_logic;
+signal keyExpandFlagEnc, keyExpandFlagDec : std_logic;
 
 begin
 
@@ -78,38 +78,44 @@ begin
 --testPlaintext <= x"00102030011121310212223203132333";
 testKey <= x"000102030405060708090a0b0c0d0e0f";
 
-aeaEnc : PipelinedAEA port map (testPlaintext, testCiphertext, testKey, '1', keyExpandFlag, EnEncI, EnEncO, Clock, Resetn);
-aeaDec : PipelinedAEA port map (testCiphertext, testDecCiphertext, testKey, '0', keyExpandFlag, EnDecI, EnDecO, Clock, Resetn);
+aeaEnc : PipelinedAEA port map (testPlaintext, testCiphertext, testKey, '1', keyExpandFlagEnc, EnEncI, EnEncO, Clock, Resetn);
+aeaDec : PipelinedAEA port map (testCiphertext, testDecCiphertext, testKey, '0', keyExpandFlagDec, EnDecI, EnDecO, Clock, Resetn);
 
-EnDecI <= EnEncO;
+EnDecI <= EnEncO when now >= 20ns else EnEncI;
 
 
 process begin
-Clock <= '0'; wait for 5ns;
-Clock <= '1'; wait for 5ns;
+Clock <= '1'; wait for 5 ns;
+Clock <= '0'; wait for 5 ns;
 end process;
 process begin
 report "Starting";
-Resetn <= '0'; wait for 10ns;
+Resetn <= '0'; wait for 10 ns;
 report "Deactivating reset...";
 Resetn <= '1'; wait;
 end process;
 
 process begin
-keyExpandFlag <= '1';
+keyExpandFlagEnc <= '0';
+wait for 10ns;
+keyExpandFlagDec <= '1';
+wait for 150 ns;
+keyExpandFlagDec <= '0';
+report "Time is " & time'image(now);
 wait;
 end process;
 
 -- Enable encryption once at the start, then disable it
 process begin
-EnEncI <= '0'; wait for 10ns; -- Wait until Resetn is over
+EnEncI <= '0'; wait for 10 ns; -- Wait until Resetn is over
 EnEncI <= '1'; 
 testPlaintext <= x"00102030011121310212223203132333";
-wait for 10ns;
-EnEncI <= '0'; wait for 110ns; -- Wait until Resetn is over
+wait for 10 ns;
+EnEncI <= '0'; wait for 110 ns; -- Wait until Resetn is over
+wait;
 EnEncI <= '1'; 
 testPlaintext <= x"affedeadbeefdadcabbeadbeec0cabad";
-wait for 10ns;
+wait for 10 ns;
 EnEncI <= '0'; wait;
 end process;
 
