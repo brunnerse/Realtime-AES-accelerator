@@ -78,8 +78,6 @@ end component;
 
 signal roundKeys : ROUNDKEYARRAY;
 signal EnIKeyExp, EnOKeyExp : std_logic;
--- signals for calculating the key on-the-fly TODO needed?
-signal encryptKey : std_logic_vector(KEY_SIZE-1 downto 0);
 
 -- connection signals
 signal dInPreARK, dInRound1, dInRound2, dInRound3, dInRound4, dInRound5 : std_logic_vector(KEY_SIZE-1 downto 0);

@@ -39,6 +39,7 @@ entity AES_Core is
            EnO : out std_logic;
            mode : in std_logic_vector (1 downto 0);
            chaining_mode : in std_logic_vector (2 downto 0);
+           GCMPhase : in std_logic_vector(1 downto 0);
            Clock : in std_logic;
            Resetn : in std_logic
            );
@@ -61,11 +62,52 @@ component PipelinedAEA is
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            encrypt : in STD_LOGIC;
-	   keyExpandFlag : in STD_LOGIC;
+	       keyExpandFlag : in STD_LOGIC;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
            Resetn : in STD_LOGIC);
+end component;
+
+component AES_Mode_ECBCBCCTR is
+    Port (
+           IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           newIV : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           EnI : in std_logic;
+           EnO : out std_logic;
+           encrypt : in std_logic;
+            -- signals to control the AEA unit
+           EnIAEA : out std_logic;
+           EnOAEA : in std_logic;
+           dInAEA : out std_logic_vector (KEY_SIZE-1 downto 0);
+           dOutAEA : in std_logic_vector (KEY_SIZE-1 downto 0);
+           mode : in std_logic_vector (1 downto 0);
+           chaining_mode : in std_logic_vector (2 downto 0);
+           Clock : in std_logic;
+           Resetn : in std_logic
+           );
+end component;
+
+component AES_Mode_GCM is
+    Port (
+           IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           newIV : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           EnI : in std_logic;
+           EnO : out std_logic;
+           encrypt : in std_logic;
+           GCMPhase : in std_logic_vector(1 downto 0);
+           -- signals to control the AEA unit
+           EnIAEA : out std_logic;
+           EnOAEA : in std_logic;
+           dInAEA : out std_logic_vector (KEY_SIZE-1 downto 0);
+           dOutAEA : in std_logic_vector (KEY_SIZE-1 downto 0);
+           Clock : in std_logic;
+           Resetn : in std_logic
+           );
 end component;
 
 
@@ -76,59 +118,99 @@ end function;
 
 
 -- signal definitions
-signal dInAEA, dOutAEA, dInXOR1, dInXOR2, dOutXOR : std_logic_vector(KEY_SIZE-1 downto 0);
-signal encryptAEA, EnIAEA, EnOAEA, keyExpandFlagAEA, EnIXOR, EnOXOR : std_logic;
+signal dInAEA, dOutAEA : std_logic_vector(KEY_SIZE-1 downto 0);
+signal encryptAEA, EnIAEA, EnOAEA, keyExpandFlagAEA : std_logic;
 
-
+-- signal to mode components
+signal EnIMNT, EnIGCM, EnOMNT, EnOGCM, EnIAEAMNT, EnIAEAGCM, EnOAEAMNT, EnOAEAGCM : std_logic;
+signal dOutMNT, dOutGCM, newIVMNT, newIVGCM, dInAEAMNT, dInAEAGCM : std_logic_vector(KEY_SIZE-1 downto 0);
 
 begin
 
 algorithm : PipelinedAEA port map (dInaEA, dOutAEA, Key, encryptAEA, keyExpandFlagAEA, EnIAEA, EnOAEA, Clock, Resetn);
--- Use an AddRoundKey unit as XOR
-xorUnit : AddRoundKey port map(dInXOR1, dOutXOR, dInXOR2, EnIXOR, EnOXOR, Clock, Resetn);
 
+modeNonTag : AES_Mode_ECBCBCCTR port map(IV, dIn, dOutMNT, newIVMNT, EnIMNT, EnOMNT, encryptAEA, 
+                                            EnIAEAMNT, EnOAEAMNT, dInAEAMNT, dOutAEA, mode, chaining_mode, Clock, Resetn); 
+modeGCM  : AES_Mode_GCM port map(IV, dIn, dOutGCM, newIVGCM, EnIGCM, EnOGCM, encryptAEA, GCMPhase,
+                                            EnIAEAGCM, EnOAEAGCM, dInAEAGCM, dOutAEA, Clock, Resetn); 
 
 -- Set encrypt and keyExpandFlag signals according to the mode
-encryptAEA <= not mode(1) when chaining_mode /= CHAINING_MODE_CTR else
-            '1'; -- always encrypt in CTR mode
-keyExpandFlagAEA <= mode(0) when chaining_mode /= CHAINING_MODE_CTR else
-            '0'; -- never key expand in CTR mode
+encryptAEA <= not mode(1) when chaining_mode = CHAINING_MODE_ECB or chaining_mode = CHAINING_MODE_CBC else
+            '1'; -- always encrypt in CTR or GCMmode
+keyExpandFlagAEA <= mode(0) when chaining_mode = CHAINING_MODE_ECB or chaining_mode = CHAINING_MODE_CBC else
+            '0'; -- never key expand in CTR or GCM mode
 
+-- TODO in mode KeyExpansion, don't activate the mode
+-- Process to start the selected mode
+process (EnI, Resetn)
+begin
+case chaining_mode is
+    -- Only activate the Mode unit that is currently selected
+    when CHAINING_MODE_GCM =>
+        EnIGCM <= EnI;
+    when others =>
+    --when CHAINING_MODE_ECB | CHAINING_MODE_CBC | CHAINING_MODE_CTR =>
+        EnIMNT <= EnI;
+end case;
+-- don't activate the units in keyexpansion mode
+if Resetn = '0' then
+    EnIMNT <= '0';
+    EnIGCM <= '0';
+end if;
+end process;
 
-dInAEA <=   dOutXOR when chaining_mode = CHAINING_MODE_CBC and encryptAEA = '1' else
-            IV when chaining_mode = CHAINING_MODE_CTR  else
-            dIn;
+-- process to forward the data from the Mode Unit to the AEA
+process (EnI, EnIAEAMNT, EnIAEAGCM, Resetn)
+begin
+case chaining_mode is
+    -- Only activate the Mode unit that is currently selected
+    when CHAINING_MODE_GCM =>
+        EnIAEA <= EnIAEAGCM;
+        dInAEA <= dInAEAGCM;
+    when others =>
+    --when CHAINING_MODE_ECB | CHAINING_MODE_CBC | CHAINING_MODE_CTR =>
+        EnIAEA <= EnIAEAMNT;
+        dInAEA <= dInAEAMNT;
+end case;
+if Resetn = '0' then
+    EnIAEA <= '0';
+end if;
+end process;
 
--- First Input into XOR is always plaintext, except for decryption in CBC mode
-dInXOR1 <= dIn when encryptAEA = '1' or chaining_mode /= CHAINING_MODE_CBC else
-           dOutAEA;
-            
--- Second Input of XOR depends on the mode
-with chaining_mode select
-    dInXOR2 <=  IV when CHAINING_MODE_CBC,
-                dOutAEA when others; -- CHAINING_MODE_CTR; as XOR isn't used for mode ECB, input doesnt matter then
-            
+-- process to activate the Mode Unit again after AEA finished
+process (EnOAEA)
+begin
+case chaining_mode is
+    -- Only activate the Mode unit that is currently selected
+    when CHAINING_MODE_GCM =>
+        EnOAEAGCM <= EnOAEA;
+    when others =>
+    --when CHAINING_MODE_ECB | CHAINING_MODE_CBC | CHAINING_MODE_CTR =>
+        EnOAEAMNT <= EnOAEA;
+end case;
+if Resetn = '0' then
+    EnOAEAGCM <= '0';
+    EnOAEAMNT <= '0';
+end if;
+end process;
 
-dOut <=     dOutXOR when chaining_mode = CHAINING_MODE_CTR or (chaining_mode = CHAINING_MODE_CBC and encryptAEA = '0') else
-            dOutAEA; 
-
-
--- For CBC mode, during encryption the input of the AEA is the output of XOR, except in KeyExpansion mode
-EnIAEA <=   EnOXOR when chaining_mode = CHAINING_MODE_CBC and encryptAEA = '1' and mode /= MODE_KEYEXPANSION else
-            EnI;
-          
--- TODO this can be simplified by setting the EnIXOR signal anyway and just ignoring the output EnO. Should I do it?
-EnIXOR <=   EnI when chaining_mode = CHAINING_MODE_CBC and encryptAEA = '1' else
-            EnOAEA when (chaining_mode = CHAINING_MODE_CBC and encryptAEA = '0') or chaining_mode = CHAINING_MODE_CTR else
-            '0'; -- XOR unit is unused in other modes
-            
-
-EnO <=  EnOXOR when chaining_mode = CHAINING_MODE_CTR or (chaining_mode = CHAINING_MODE_CBC and encryptAEA = '0') else
-        EnOAEA; -- CHAINING_MODE_ECB | CHAINING_MODE_CBC
- 
--- update IV
-newIV <= incrementIV(IV) when chaining_mode =  CHAINING_MODE_CTR else
-         dIn when chaining_mode = CHAINING_MODE_CBC and encryptAEA = '0' else -- for decryption in CBC mode
-         dOutAEA; -- for encryption in CBC Mode. For ECB it does not matter as the IV isn't used
+-- process to forward the final data from the Mode Unit to the outputs
+process (EnOMNT, EnOGCM, Resetn)
+begin
+case chaining_mode is
+    when CHAINING_MODE_GCM =>
+        dOut <= dOutGCM;
+        newIV <= newIVGCM;
+        EnO <= EnOGCM;
+    when CHAINING_MODE_ECB | CHAINING_MODE_CBC | CHAINING_MODE_CTR =>
+        dOut <= dOutMNT;
+        newIV <= newIVMNT;
+        EnO <= EnOMNT;
+    when others =>
+end case;
+if Resetn = '0' then
+    EnO <= '0';
+end if;
+end process;
 
 end Behavioral;

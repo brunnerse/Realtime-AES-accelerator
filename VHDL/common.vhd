@@ -18,12 +18,16 @@ type TABLE is array(0 to KEY_SIZE/32-1) of STD_LOGIC_VECTOR(31 downto 0);
 constant MODE_ENCRYPTION : std_logic_vector := "00";
 constant MODE_KEYEXPANSION : std_logic_vector := "01";
 constant MODE_DECRYPTION : std_logic_vector := "10";
-constant MODE_KEYEXPANSION_AND_DECRYPT : std_logic_vector := "11";
+constant MODE_KEYEXPANSION_AND_DECRYPTION : std_logic_vector := "11";
 
 constant CHAINING_MODE_ECB : std_logic_vector := "000";
 constant CHAINING_MODE_CBC : std_logic_vector := "001";
 constant CHAINING_MODE_CTR : std_logic_vector := "010";
 constant CHAINING_MODE_GCM : std_logic_vector := "011";
+
+-- AHB definitions
+constant DATA_WIDTH : integer := 32;
+constant ADDR_WIDTH : integer := 32;
 
 
 end package;
