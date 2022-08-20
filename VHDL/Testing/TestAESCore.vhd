@@ -35,11 +35,15 @@ end TestAESCore;
 architecture Behavioral of TestAESCore is
 
 component AES_Core is
-    Port ( Key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+      Port ( Key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           newIV : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           H  : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           newH  : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           Susp : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           newSusp : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           newIV : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            EnI : in std_logic;
            EnO : out std_logic;
            mode : in std_logic_vector (1 downto 0);
@@ -52,7 +56,7 @@ end component;
 
 signal Clock, Resetn : std_logic;
 
-signal testPlaintext, testIV, testKey, testCiphertext, testDecCiphertext, newIV : std_logic_vector(KEY_SIZE-1 downto 0);
+signal testPlaintext, testIV, testKey, testCiphertext, testDecCiphertext, newIV, Susp, H : std_logic_vector(KEY_SIZE-1 downto 0);
 signal EnCoreI, EnCoreO : std_logic;
 
 signal mode : std_logic_vector(1 downto 0);
@@ -67,7 +71,8 @@ testKey <= x"000102030405060708090a0b0c0d0e0f";
 mode <= MODE_ENCRYPTION;
 chaining_mode <= CHAINING_MODE_CBC;
 
-core: AES_Core port map (testKey, testIV, testPlaintext, testCiphertext, newIV, EnCoreI, EnCoreO, mode, chaining_mode, "00", Clock, Resetn);
+-- Set GCM signals H, Susp and GCMPhase to dummy values
+core: AES_Core port map (testKey, testIV, newIV, H, H, Susp, Susp, testPlaintext, testCiphertext, EnCoreI, EnCoreO, mode, chaining_mode, "00", Clock, Resetn);
 
 process begin
 Clock <= '1'; wait for 5 ns;
