@@ -119,12 +119,12 @@ dOut <= dOutXOR1;
 
 
 dIn1XOR2 <= Susp;
-dIn2XOR2 <= dOutXOR1 when GCMPhase = GCM_PHASE_PAYLOAD else
-            dIn; -- in final phase and header phase          
-with GCMPhase select
-EnIXOR2 <=  EnI when GCM_PHASE_HEADER | GCM_PHASE_FINAL,
-            EnOXOR1 when GCM_PHASE_PAYLOAD,
-            '0' when others; -- Do not use xorUnit2 in init phase
+dIn2XOR2 <= dOutXOR1 when GCMPhase = GCM_PHASE_PAYLOAD and encrypt = '1' else
+            dIn; -- in final phase and header phase and during payload decryption         
+EnIXOR2 <=  EnI when GCMPhase = GCM_PHASE_HEADER or GCMPhase =  GCM_PHASE_FINAL or
+                (GCMPhase = GCM_PHASE_PAYLOAD and encrypt = '0') else -- payload decryption
+            EnOXOR1 when GCMPhase = GCM_PHASE_PAYLOAD else -- payload encryption
+            '0'; -- Do not use xorUnit2 in init phase
  
  
 dInMul <= dOutXOR2;
@@ -136,11 +136,10 @@ dInAEA <=   IV when GCMPhase /= GCM_PHASE_INIT else
 EnIAEA <=   EnI when GCMPhase /= GCM_PHASE_HEADER else
             '0'; -- Do not use AEA unit in Header phase
 
-                  
-with GCMPhase select                  
-EnO <=  EnOAEA when GCM_PHASE_INIT,
-        EnOMul when GCM_PHASE_HEADER | GCM_PHASE_PAYLOAD,
-        EnOXOR1 when others;    
+-- in Header phase and during decryption, the last component to finish is the AEA                                
+EnO <=  EnOAEA when GCMPhase = GCM_PHASE_INIT or (GCMPhase = GCM_PHASE_PAYLOAD and encrypt = '0') else
+        EnOMul when GCMPhase = GCM_PHASE_HEADER or GCMPhase =  GCM_PHASE_PAYLOAD else
+        EnOXOR1; -- in the Final phase, the last component is xorUnit1   
 
 
 -- update IV in payload phase

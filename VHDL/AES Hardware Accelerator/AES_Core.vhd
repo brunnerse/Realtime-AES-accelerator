@@ -135,11 +135,11 @@ algorithm : PipelinedAEA port map (dInaEA, dOutAEA, Key, encryptAEA, keyExpandFl
 modeNonTag : AES_Mode_ECBCBCCTR port map(IV, dIn, dOutMNT, newIVMNT, EnIMNT, EnOMNT, encryptAEA, 
                                             EnIAEAMNT, EnOAEAMNT, dInAEAMNT, dOutAEA, mode, chaining_mode, Clock, Resetn); 
 modeGCM  : AES_Mode_GCM port map(IV, newIVGCM,  H, newH, Susp, newSusp, dIn, dOutGCM,
-EnIGCM, EnOGCM, encryptAEA, GCMPhase, EnIAEAGCM, EnOAEAGCM, dInAEAGCM, dOutAEA, Clock, Resetn); 
+EnIGCM, EnOGCM, not mode(1), GCMPhase, EnIAEAGCM, EnOAEAGCM, dInAEAGCM, dOutAEA, Clock, Resetn); 
 
 -- Set encrypt and keyExpandFlag signals according to the mode
 encryptAEA <= not mode(1) when chaining_mode = CHAINING_MODE_ECB or chaining_mode = CHAINING_MODE_CBC else
-            '1'; -- always encrypt in CTR or GCMmode
+            '1'; -- always set AEA unit to encryption in CTR or GCMmode
 keyExpandFlagAEA <= mode(0) when chaining_mode = CHAINING_MODE_ECB or chaining_mode = CHAINING_MODE_CBC else
             '0'; -- never key expand in CTR or GCM mode
 

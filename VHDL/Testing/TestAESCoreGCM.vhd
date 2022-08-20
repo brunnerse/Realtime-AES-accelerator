@@ -48,7 +48,7 @@ begin
 --testPlaintext <= x"00102030011121310212223203132333";
 testKey <= x"000102030405060708090a0b0c0d0e0f";
 
-mode <= MODE_ENCRYPTION;
+mode <= MODE_KEYEXPANSION_AND_DECRYPTION;
 chaining_mode <= CHAINING_MODE_GCM;
 
 
@@ -69,43 +69,54 @@ end process;
 process begin
 EnCoreI <= '0'; wait for 10 ns; -- Wait until Resetn is over
 EnCoreI <= '1'; 
-testPlaintext <= x"00102030011121310212223203132333";
 GCMPhase <= GCM_PHASE_INIT;
 wait for 10 ns;
 EnCoreI <= '0';
-wait until EnCoreO <= '1';
-wait until EnCoreO <= '0';
+wait until EnCoreO <= '1'; wait for 10ns;
 -- Enter header phase
 GCMPhase <= GCM_PHASE_HEADER;
+testPlaintext <= x"00102030011121310212223203132333";
 EnCoreI <= '1';
 wait for 10ns;
 EnCoreI <= '0';
-wait until EnCoreO <= '1';
-wait until EnCoreO <= '0';
--- skip payload phase
+wait until EnCoreO <= '1'; wait for 10ns;
+-- another header
+testPlaintext <= x"affedeadbeefdadcabbeadbeec0cabad";
+EnCoreI <= '1';
+wait for 10ns;
+EnCoreI <= '0';
+wait until EnCoreO <= '1'; wait for 10ns;
+-- Enter payload phase
+GCMPhase <= GCM_PHASE_PAYLOAD;
+EnCoreI <= '1';
+testIV <= x"f0e0d0c0b0a090807060504000000002";
+testPlaintext <= x"00102030011121310212223203132333";
+wait for 10ns;
+EnCoreI <= '0';
+wait until EnCoreO <= '1'; wait for 10ns;
+wait for 10ns;
+-- second payload block
+testIV <= newIV;
+EnCoreI <= '1';
+wait for 10ns;
+EnCoreI <= '0';
+wait until EnCoreO <= '1'; wait for 10ns;
+-- third payload block
+testPlaintext <= testKey;
+testIV <= newIV;
+EnCoreI <= '1';
+wait for 10ns;
+EnCoreI <= '0';
+wait until EnCoreO <= '1'; wait for 10ns;
 -- enter final phase
 GCMPhase <= GCM_PHASE_FINAL;
 -- gLen(header) & gLen(cipher), length in bits
-testPlaintext <= x"0000000000000080" & x"0000000000000000";
+testPlaintext <= x"0000000000000100" & x"0000000000000180";
+testIV <= x"f0e0d0c0b0a090807060504000000001";
 --testPlaintext <= (others => '0');
 EnCoreI <= '1';
 wait for 10ns;
 EnCoreI <= '0';
-wait;
-GCMPhase <= GCM_PHASE_PAYLOAD;
-EnCoreI <= '1';
-wait for 10ns;
-EnCoreI <= '0';
-wait for 1000 ns; -- Wait at least until key expansion is finished is over
-EnCoreI <= '1'; 
-testPlaintext <= testKey;
-wait for 10 ns;
-EnCoreI <= '0';
-wait for 1000 ns; -- Wait at least until key expansion is finished is over
-EnCoreI <= '1'; 
-testPlaintext <= x"affedeadbeefdadcabbeadbeec0cabad";
-wait for 10 ns;
-EnCoreI <= '0'; 
 wait;
 end process;
 
@@ -114,12 +125,10 @@ process (EnCoreO, Resetn)
 begin
 -- initialize IV
 if Resetn = '0' then
-    testIV <= x"f0e0d0c0b0a090807060504000000001";
     testSusp <= (others => '0');
  end if;
 -- update IV
 if EnCoreO = '1' and GCMPhase /= GCM_PHASE_INIT then
-    testIV <= newIV;
     testSusp <= newSusp;
 end if;
 end process;
