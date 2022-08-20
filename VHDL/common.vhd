@@ -25,6 +25,12 @@ constant CHAINING_MODE_CBC : std_logic_vector := "001";
 constant CHAINING_MODE_CTR : std_logic_vector := "010";
 constant CHAINING_MODE_GCM : std_logic_vector := "011";
 
+-- Galois Counter-Mode Phase definitions
+constant GCM_PHASE_INIT : std_logic_vector := "00";
+constant GCM_PHASE_HEADER : std_logic_vector := "01";
+constant GCM_PHASE_PAYLOAD : std_logic_vector := "10";
+constant GCM_PHASE_FINAL : std_logic_vector := "11";
+
 -- AHB definitions
 constant DATA_WIDTH : integer := 32;
 constant ADDR_WIDTH : integer := 32;

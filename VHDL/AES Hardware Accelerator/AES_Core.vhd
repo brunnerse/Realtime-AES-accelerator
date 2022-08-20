@@ -31,10 +31,13 @@ use IEEE.NUMERIC_STD.ALL;
 entity AES_Core is
     Port ( Key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           newIV : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           H  : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           newH  : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           Susp : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           newSusp : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           newIV : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           --SaveRestore : inout std_logic;
            EnI : in std_logic;
            EnO : out std_logic;
            mode : in std_logic_vector (1 downto 0);
@@ -93,9 +96,14 @@ end component;
 component AES_Mode_GCM is
     Port (
            IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           newIV : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           -- specific signals for GCM mode
+           H  : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           newH  : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           Susp : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0); -- for the first block, this signals MUST be 0
+           newSusp : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           newIV : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            EnI : in std_logic;
            EnO : out std_logic;
            encrypt : in std_logic;
@@ -110,11 +118,6 @@ component AES_Mode_GCM is
            );
 end component;
 
-
-function incrementIV(IV : std_logic_vector(KEY_SIZE-1 downto 0)) return std_logic_vector is
-begin
-    return IV(KEY_SIZE-1 downto 32) & std_logic_vector(unsigned(IV(31 downto 0)) + to_unsigned(1,32));
-end function;
 
 
 -- signal definitions
@@ -131,8 +134,8 @@ algorithm : PipelinedAEA port map (dInaEA, dOutAEA, Key, encryptAEA, keyExpandFl
 
 modeNonTag : AES_Mode_ECBCBCCTR port map(IV, dIn, dOutMNT, newIVMNT, EnIMNT, EnOMNT, encryptAEA, 
                                             EnIAEAMNT, EnOAEAMNT, dInAEAMNT, dOutAEA, mode, chaining_mode, Clock, Resetn); 
-modeGCM  : AES_Mode_GCM port map(IV, dIn, dOutGCM, newIVGCM, EnIGCM, EnOGCM, encryptAEA, GCMPhase,
-                                            EnIAEAGCM, EnOAEAGCM, dInAEAGCM, dOutAEA, Clock, Resetn); 
+modeGCM  : AES_Mode_GCM port map(IV, newIVGCM,  H, newH, Susp, newSusp, dIn, dOutGCM,
+EnIGCM, EnOGCM, encryptAEA, GCMPhase, EnIAEAGCM, EnOAEAGCM, dInAEAGCM, dOutAEA, Clock, Resetn); 
 
 -- Set encrypt and keyExpandFlag signals according to the mode
 encryptAEA <= not mode(1) when chaining_mode = CHAINING_MODE_ECB or chaining_mode = CHAINING_MODE_CBC else
