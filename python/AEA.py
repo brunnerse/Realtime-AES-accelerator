@@ -28,13 +28,13 @@ def mul3(x):
 
 def mulGF(poly1, poly2):
     result = 0
-    # multiple the polynomials
+    # multiply the polynomials
     for i in range(8):
         x = poly2 & (1 << i)
         if x != 0:
             result ^= poly1 << i
     # divide polynom by 0x11b (x^8 + x^4 + x^3 + x + 1)
-    for i in range(15, 7, -1):
+    for i in range(14, 7, -1):
         #print("Result: ", hex(result))
         #print (hex(0x11b << (i-8)))
         if result & (1 << i) != 0:

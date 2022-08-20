@@ -12,7 +12,6 @@ def printAsHex(byteArray):
         print(format(b, "02x"), end=" ")
     print()
 # define shorter function name
-hex = printAsHex
 
 key = bytes([0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f])
 
@@ -52,3 +51,49 @@ for cipherMode in [cipher, cipherCBC, cipherCTR]:
         print()
 
 # For GCM mode: In last cycle do  ciphertext, tag = cipher.encrypt_and_digest(data)
+
+
+# GCM MODE TESTING
+def gf2_mul(x, y):
+
+    res = 0
+    for i in range(127, -1, -1):
+        res ^= x * ((y >> i) & 1)  # branchless
+        x = (x >> 1) ^ ((x & 1) * 0xE1000000000000000000000000000000)
+    assert res < 1 << 128
+    return res
+
+
+def bytesToInt(b):
+    x = 0
+    for i in range(len(b)):
+        x |= b[i] << (len(b)-1-i)*8
+    return x
+def intToBytes(i):
+    l = []
+    while i > 0:
+        l.append(i & 0xff)
+        i >>= 8
+    return bytes(l[::-1])
+
+b = lambda x : format(x, "b")
+
+
+print("===\nGCM TESTS\n===")
+cipherGCM = AES.new(key, AES.MODE_GCM, nonce=IV[:12])
+print("Cipher blocks:")
+cipherGCM.update(data)
+cipherGCM.update(data3)
+printAsHex(cipherGCM.encrypt(data))
+printAsHex(cipherGCM.encrypt(data))
+printAsHex(cipherGCM.encrypt(data2))
+tag = cipherGCM.digest()
+
+H = cipher.encrypt(bytes(16))
+print("H: ")
+printAsHex(H)
+
+print("Tag:")
+printAsHex(tag)
+
+
