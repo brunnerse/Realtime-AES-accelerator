@@ -81,6 +81,7 @@ begin
     end if;
 end function;
 
+-- TODO Remove this and just run KeyExpansion parallel
 function calcNextKey(lastKey : std_logic_vector(127 downto 0); RCon : std_logic_vector(7 downto 0))
 return std_logic_vector is
     variable key : std_logic_vector (127 downto 0);
@@ -95,7 +96,7 @@ begin
         word_1((j+1)*8-1 downto j*8) := sbox_encrypt(to_integer(unsigned(word_1((j+1)*8-1 downto j*8))));
     end loop;
     -- xor with constant
-    word_1 := word_1 xor (Rcon & x"000000");  --TODO manually multiply Rcon by 2 before/after calling!
+    word_1 := word_1 xor (Rcon & x"000000");
     
     word := word_1 xor lastKey(127 downto 96);
     key(127 downto 96) := word;
@@ -136,7 +137,6 @@ preARK : AddRoundKey port map(dInPreARK, dOutPreARK, key, EnIPreARK, EnOPreARK, 
 roundAEA : AEA_Round port map(dInRound, dOutRound, roundKey, encrypt, isLastRound, EnIRound, EnORound, roundIsLastCycle, Clock, Resetn);
 keyExp : KeyExpansion port map(key, roundKeys, EnIKeyExp, EnOKeyExp, Clock, Resetn); 
 
--- TODO KeyExpansion f�r encrypt='1' �berspringen
 -- connect data signals of the components
 dInPreARK <= dIn when encrypt = '1' else dOutRound;
 dInRound <= dOutPreARK when encrypt = '1' and unsigned(currentRound) <= to_unsigned(1, 4) else

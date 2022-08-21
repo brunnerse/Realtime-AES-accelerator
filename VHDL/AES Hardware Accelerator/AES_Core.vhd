@@ -29,13 +29,18 @@ use IEEE.NUMERIC_STD.ALL;
 
 
 entity AES_Core is
+    generic (
+        ADDR_IV : integer;
+        ADDR_SUSP : integer;
+        ADDR_H  : integer
+        );
     Port ( Key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           newIV : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            H  : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           newH  : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            Susp : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           newSusp : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           WrEn   : out STD_LOGIC;
+           WrAddr : out STD_LOGIC_VECTOR(ADDR_WIDTH-1 downto 0);
+           WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
            dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            EnI : in std_logic;
@@ -73,11 +78,13 @@ component PipelinedAEA is
 end component;
 
 component AES_Mode_ECBCBCCTR is
+    generic (
+        ADDR_IV : integer
+        );
     Port (
            IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           newIV : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            EnI : in std_logic;
            EnO : out std_logic;
            encrypt : in std_logic;
@@ -86,6 +93,10 @@ component AES_Mode_ECBCBCCTR is
            EnOAEA : in std_logic;
            dInAEA : out std_logic_vector (KEY_SIZE-1 downto 0);
            dOutAEA : in std_logic_vector (KEY_SIZE-1 downto 0);
+           -- signals to write to register set
+           WrEn   : out STD_LOGIC;
+           WrAddr : out STD_LOGIC_VECTOR(ADDR_WIDTH-1 downto 0);
+           WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
            mode : in std_logic_vector (1 downto 0);
            chaining_mode : in std_logic_vector (2 downto 0);
            Clock : in std_logic;
@@ -94,14 +105,16 @@ component AES_Mode_ECBCBCCTR is
 end component;
 
 component AES_Mode_GCM is
+    generic (
+        ADDR_IV : integer;
+        ADDR_SUSP : integer;
+        ADDR_H  : integer
+        );
     Port (
            IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           newIV : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            -- specific signals for GCM mode
            H  : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           newH  : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            Susp : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0); -- for the first block, this signals MUST be 0
-           newSusp : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            EnI : in std_logic;
@@ -113,6 +126,10 @@ component AES_Mode_GCM is
            EnOAEA : in std_logic;
            dInAEA : out std_logic_vector (KEY_SIZE-1 downto 0);
            dOutAEA : in std_logic_vector (KEY_SIZE-1 downto 0);
+           -- signals to write to register set
+           WrEn   : out STD_LOGIC;
+           WrAddr : out STD_LOGIC_VECTOR(ADDR_WIDTH-1 downto 0);
+           WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
            Clock : in std_logic;
            Resetn : in std_logic
            );
@@ -125,17 +142,24 @@ signal dInAEA, dOutAEA : std_logic_vector(KEY_SIZE-1 downto 0);
 signal encryptAEA, EnIAEA, EnOAEA, keyExpandFlagAEA : std_logic;
 
 -- signal to mode components
-signal EnIMNT, EnIGCM, EnOMNT, EnOGCM, EnIAEAMNT, EnIAEAGCM, EnOAEAMNT, EnOAEAGCM : std_logic;
-signal dOutMNT, dOutGCM, newIVMNT, newIVGCM, dInAEAMNT, dInAEAGCM : std_logic_vector(KEY_SIZE-1 downto 0);
-
+signal EnIMNT, EnIGCM, EnOMNT, EnOGCM, EnIAEAMNT, EnIAEAGCM, EnOAEAMNT, EnOAEAGCM, WrEnMNT, WrEnGCM : std_logic;
+signal dOutMNT, dOutGCM, newIVGCM, dInAEAMNT, dInAEAGCM, WrDataMNT, WrDataGCM : std_logic_vector(KEY_SIZE-1 downto 0);
+signal WrAddrMNT, WrAddrGCM : std_logic_vector(ADDR_WIDTH-1 downto 0);
 begin
 
 algorithm : PipelinedAEA port map (dInaEA, dOutAEA, Key, encryptAEA, keyExpandFlagAEA, EnIAEA, EnOAEA, Clock, Resetn);
 
-modeNonTag : AES_Mode_ECBCBCCTR port map(IV, dIn, dOutMNT, newIVMNT, EnIMNT, EnOMNT, encryptAEA, 
-                                            EnIAEAMNT, EnOAEAMNT, dInAEAMNT, dOutAEA, mode, chaining_mode, Clock, Resetn); 
-modeGCM  : AES_Mode_GCM port map(IV, newIVGCM,  H, newH, Susp, newSusp, dIn, dOutGCM,
-EnIGCM, EnOGCM, not mode(1), GCMPhase, EnIAEAGCM, EnOAEAGCM, dInAEAGCM, dOutAEA, Clock, Resetn); 
+modeNonTag : AES_Mode_ECBCBCCTR 
+            generic map(ADDR_IV)
+            port map(IV, dIn, dOutMNT, EnIMNT, EnOMNT, encryptAEA, 
+                     EnIAEAMNT, EnOAEAMNT, dInAEAMNT, dOutAEA, 
+                     WrEnMNT, WrAddrMNT, WrDataMNT, mode, chaining_mode, Clock, Resetn); 
+modeGCM  : AES_Mode_GCM 
+            generic map (ADDR_IV, ADDR_SUSP, ADDR_H)
+            port map(IV, H, Susp, dIn, dOutGCM, EnIGCM, EnOGCM, not mode(1), GCMPhase, 
+                     EnIAEAGCM, EnOAEAGCM, dInAEAGCM, dOutAEA, 
+                     WrEnGCM, WrAddrGCM, WrDataGCM,Clock, Resetn); 
+
 
 -- Set encrypt and keyExpandFlag signals according to the mode
 encryptAEA <= not mode(1) when chaining_mode = CHAINING_MODE_ECB or chaining_mode = CHAINING_MODE_CBC else
@@ -143,7 +167,6 @@ encryptAEA <= not mode(1) when chaining_mode = CHAINING_MODE_ECB or chaining_mod
 keyExpandFlagAEA <= mode(0) when chaining_mode = CHAINING_MODE_ECB or chaining_mode = CHAINING_MODE_CBC else
             '0'; -- never key expand in CTR or GCM mode
 
--- TODO in mode KeyExpansion, don't activate the mode
 -- Process to start the selected mode
 process (EnI, Resetn)
 begin
@@ -203,17 +226,34 @@ begin
 case chaining_mode is
     when CHAINING_MODE_GCM =>
         dOut <= dOutGCM;
-        newIV <= newIVGCM;
         EnO <= EnOGCM;
     when CHAINING_MODE_ECB | CHAINING_MODE_CBC | CHAINING_MODE_CTR =>
         dOut <= dOutMNT;
-        newIV <= newIVMNT;
         EnO <= EnOMNT;
     when others =>
 end case;
 if Resetn = '0' then
     EnO <= '0';
 end if;
+end process;
+
+-- process to forward the write signals of the modes
+process (Resetn, WrEnMNT, WrEnGCM)
+begin
+    if Resetn = '0' then
+        WrEn <= '0';
+    else
+        case chaining_mode is
+            when CHAINING_MODE_GCM =>
+                WrEn <= WrEnGCM;
+                WrData <= WrDataGCM;
+                WrAddr <= WrAddrGCM;
+            when others =>
+                WrEn <= WrEnMNT;
+                WrData <= WrDataMNT;
+                WrAddr <= WrAddrMNT;
+        end case;
+    end if;
 end process;
 
 end Behavioral;

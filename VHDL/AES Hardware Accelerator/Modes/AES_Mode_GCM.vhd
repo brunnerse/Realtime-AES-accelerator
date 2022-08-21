@@ -29,18 +29,19 @@ use IEEE.NUMERIC_STD.ALL;
 
 
 entity AES_Mode_GCM is
+    generic (
+        ADDR_IV : integer;
+        ADDR_SUSP : integer;
+        ADDR_H  : integer
+        );
     Port (
            IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           newIV : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            -- specific signals for GCM mode
            H  : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           newH  : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            Susp : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0); -- for the first block, this signals MUST be 0
-           newSusp : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            
            dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-
            EnI : in std_logic;
            EnO : out std_logic;
            encrypt : in std_logic;
@@ -50,6 +51,10 @@ entity AES_Mode_GCM is
            EnOAEA : in std_logic;
            dInAEA : out std_logic_vector (KEY_SIZE-1 downto 0);
            dOutAEA : in std_logic_vector (KEY_SIZE-1 downto 0);
+           -- signals to write to register set
+           WrEn   : out STD_LOGIC;
+           WrAddr : out STD_LOGIC_VECTOR(ADDR_WIDTH-1 downto 0);
+           WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
            Clock : in std_logic;
            Resetn : in std_logic
            );
@@ -142,15 +147,31 @@ EnO <=  EnOAEA when GCMPhase = GCM_PHASE_INIT or (GCMPhase = GCM_PHASE_PAYLOAD a
         EnOXOR1; -- in the Final phase, the last component is xorUnit1   
 
 
--- update IV in payload phase
-newIV <= incrementIV(IV) when GCMPhase = GCM_PHASE_PAYLOAD else 
-         IV;
-newSusp <= dOutMul;
-newH <= dOutAEA when GCMPhase = GCM_PHASE_INIT else
-        H;
+-- process to write the new IV to the register set
+process(Clock, Resetn, EnOAEA, EnOMul)
+begin
+if Resetn = '0' then
+    WrEn <= '0';
+elsif rising_edge(Clock) then
+    if EnI = '1' and GCMPhase = GCM_PHASE_PAYLOAD then
+        WrEn <= '1';
+        WrAddr <= std_logic_vector(to_unsigned(ADDR_IV, ADDR_WIDTH));
+        WrData <= incrementIV(IV);
+    else
+        WrEn <= '0';
+    end if;
+elsif EnOAEA = '1' and GCMPhase = GCM_PHASE_INIT then
+    WrAddr <= std_logic_vector(to_unsigned(ADDR_H, ADDR_WIDTH));
+    WrData <= dOutAEA;
+    WrEn <= '1';
+elsif EnOMul = '1' and (GCMPhase = GCM_PHASE_HEADER or GCMPhase = GCM_PHASE_PAYLOAD) then 
+    WrAddr <= std_logic_vector(to_unsigned(ADDR_SUSP, ADDR_WIDTH));
+    WrData <= dOutMul;
+    WrEn <= '1';
+end if;
+end process;
 
-
--- process performing the GF2 multiplication on each rising clock edge
+-- process performing the GF2 multiplication on each rising clock edge when EnIMul is asserted
 process (Clock, Resetn)
 begin
 if Resetn = '0' then

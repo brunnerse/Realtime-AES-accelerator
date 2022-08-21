@@ -29,11 +29,13 @@ use IEEE.NUMERIC_STD.ALL;
 
 
 entity AES_Mode_ECBCBCCTR is
+    generic (
+        ADDR_IV : integer
+        );
     Port (
            IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           newIV : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            EnI : in std_logic;
            EnO : out std_logic;
            encrypt : in std_logic;
@@ -42,6 +44,11 @@ entity AES_Mode_ECBCBCCTR is
            EnOAEA : in std_logic;
            dInAEA : out std_logic_vector (KEY_SIZE-1 downto 0);
            dOutAEA : in std_logic_vector (KEY_SIZE-1 downto 0);
+           -- signals to write to register set
+           WrEn   : out STD_LOGIC;
+           WrAddr : out STD_LOGIC_VECTOR(ADDR_WIDTH-1 downto 0);
+           WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
+           
            mode : in std_logic_vector (1 downto 0);
            chaining_mode : in std_logic_vector (2 downto 0);
            Clock : in std_logic;
@@ -69,7 +76,7 @@ end function;
 
 
 -- signal definitions
-signal dInXOR1, dInXOR2, dOutXOR : std_logic_vector(KEY_SIZE-1 downto 0);
+signal dInXOR1, dInXOR2, dOutXOR: std_logic_vector(KEY_SIZE-1 downto 0);
 signal EnIXOR, EnOXOR : std_logic;
 
 
@@ -113,11 +120,31 @@ EnIXOR <=   EnI when chaining_mode = CHAINING_MODE_CBC and encrypt = '1' else
 
 EnO <=  EnOXOR when chaining_mode = CHAINING_MODE_CTR or (chaining_mode = CHAINING_MODE_CBC and encrypt = '0') else
         EnOAEA; -- CHAINING_MODE_ECB | CHAINING_MODE_CBC
- 
+
+
+
 -- update IV
-newIV <= incrementIV(IV) when chaining_mode =  CHAINING_MODE_CTR else
-         dIn when chaining_mode = CHAINING_MODE_CBC and encrypt = '0' else -- for decryption in CBC mode
-         dOutAEA when chaining_mode = CHAINING_MODE_CBC and encrypt = '1' else -- for encryption in CBC Mode.
-         IV; 
+WrAddr <= std_logic_vector(to_unsigned(ADDR_IV, ADDR_WIDTH)); 
+process(Resetn, Clock, EnOAEA)
+begin
+if Resetn = '0' then
+    WrEn <= '0';
+elsif rising_edge(Clock) then 
+    if EnI = '1' and chaining_mode = CHAINING_MODE_CTR then
+        WrEn <= '1';
+        WrData <= incrementIV(IV);
+    else
+        WrEn <= '0';
+    end if;
+elsif EnOAEA = '1' and chaining_mode = CHAINING_MODE_CBC then
+    WrEn <= '1';
+    if encrypt = '1' then
+        WrData <= dOutAEA;
+    else
+        WrData <= dIn;
+    end if;
+end if;
+end process;
+
 
 end Behavioral;

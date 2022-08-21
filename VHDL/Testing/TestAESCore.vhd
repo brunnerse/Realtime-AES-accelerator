@@ -22,6 +22,7 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use work.common.ALL;
+use work.addresses.ALL;
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
@@ -35,13 +36,18 @@ end TestAESCore;
 architecture Behavioral of TestAESCore is
 
 component AES_Core is
-      Port ( Key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+     generic (
+        ADDR_IV : integer;
+        ADDR_SUSP : integer;
+        ADDR_H  : integer
+        );
+    Port ( Key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           newIV : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            H  : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           newH  : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            Susp : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           newSusp : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           WrEn   : out STD_LOGIC;
+           WrAddr : out STD_LOGIC_VECTOR(ADDR_WIDTH-1 downto 0);
+           WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
            dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            EnI : in std_logic;
@@ -54,13 +60,18 @@ component AES_Core is
            );
 end component;
 
-signal Clock, Resetn : std_logic;
+signal Clock : std_logic := '1';
+signal Resetn : std_logic := '0';
 
 signal testPlaintext, testIV, testKey, testCiphertext, testDecCiphertext, newIV, Susp, H : std_logic_vector(KEY_SIZE-1 downto 0);
 signal EnCoreI, EnCoreO : std_logic;
 
-signal mode : std_logic_vector(1 downto 0);
-signal chaining_mode : std_logic_vector(2 downto 0);
+signal WrEn : std_logic;
+signal WrData : std_logic_vector(KEY_SIZE-1 downto 0);
+signal WrAddr  : std_logic_vector(ADDR_WIDTH-1 downto 0);
+
+signal mode : std_logic_vector(1 downto 0) := MODE_KEYEXPANSION_AND_DECRYPTION;
+signal chaining_mode : std_logic_vector(2 downto 0) := CHAINING_MODE_CBC;
 
 begin
 
@@ -68,18 +79,17 @@ begin
 --testPlaintext <= x"00102030011121310212223203132333";
 testKey <= x"000102030405060708090a0b0c0d0e0f";
 
-mode <= MODE_ENCRYPTION;
-chaining_mode <= CHAINING_MODE_CBC;
 
 -- Set GCM signals H, Susp and GCMPhase to dummy values
-core: AES_Core port map (testKey, testIV, newIV, H, H, Susp, Susp, testPlaintext, testCiphertext, EnCoreI, EnCoreO, mode, chaining_mode, "00", Clock, Resetn);
+core: AES_Core 
+    generic map(ADDR_IV => ADDR_IVR0, ADDR_SUSP => ADDR_SUSPR0, ADDR_H => ADDR_SUSPR4)
+    port map (testKey, testIV, H, Susp, WrEn, WrAddr, WrData, testPlaintext, testCiphertext, EnCoreI, EnCoreO, mode, chaining_mode, "00", Clock, Resetn);
 
+
+-- processes for Clock and reset signal
+Clock <= not Clock after 5ns;
 process begin
-Clock <= '1'; wait for 5 ns;
-Clock <= '0'; wait for 5 ns;
-end process;
-process begin
-Resetn <= '0'; wait for 10 ns;
+wait for 10 ns;
 Resetn <= '1'; wait;
 end process;
 
@@ -106,7 +116,7 @@ wait;
 end process;
 
 -- process to update the IV
-process (EnCoreO, Resetn) 
+process (Resetn, Clock, WrEn) 
 begin
 -- initialize IV
 if Resetn = '0' then
@@ -115,10 +125,11 @@ if Resetn = '0' then
     else
         testIV <= x"f0e0d0c0b0a090807060504030201000";
     end if;
- end if;
 -- update IV
-if EnCoreO = '1' then
-    testIV <= newIV;
+elsif rising_edge(Clock) then
+    if WrEn = '1' and WrAddr = std_logic_vector(to_unsigned(ADDR_IVR0, ADDR_WIDTH)) then
+        testIV <= WrData;
+     end if;
 end if;
 end process;
 
