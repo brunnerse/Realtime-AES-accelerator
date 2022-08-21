@@ -33,6 +33,9 @@ use IEEE.NUMERIC_STD.ALL;
 --use UNISIM.VComponents.all;
 
 entity AHB_Interface is
+    generic (
+        ADDR_BASE : integer := 0
+    );
     Port ( 
     
 -- AHB Signals   
@@ -56,12 +59,10 @@ entity AHB_Interface is
 
 
 -- to banked registers
-    key : out std_logic_vector(KEY_SIZE-1 downto 0);
-    IV_or_counter : out std_logic_vector(KEY_SIZE-1 downto 0);
-    status : in std_logic_vector(31 downto 0);
-    control : out std_logic_vector(31 downto 0);
-    data_in : out std_logic_vector(31 downto 0);
-    data_out : in std_logic_vector(31 downto 0)
+    WrData : out std_logic_vector(DATA_WIDTH-1 downto 0);
+    RdData : in std_logic_vector(DATA_WIDTH-1 downto 0);
+    WrAddr, RdAddr : out std_logic_vector(ADDR_WIDTH-1 downto 0);
+    WrEn, RdEn : out std_logic
     );
 end AHB_Interface;
 
@@ -85,27 +86,8 @@ ATTRIBUTE X_INTERFACE_PARAMETER OF s_ahb_hsel: SIGNAL IS "XIL_INTERFACENAME AHB_
 ATTRIBUTE X_INTERFACE_INFO OF s_ahb_hsel: SIGNAL IS "xilinx.com:interface:ahblite:2.0 AHB_INTERFACE SEL";
 ATTRIBUTE X_INTERFACE_PARAMETER OF s_ahb_hresetn: SIGNAL IS "XIL_INTERFACENAME AHB_RESETN, POLARITY ACTIVE_LOW, INSERT_VIP 0";
 ATTRIBUTE X_INTERFACE_INFO OF s_ahb_hresetn: SIGNAL IS "xilinx.com:signal:reset:1.0 AHB_RESETN RST";
-ATTRIBUTE X_INTERFACE_PARAMETER OF s_ahb_hclk: SIGNAL IS "XIL_INTERFACENAME AHB_CLK, ASSOCIATED_BUSIF AHB_INTERFACE:M_AXI, ASSOCIATED_RESET s_ahb_hresetn, FREQ_HZ 100000000, FREQ_TOLERANCE_HZ 0, PHASE 0.0, CLK_DOMAIN BusTesting_Clock, INSERT_VIP 0";
+ATTRIBUTE X_INTERFACE_PARAMETER OF s_ahb_hclk: SIGNAL IS "XIL_INTERFACENAME AHB_CLK, ASSOCIATED_BUSIF AHB_INTERFACE:M_AXI, ASSOCIATED_RESET s_ahb_hresetn, FREQ_HZ 100000000, FREQ_TOLERANCE_HZ 0, PHASE 0.0";
 ATTRIBUTE X_INTERFACE_INFO OF s_ahb_hclk: SIGNAL IS "xilinx.com:signal:clock:1.0 AHB_CLK CLK";
-  
-
-constant DATA_WIDTH : integer := 32;
-constant ADDR_WIDTH : integer := 32;
-
-constant ADDR_BASE : integer := 16#0#;
-constant ADDR_CR_OFFSET : integer := 16#00#;
-constant ADDR_SR_OFFSET : integer := 16#04#;
-constant ADDR_DINR_OFFSET : integer := 16#08#;
-constant ADDR_DOUTR_OFFSET : integer := 16#0c#;
-constant ADDR_KEYR0_OFFSET : integer := 16#10#;
-constant ADDR_KEYR1_OFFSET : integer := 16#14#;
-constant ADDR_KEYR2_OFFSET : integer := 16#18#;
-constant ADDR_KEYR3_OFFSET : integer := 16#1c#;
-constant ADDR_IVR0_OFFSET : integer := 16#20#;
-constant ADDR_IVR1_OFFSET : integer := 16#24#;
-constant ADDR_IVR2_OFFSET : integer := 16#28#;
-constant ADDR_IVR3_OFFSET : integer := 16#2c#;
-constant ADDR_SUSPxR_OFFSET : integer := 16#40#;
 
 constant HTRANS_TYPE_IDLE : std_logic_vector(1 downto 0) := "00";
 constant HTRANS_TYPE_BUSY : std_logic_vector(1 downto 0) := "01";
@@ -113,23 +95,19 @@ constant HTRANS_TYPE_NONSEQ : std_logic_vector(1 downto 0) := "10";
 constant HTRANS_TYPE_SEQ  : std_logic_vector(1 downto 0) := "11";
 
 
-
   
 type state_type is (IdleOrRead, Write, BusyWrite);
 signal state : state_type;
 
-type addr_range is array (0 to 41) of std_logic_vector(ADDR_WIDTH-1 downto 0); -- TODO how many elements?
-signal mem : addr_range;
+
 
 begin
 
--- Map internal registers to the memory addresses
-key <= mem(ADDR_KEYR0_OFFSET/4) & mem(ADDR_KEYR1_OFFSET/4) & mem(ADDR_KEYR2_OFFSET/4) & mem(ADDR_KEYR3_OFFSET/4);
-IV_or_counter <= mem(ADDR_IVR0_OFFSET/4) & mem(ADDR_IVR1_OFFSET/4) & mem(ADDR_IVR2_OFFSET/4) & mem(ADDR_IVR3_OFFSET/4);
-control <= mem(ADDR_CR_OFFSET/4);
-mem(ADDR_SR_OFFSET/4) <= status;
-data_in <= mem(ADDR_DINR_OFFSET/4);
-mem(ADDR_DOUTR_OFFSET/4) <= data_out;
+-- define fixed signals to ControlLogic
+RdAddr <= s_ahb_haddr;
+WrAddr <= s_ahb_haddr;
+s_ahb_hrdata <= RdData;
+WrData <= s_ahb_hwdata;
 
 
 process (s_ahb_hresetn, s_ahb_hclk)
@@ -139,11 +117,12 @@ begin
 if s_ahb_hresetn = '0' then
     state <= IdleOrRead;
     s_ahb_hready_out <= '1';
-    -- TODO set control signals
-    control <= x"00000000";
 elsif rising_edge(s_ahb_hclk) then
     -- This subordinate never has to insert wait states, so hready_out is always 1
     s_ahb_hready_out <= '1';
+    -- Set RdEn and WrEn to 0; if there's an access, the process will set it to 1 later
+    RdEn <= '0';
+    WrEn <= '0';
     
     if s_ahb_hsel = '1' then
         case state is
@@ -161,8 +140,8 @@ elsif rising_edge(s_ahb_hclk) then
                             -- Write: read from hwdata in the next cycle (data phase)
                             state <= Write; 
                         else
-                            -- Read: Set hrdata in the same cycle
-                            s_ahb_hrdata <= mem(index);
+                            -- Read: Set Read enable signal
+                            RdEn <= '1';
                             s_ahb_hready_out <= '1';
                             s_ahb_hresp <= '0';
                         end if;
@@ -172,7 +151,7 @@ elsif rising_edge(s_ahb_hclk) then
                 -- TODO necessary to wait for hready signal to be high?
                 
                 -- Write strobes are not supported
-                mem(index) <= s_ahb_hwdata;
+                WrEn <= '1';
                 s_ahb_hready_out <= '1';
                 s_ahb_hresp <= '0';
                 -- Check control data if burst is not yet finished
