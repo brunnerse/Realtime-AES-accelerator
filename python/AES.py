@@ -50,7 +50,27 @@ for cipherMode in [cipher, cipherCBC, cipherCTR]:
         printAsHex(cipherMode.encrypt(d))   
         print()
 
-# For GCM mode: In last cycle do  ciphertext, tag = cipher.encrypt_and_digest(data)
+print("\n=====\nDECRYPTION\n========\n")
+cipher = AES.new(key, AES.MODE_ECB)
+cipherCBC = AES.new(key, AES.MODE_CBC, iv=IV)
+cipherCTR = AES.new(key, AES.MODE_CTR, nonce=IV[:12])
+
+for cipherMode in [cipher, cipherCBC, cipherCTR]:
+    if cipherMode == cipher:
+        print("\nECB:")
+    elif cipherMode == cipherCBC:
+        print("\nCBC:")
+    elif cipherMode == cipherCTR:
+        print("\nCTR:")
+
+    for d in [data, data2, data3]:
+        print("Plain:\t", end="")
+        printAsHex(d)
+        print("Cipher:\t", end="")
+        printAsHex(cipherMode.decrypt(d))   
+        print()
+
+
 
 
 # GCM MODE TESTING
@@ -79,14 +99,17 @@ def intToBytes(i):
 b = lambda x : format(x, "b")
 
 
-print("===\nGCM TESTS\n===")
+print("\n===\nGCM TESTS\n===")
 cipherGCM = AES.new(key, AES.MODE_GCM, nonce=IV[:12])
-print("Cipher blocks:")
+print("Cipher blocks (same for Encryption and Decryption):")
 cipherGCM.update(data)
 cipherGCM.update(data3)
-printAsHex(cipherGCM.encrypt(data))
-printAsHex(cipherGCM.encrypt(data))
-printAsHex(cipherGCM.encrypt(data2))
+dataGCM = cipherGCM.encrypt(data)
+printAsHex(dataGCM)
+dataGCM += cipherGCM.encrypt(data)
+printAsHex(dataGCM[-16:])
+dataGCM += cipherGCM.encrypt(data2)
+printAsHex(dataGCM[-16:])
 tag = cipherGCM.digest()
 
 H = cipher.encrypt(bytes(16))
@@ -96,4 +119,16 @@ printAsHex(H)
 print("Tag:")
 printAsHex(tag)
 
+print("Tag (Decryption):")
+cipherGCM = AES.new(key, AES.MODE_GCM, nonce=IV[:12])
+cipherGCM.update(data + data3)
+cipherGCM.encrypt(dataGCM)
+tagDecrypt = cipherGCM.digest()
+# Verify that the calculated tag is correct
+cipherGCM = AES.new(key, AES.MODE_GCM, nonce=IV[:12])
+cipherGCM.update(data + data3)
+cipherGCM.decrypt(data+data+data2)
+cipherGCM.verify(tagDecrypt)
+# print the tag
+printAsHex(tagDecrypt)
 
