@@ -152,14 +152,6 @@ process(Clock, Resetn, EnOAEA, EnOMul)
 begin
 if Resetn = '0' then
     WrEn <= '0';
-elsif rising_edge(Clock) then
-    if EnI = '1' and GCMPhase = GCM_PHASE_PAYLOAD then
-        WrEn <= '1';
-        WrAddr <= std_logic_vector(to_unsigned(ADDR_IV, ADDR_WIDTH));
-        WrData <= incrementIV(IV);
-    else
-        WrEn <= '0';
-    end if;
 elsif EnOAEA = '1' and GCMPhase = GCM_PHASE_INIT then
     WrAddr <= std_logic_vector(to_unsigned(ADDR_H, ADDR_WIDTH));
     WrData <= dOutAEA;
@@ -168,6 +160,14 @@ elsif EnOMul = '1' and (GCMPhase = GCM_PHASE_HEADER or GCMPhase = GCM_PHASE_PAYL
     WrAddr <= std_logic_vector(to_unsigned(ADDR_SUSP, ADDR_WIDTH));
     WrData <= dOutMul;
     WrEn <= '1';
+elsif rising_edge(Clock) then
+    if EnI = '1' and GCMPhase = GCM_PHASE_PAYLOAD then
+        WrEn <= '1';
+        WrAddr <= std_logic_vector(to_unsigned(ADDR_IV, ADDR_WIDTH));
+        WrData <= incrementIV(IV);
+    else
+        WrEn <= '0';
+    end if;
 end if;
 end process;
 

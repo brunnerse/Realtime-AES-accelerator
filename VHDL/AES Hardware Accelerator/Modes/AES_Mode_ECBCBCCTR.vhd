@@ -129,19 +129,19 @@ process(Resetn, Clock, EnOAEA)
 begin
 if Resetn = '0' then
     WrEn <= '0';
-elsif rising_edge(Clock) then 
-    if EnI = '1' and chaining_mode = CHAINING_MODE_CTR then
-        WrEn <= '1';
-        WrData <= incrementIV(IV);
-    else
-        WrEn <= '0';
-    end if;
 elsif EnOAEA = '1' and chaining_mode = CHAINING_MODE_CBC then
     WrEn <= '1';
     if encrypt = '1' then
         WrData <= dOutAEA;
     else
         WrData <= dIn;
+    end if;
+elsif rising_edge(Clock) then 
+    if EnI = '1' and chaining_mode = CHAINING_MODE_CTR then
+        WrEn <= '1';
+        WrData <= incrementIV(IV);
+    else
+        WrEn <= '0';
     end if;
 end if;
 end process;
