@@ -54,8 +54,8 @@ entity ControlLogic is
     DIN : out std_logic_vector (KEY_SIZE-1 downto 0);
     DOUT : in std_logic_vector (KEY_SIZE-1 downto 0);
 -- Control to AES core
-    enCoreOut : out std_logic;
-    enCoreIn : in std_logic;
+    EnICore : out std_logic;
+    EnOCore : in std_logic;
     mode : out std_logic_vector (1 downto 0);
     chaining_mode : out std_logic_vector (2 downto 0);
     GCMPhase : out std_logic_vector(1 downto 0)
@@ -65,7 +65,7 @@ end ControlLogic;
 architecture Behavioral of ControlLogic is
 
 
-
+signal En, prevEn : std_logic;
 
 -- status signals TODO anything other than CCF needed?
 signal BUSY, WRERR, RDERR, CCF : std_logic;
@@ -79,13 +79,14 @@ signal mem : addr_range;
 -- Define 128-bit signals for data in and data out
 signal dataIn, dataOut : std_logic_vector(KEY_SIZE-1 downto 0);
 
+signal readCounter, writeCounter : unsigned(1 downto 0);
+signal modeSignal : std_logic_vector(1 downto 0);
+
 begin
 
 -- connect memory addresses
-DIN <= dataIn;--mem(ADDR_DINR); -- TODO DIn is written by four consecutive writes to DINR
+DIN <= dataIn;
 dataOut <= DOUT;
-
-mem(ADDR_DOUTR) <= (others => '0'); -- TODO Dout is written by four consecutive reads to DOUT
 
 key <= mem(ADDR_KEYR0/4) & mem(ADDR_KEYR1/4) & mem(ADDR_KEYR2/4) & mem(ADDR_KEYR3/4);
 IV <= mem(ADDR_IVR0/4) & mem(ADDR_IVR1/4) & mem(ADDR_IVR2/4) & mem(ADDR_IVR3/4);
@@ -93,8 +94,9 @@ Susp <=  mem(ADDR_SUSPR0/4) & mem(ADDR_SUSPR1/4) & mem(ADDR_SUSPR2/4) & mem(ADDR
 H <=  mem(ADDR_SUSPR4/4) & mem(ADDR_SUSPR5/4) & mem(ADDR_SUSPR6/4) & mem(ADDR_SUSPR7/4);
 
 -- set AES control signals
-enCoreOut <= mem(ADDR_CR/4)(0);
-mode <= mem(ADDR_CR/4)(4 downto 3);
+En <= mem(ADDR_CR/4)(0);
+modeSignal <= mem(ADDR_CR/4)(4 downto 3);
+mode <= modeSignal;
 chaining_mode <= mem(ADDR_CR/4)(16) & mem(ADDR_CR/4)(6 downto 5);
 DMAOUTEN <= mem(ADDR_CR/4)(12);
 DMAINEN <= mem(ADDR_CR/4)(11);
@@ -104,8 +106,6 @@ ERRC <= mem(ADDR_CR/4)(8);
 CCFC <= mem(ADDR_CR/4)(7);
 GCMPhase <= mem(ADDR_CR/4)(14 downto 13);
 
--- set status signal. This is memory section is read-only
-mem(ADDR_SR/4) <= x"0000000" & BUSY & WRERR & RDERR & CCF;
 
 -- set unused status flags to 0 for now 
 BUSY <= '0';
@@ -114,46 +114,87 @@ RDERR <= '0';
 
 
 -- driver process for CCF status signal
-process (RESETn, EnCoreIn, CCFC)
+process (Resetn, EnOCore, En, CCFC)
 begin
-if RESETn = '0' or CCFC = '1' then -- Clear flag when CCFC is set or reset is asserted
+if Resetn = '0' or CCFC = '1' or En = '0' then -- Clear flag when CCFC is set, reset is asserted or module is disabled
     CCF <= '0';
-elsif EnCoreIn = '1' then
+elsif EnOCore = '1' then
     CCF <= '1'; -- Set CCF flag whenever the Core finished a calculation
 end if;
 end process;
 
--- read process
-process (RdEn)
+-- read process;
+process (Clock, Resetn)
 begin
-if RdEn = '1' then
-    -- TODO If Read access to DOUT, remember it!
-    RdData <= mem(to_integer(unsigned(RdAddr(ADDR_WIDTH-1 downto 2)))); -- divide address by four, as array is indexed word-wise
+if Resetn = '0' then -- reset counter when unit is disabled
+    readCounter <= "00";
+elsif rising_edge(Clock) then
+    if RdEn = '1' then
+        -- For registers DOUTR and SR, don't actually read from memory. This way the registers appear read-only
+        if RdAddr =  std_logic_vector(to_unsigned(ADDR_DOUTR, ADDR_WIDTH)) then
+            RdData <= dataOut(127-to_integer(readCounter)*32 downto 96-to_integer(readCounter)*32);
+            readCounter <= readCounter + to_unsigned(1, 2);
+        elsif RdAddr =  std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)) then
+            RdData <= x"0000000" & BUSY & WRERR & RDERR & CCF;
+        else
+            RdData <= mem(to_integer(unsigned(RdAddr(ADDR_WIDTH-1 downto 2)))); -- divide address by four, as array is indexed word-wise
+        end if;
+    end if;
+    -- Reset counter when unit is disabled
+    if En = '0' and prevEn = '1' then
+        readCounter <= "00";
+    end if;
 end if;
+end process;
+
+process(Clock)
+begin
+    if rising_edge(Clock) then
+        prevEn <= En;
+    end if;
 end process;
 
 -- write process
 process (Clock, Resetn)
 begin
 if Resetn = '0' then
-    -- Reset all registers to 0
     for i in 0 to ADDR_SUSPR7/4 loop
-        if i /= ADDR_SR and i /= ADDR_DOUTR then
-            mem(i) <= (others => '0');
-        end if;
+        mem(i) <= (others => '0');
     end loop;
+    writeCounter <= "00";
+    EnICore <= '0';
 elsif rising_edge(Clock) then
+    EnICore <= '0';
     -- Only Write if address is not the read-only registers SR and DOUTR
-    if WrEn1 = '1' and to_integer(unsigned(WrAddr1)) /= ADDR_SR and to_integer(unsigned(WrAddr1)) /= ADDR_DOUTR then
+    if WrEn1 = '1' then
         mem(to_integer(unsigned(WrAddr1(ADDR_WIDTH-1 downto 2)))) <= WrData1;
-        -- TODO if Write access to DIN, remember it!
+        -- Remember write accesses to DINR, start the AES Core after four write accesses
+        if En = '1' and WrAddr1 = std_logic_vector(to_unsigned(ADDR_DINR, ADDR_WIDTH)) then
+            writeCounter <= writeCounter + to_unsigned(1,2);
+            dataIn(127-to_integer(writeCounter)*32 downto 96-to_integer(writeCounter)*32) <= WrData1;
+            if writeCounter = to_unsigned(3,2) then
+                -- All four bytes have been written, enable the AES Core
+                EnICore <= '1';
+            end if;
+        end if;
     end if;
-    if WrEn2 = '1' and to_integer(unsigned(WrAddr2)) /= ADDR_SR and to_integer(unsigned(WrAddr2)) /= ADDR_DOUTR then
+    if WrEn2 = '1' then
         -- write four words, i.e. 128 bit
         mem(to_integer(unsigned(WrAddr2(ADDR_WIDTH-1 downto 2)))) <= WrData2(127 downto 96);
         mem(to_integer(unsigned(WrAddr2(ADDR_WIDTH-1 downto 2)))+1) <= WrData2(95 downto 64);
         mem(to_integer(unsigned(WrAddr2(ADDR_WIDTH-1 downto 2)))+2) <= WrData2(63 downto 32);
         mem(to_integer(unsigned(WrAddr2(ADDR_WIDTH-1 downto 2)))+3) <= WrData2(31 downto 0);
+    end if;
+    -- Reset counter and clear susp register when unit is disabled
+    if En = '0' and prevEn = '1' then
+        writeCounter <= "00";
+        for i in ADDR_SUSPR0/4 to ADDR_SUSPR3/4 loop
+            mem(i) <= (others => '0');
+        end loop;
+    end if;
+    -- If mode is keyexpansion, start the AES Core without waiting for the four write accesses
+    if modeSignal = MODE_KEYEXPANSION and En = '1' and prevEn = '0' then
+        EnICore <= '1';
     end if;
 end if;
 end process;

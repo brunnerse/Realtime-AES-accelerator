@@ -50,9 +50,7 @@ entity AHB_Interface is
      s_ahb_hwrite      : in  std_logic; 
      s_ahb_hburst      : in  std_logic_vector(2 downto 0 );
      s_ahb_hwdata      : in  std_logic_vector(31 downto 0 );
-
-     s_ahb_hready_out  : out std_logic; 
-     s_ahb_hready      : in  std_logic; 
+     s_ahb_hready      : out  std_logic; 
                       
      s_ahb_hrdata      : out std_logic_vector(31 downto 0 );
      s_ahb_hresp       : out std_logic;
@@ -74,7 +72,6 @@ ATTRIBUTE X_INTERFACE_PARAMETER : STRING;
 ATTRIBUTE X_INTERFACE_INFO OF s_ahb_hresp: SIGNAL IS "xilinx.com:interface:ahblite:2.0 AHB_INTERFACE HRESP";
 ATTRIBUTE X_INTERFACE_INFO OF s_ahb_hrdata: SIGNAL IS "xilinx.com:interface:ahblite:2.0 AHB_INTERFACE HRDATA";
 ATTRIBUTE X_INTERFACE_INFO OF s_ahb_hready: SIGNAL IS "xilinx.com:interface:ahblite:2.0 AHB_INTERFACE HREADY";
-ATTRIBUTE X_INTERFACE_INFO OF s_ahb_hready_out: SIGNAL IS "xilinx.com:interface:ahblite:2.0 AHB_INTERFACE HREADY_OUT";
 ATTRIBUTE X_INTERFACE_INFO OF s_ahb_hwdata: SIGNAL IS "xilinx.com:interface:ahblite:2.0 AHB_INTERFACE HWDATA";
 ATTRIBUTE X_INTERFACE_INFO OF s_ahb_hburst: SIGNAL IS "xilinx.com:interface:ahblite:2.0 AHB_INTERFACE HBURST";
 ATTRIBUTE X_INTERFACE_INFO OF s_ahb_hwrite: SIGNAL IS "xilinx.com:interface:ahblite:2.0 AHB_INTERFACE HWRITE";
@@ -95,31 +92,33 @@ constant HTRANS_TYPE_NONSEQ : std_logic_vector(1 downto 0) := "10";
 constant HTRANS_TYPE_SEQ  : std_logic_vector(1 downto 0) := "11";
 
 
+function calcLocalAddr(addr : std_logic_vector(ADDR_WIDTH-1 downto 0)) return std_logic_vector is
+begin
+    return std_logic_vector(unsigned(addr) - to_unsigned(ADDR_BASE, ADDR_WIDTH));
+end function;
+
   
 type state_type is (IdleOrRead, Write, BusyWrite);
 signal state : state_type;
 
+signal local_addr : std_logic_vector(ADDR_WIDTH-1 downto 0);
 
 
 begin
 
 -- define fixed signals to ControlLogic
-RdAddr <= s_ahb_haddr;
-WrAddr <= s_ahb_haddr;
+RdAddr <= local_addr;
 s_ahb_hrdata <= RdData;
-WrData <= s_ahb_hwdata;
 
 
 process (s_ahb_hresetn, s_ahb_hclk)
-    variable local_addr : unsigned(ADDR_WIDTH-1 downto 0);
-    variable index : integer;
 begin
 if s_ahb_hresetn = '0' then
     state <= IdleOrRead;
-    s_ahb_hready_out <= '1';
+    s_ahb_hready <= '1';
 elsif rising_edge(s_ahb_hclk) then
     -- This subordinate never has to insert wait states, so hready_out is always 1
-    s_ahb_hready_out <= '1';
+    s_ahb_hready <= '1';
     -- Set RdEn and WrEn to 0; if there's an access, the process will set it to 1 later
     RdEn <= '0';
     WrEn <= '0';
@@ -133,8 +132,7 @@ elsif rising_edge(s_ahb_hclk) then
                     -- bursts don't have to be considered for read accesses
                     when HTRANS_TYPE_NONSEQ | HTRANS_TYPE_SEQ => 
                         -- Calculate index in mem array from the address
-                        local_addr := unsigned(s_ahb_haddr) - to_unsigned(ADDR_BASE, 32);
-                        index := to_integer(local_addr(ADDR_WIDTH-1 downto 2)); -- divide by 4
+                        local_addr <= calcLocalAddr(s_ahb_haddr);
                         -- Check hwrite signal 
                         if s_ahb_hwrite = '1' then
                             -- Write: read from hwdata in the next cycle (data phase)
@@ -142,7 +140,7 @@ elsif rising_edge(s_ahb_hclk) then
                         else
                             -- Read: Set Read enable signal
                             RdEn <= '1';
-                            s_ahb_hready_out <= '1';
+                            s_ahb_hready <= '1';
                             s_ahb_hresp <= '0';
                         end if;
                     when others =>
@@ -152,14 +150,15 @@ elsif rising_edge(s_ahb_hclk) then
                 
                 -- Write strobes are not supported
                 WrEn <= '1';
-                s_ahb_hready_out <= '1';
+                WrAddr <= local_addr;
+                WrData <= s_ahb_hwdata;
+                s_ahb_hready <= '1';
                 s_ahb_hresp <= '0';
                 -- Check control data if burst is not yet finished
                 case s_ahb_htrans is
                     when HTRANS_TYPE_SEQ =>
-                   -- Calculate index in mem array from the address
-                    local_addr := unsigned(s_ahb_haddr) - to_unsigned(ADDR_BASE, 32);
-                    index := to_integer(local_addr(ADDR_WIDTH-1 downto 2)); -- divide by 4
+                        -- Next write access in the burst; update the address
+                        local_addr <= calcLocalAddr(s_ahb_haddr);
                 when HTRANS_TYPE_BUSY =>
                     -- Write burst transfer is interrupted
                     state <= BusyWrite;
@@ -170,9 +169,8 @@ elsif rising_edge(s_ahb_hclk) then
                 case s_ahb_htrans is
                     when HTRANS_TYPE_SEQ =>
                         -- Writing continues in next cycle
-                        -- Calculate index in mem array from the address
-                        local_addr := unsigned(s_ahb_haddr) - to_unsigned(ADDR_BASE, 32);
-                        index := to_integer(local_addr(ADDR_WIDTH-1 downto 2)); -- divide by 4
+                        -- update the address
+                        local_addr <= calcLocalAddr(s_ahb_haddr);
                         state <= Write;
                     when HTRANS_TYPE_BUSY =>
                         -- stay in BusyWrite state
