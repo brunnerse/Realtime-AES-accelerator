@@ -50,6 +50,18 @@ component PipelinedAEA is
            Resetn : in STD_LOGIC);
 end component;
 
+component AEA is
+    Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           encrypt : in STD_LOGIC;
+           keyExpandFlag : in STD_LOGIC; 
+           EnI : in STD_LOGIC;
+           EnO : out STD_LOGIC;
+           Clock : in STD_LOGIC;
+           Resetn : in STD_LOGIC);
+end component;
+
 component AES_Core is
     Port ( Key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
@@ -78,10 +90,10 @@ begin
 --testPlaintext <= x"00102030011121310212223203132333";
 testKey <= x"000102030405060708090a0b0c0d0e0f";
 
-aeaEnc : PipelinedAEA port map (testPlaintext, testCiphertext, testKey, '1', keyExpandFlagEnc, EnEncI, EnEncO, Clock, Resetn);
-aeaDec : PipelinedAEA port map (testCiphertext, testDecCiphertext, testKey, '0', keyExpandFlagDec, EnDecI, EnDecO, Clock, Resetn);
+aeaEnc : AEA port map (testPlaintext, testCiphertext, testKey, '1', keyExpandFlagEnc, EnEncI, EnEncO, Clock, Resetn);
+aeaDec : AEA port map (testCiphertext, testDecCiphertext, testKey, '0', keyExpandFlagDec, EnDecI, EnDecO, Clock, Resetn);
 
-EnDecI <= EnEncO when now >= 20ns else EnEncI;
+EnDecI <= EnEncO;
 
 
 process begin
@@ -100,7 +112,7 @@ keyExpandFlagEnc <= '0';
 wait for 10ns;
 keyExpandFlagDec <= '1';
 wait for 150 ns;
-keyExpandFlagDec <= '0';
+--keyExpandFlagDec <= '0';
 report "Time is " & time'image(now);
 wait;
 end process;
