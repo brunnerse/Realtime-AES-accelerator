@@ -109,10 +109,8 @@ end process;
 
 process begin
 keyExpandFlagEnc <= '0';
-wait for 10ns;
 keyExpandFlagDec <= '1';
 wait for 150 ns;
---keyExpandFlagDec <= '0';
 report "Time is " & time'image(now);
 wait;
 end process;

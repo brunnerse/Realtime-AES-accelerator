@@ -72,20 +72,7 @@ component KeyExpansion is
            Resetn : in STD_LOGIC);
 end component;
 
-function mulGFby2(val : std_logic_vector(7 downto 0)) return std_logic_vector is
-    variable c : std_logic_vector(7 downto 0);
-begin
-    c := val(6 downto 0) & '0';
-    if val >= x"80" then
-        return c xor x"1b";
-    else
-        return c;
-    end if;
-end function;
-
-
-type state_type is (Idle,  RoundState, LastRoundState);
-
+type state_type is (Idle,  RoundState, FinalRoundState);
 
 signal currentRound : std_logic_vector(3 downto 0);
 signal state : state_type;
@@ -116,20 +103,28 @@ dInRound <= dOutPreARK when encrypt = '1' and unsigned(currentRound) <= to_unsig
 dOut <= dOutRound when encrypt = '1' else dOutPreARK; -- TODO cleaner if only in last round?
 
 -- connect enable signals
+-- TODO Don't run KeyExp in Decryption only mode? Should not make a performance benefit
 EnIKeyExp <= EnI; 
-EnIPreARK <= EnI when encrypt = '1' else EnORound;
+
+EnIPreARK <= '0' when encrypt = '1' and keyExpandFlag = '1' else -- KeyExpansion mode
+            EnI when encrypt = '1' else -- Encryption mode
+            EnORound; -- Decryption mode
 EnIRound <= EnOPreARK when encrypt = '1' and unsigned(currentRound) <= to_unsigned(1, 4) else
-            EnOKeyExp when encrypt = '0' and unsigned(currentRound) = to_unsigned(10, 4) else -- decryption
+            EnOKeyExp when encrypt = '0' and unsigned(currentRound) = to_unsigned(10, 4) and keyExpandFlag = '1' else -- decryption with keyexpansion
+            EnI when encrypt = '0' and unsigned(currentRound) = to_unsigned(10, 4) else -- decryption without keyexpansion
             -- stop loopback in last round
             '0' when state = Idle else
              EnORound; -- loop back output of round to the input
+             
 -- Set EnO to 0, except in the last round, where it is set to the enable signal of the last component
 EnO <= '0' when state /= Idle else 
-        EnORound when encrypt = '1' else
-        EnOPreARK; -- decryption
-
+        EnORound when encrypt = '1' and keyExpandFlag = '0' else -- encryption mode
+        EnOPreARK when encrypt = '0'  else  -- decryption
+        EnOKeyExp ; -- KeyExpansion mode
+               
 roundKey <= roundKeys(to_integer(unsigned(currentRound)));
 
+-- process that counts up/down the currentRound variable and sets isLastRound accordingly
 process (Clock, Resetn)
 begin
 if Resetn = '0' then
@@ -145,8 +140,8 @@ elsif rising_edge(Clock) then
                 currentRound <= x"a";
                 isLastRound <= '1';
             end if;
-            -- start calculation on enable signal
-            if EnI = '1' then
+            -- start calculation on enable signal if not in keyExpansion mode
+            if EnI = '1' and not (encrypt = '1' and keyExpandFlag = '1') then
                 state <= RoundState;
             end if;
         when RoundState =>
@@ -160,21 +155,21 @@ elsif rising_edge(Clock) then
                     currentRound <= std_logic_vector(unsigned(currentRound) - to_unsigned(1, 4)); 
                 end if;
                 
-                -- If next round is the last one, change to LastRoundState
+                -- If next round is the last one, change to FinalRoundState
                 if encrypt = '1' and currentRound = std_logic_vector(to_unsigned(NUM_ROUNDS-1, 4)) then
                     isLastRound <= '1';
-                    state <= LastRoundState;
+                    state <= FinalRoundState;
                 elsif encrypt = '0' and currentRound = std_logic_vector(to_unsigned(1, 4)) then
                     -- Next round is round 1, which is the last round, as round 0 is the preARK
-                    state <= LastRoundState;
+                    state <= FinalRoundState;
                 end if;
             end if;
-        when LastRoundState =>
+        when FinalRoundState =>
             -- wait until the last component gives its enable signal, then return to idle state
             if (encrypt = '1' and roundIsLastCycle = '1') or (encrypt = '0' and EnIPreARK = '1') then
                 state <= Idle;
-
-                IsLastRound <= '0';
+                isLastRound <= '0';
+                -- TODO reset currentRound already here? If doing it in Idle, it will be one cycle delayed. 
             end if;
         when others =>
     end case;
