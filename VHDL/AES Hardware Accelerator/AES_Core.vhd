@@ -76,6 +76,17 @@ component PipelinedAEA is
            Clock : in STD_LOGIC;
            Resetn : in STD_LOGIC);
 end component;
+component AEA is
+    Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           encrypt : in STD_LOGIC;
+	       keyExpandFlag : in STD_LOGIC;
+           EnI : in STD_LOGIC;
+           EnO : out STD_LOGIC;
+           Clock : in STD_LOGIC;
+           Resetn : in STD_LOGIC);
+end component;
 
 component AES_Mode_ECBCBCCTR is
     generic (
@@ -147,7 +158,7 @@ signal dOutMNT, dOutGCM, newIVGCM, dInAEAMNT, dInAEAGCM, WrDataMNT, WrDataGCM : 
 signal WrAddrMNT, WrAddrGCM : std_logic_vector(ADDR_WIDTH-1 downto 0);
 begin
 
-algorithm : PipelinedAEA port map (dInaEA, dOutAEA, Key, encryptAEA, keyExpandFlagAEA, EnIAEA, EnOAEA, Clock, Resetn);
+algorithm : AEA port map (dInaEA, dOutAEA, Key, encryptAEA, keyExpandFlagAEA, EnIAEA, EnOAEA, Clock, Resetn);
 
 modeNonTag : AES_Mode_ECBCBCCTR 
             generic map(ADDR_IV)

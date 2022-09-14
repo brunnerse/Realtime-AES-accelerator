@@ -89,6 +89,7 @@ elsif rising_edge(Clock) then
         
         -- Calculate the other 3 words
         for i in 1 to 3 loop
+            -- xor the previous word with the fourth last word (w_1 xor w_4)
             word := word xor lastKey(127-32*i downto 96-32*i);
             keys(to_integer(unsigned(keyIndex)))(127-32*i downto 96-32*i) <= word;
         end loop;
