@@ -4,9 +4,12 @@
 #include "xscutimer.h"
 #include "xuartps.h"
 
+#include "xgpio.h"
 
 
-#define AES_UNIT_BASEADDR 0x80000000
+
+#define AES_UNIT_BASEADDR 0x83c00000
+#define GPIO_BASEADDR 0x41200000
 #define DDR_BASEADDR XPAR_PS7_DDR_0_S_AXI_BASEADDR
 
 int main()
@@ -16,6 +19,23 @@ int main()
     u32 val = Xil_In32(DDR_BASEADDR);
 	Xil_Out32(DDR_BASEADDR, 0xdeadbeef);
 	val = Xil_In32(DDR_BASEADDR);
+
+	// Configure AXI GPIO
+	XGpio_Config *gpioConfig = XGpio_LookupConfig(XPAR_AXI_GPIO_0_DEVICE_ID);
+    XGpio gpio;
+    XGpio_CfgInitialize(&gpio, gpioConfig, gpioConfig->BaseAddress);
+    u32 dir = XGpio_GetDataDirection(&gpio, 1);
+    XGpio_SetDataDirection(&gpio, 1, (0x00<<8) | (0xff));
+
+    while(1) {
+    	u32 vals = XGpio_DiscreteRead(&gpio, 1);
+    	vals <<= 8;
+    	XGpio_DiscreteWrite(&gpio, 1, vals);
+    }
+
+	/*while (1) {
+		val = Xil_In32(GPIO_BASEADDR);
+	}*/
 
 
     int status;
