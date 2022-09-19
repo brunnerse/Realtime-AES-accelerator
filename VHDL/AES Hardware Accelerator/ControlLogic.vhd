@@ -43,6 +43,7 @@ entity ControlLogic is
     WrEn1 : in std_logic;
     WrAddr1 : in std_logic_vector(ADDR_WIDTH-1 downto 0);
     WrData1: in std_logic_vector(DATA_WIDTH-1 downto 0);
+    WrStrb1 : in std_logic_vector(DATA_WIDTH/8-1 downto 0);
     WrEn2 : in std_logic;
     WrAddr2 : in std_logic_vector(ADDR_WIDTH-1 downto 0);
     WrData2 : in std_logic_vector(KEY_SIZE-1 downto 0);
@@ -131,7 +132,7 @@ if Resetn = '0' then -- reset counter when unit is disabled
 elsif rising_edge(Clock) then
     if RdEn = '1' then
         -- For registers DOUTR and SR, don't actually read from memory. This way the registers appear read-only
-        if RdAddr =  std_logic_vector(to_unsigned(ADDR_DOUTR, ADDR_WIDTH)) then
+        if RdAddr(ADDR_WIDTH-1 downto 2) =  std_logic_vector(to_unsigned(ADDR_DOUTR, ADDR_WIDTH)(ADDR_WIDTH-1 downto 2) ) then
             RdData <= dataOut(127-to_integer(readCounter)*32 downto 96-to_integer(readCounter)*32);
             readCounter <= readCounter + to_unsigned(1, 2);
         elsif RdAddr =  std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)) then
@@ -147,6 +148,7 @@ elsif rising_edge(Clock) then
 end if;
 end process;
 
+-- process to store the previous enable signal, so other processes can check if it changed
 process(Clock)
 begin
     if rising_edge(Clock) then
@@ -165,11 +167,14 @@ if Resetn = '0' then
     EnICore <= '0';
 elsif rising_edge(Clock) then
     EnICore <= '0';
-    -- Only Write if address is not the read-only registers SR and DOUTR
     if WrEn1 = '1' then
-        mem(to_integer(unsigned(WrAddr1(ADDR_WIDTH-1 downto 2)))) <= WrData1;
+        for i in 3 downto 0 loop
+            if WrStrb1(i) = '1' then
+                mem(to_integer(unsigned(WrAddr1(ADDR_WIDTH-1 downto 2))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
+            end if;
+        end loop;
         -- Remember write accesses to DINR, start the AES Core after four write accesses
-        if En = '1' and WrAddr1 = std_logic_vector(to_unsigned(ADDR_DINR, ADDR_WIDTH)) then
+        if En = '1' and WrAddr1(ADDR_WIDTH-1 downto 2) = std_logic_vector(to_unsigned(ADDR_DINR, ADDR_WIDTH)(ADDR_WIDTH-1 downto 2)) then
             writeCounter <= writeCounter + to_unsigned(1,2);
             dataIn(127-to_integer(writeCounter)*32 downto 96-to_integer(writeCounter)*32) <= WrData1;
             if writeCounter = to_unsigned(3,2) then
@@ -180,10 +185,9 @@ elsif rising_edge(Clock) then
     end if;
     if WrEn2 = '1' then
         -- write four words, i.e. 128 bit
-        mem(to_integer(unsigned(WrAddr2(ADDR_WIDTH-1 downto 2)))) <= WrData2(127 downto 96);
-        mem(to_integer(unsigned(WrAddr2(ADDR_WIDTH-1 downto 2)))+1) <= WrData2(95 downto 64);
-        mem(to_integer(unsigned(WrAddr2(ADDR_WIDTH-1 downto 2)))+2) <= WrData2(63 downto 32);
-        mem(to_integer(unsigned(WrAddr2(ADDR_WIDTH-1 downto 2)))+3) <= WrData2(31 downto 0);
+        for i in 0 to 3 loop
+         mem(to_integer(unsigned(WrAddr2(ADDR_WIDTH-1 downto 2))+i)) <= WrData2(127-i*32 downto 96-i*32);
+        end loop;
     end if;
     -- Reset counter and clear susp register when unit is disabled
     if En = '0' and prevEn = '1' then
