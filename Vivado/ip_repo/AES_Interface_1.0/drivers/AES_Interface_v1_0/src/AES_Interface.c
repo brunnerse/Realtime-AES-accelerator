@@ -2,6 +2,7 @@
 
 /***************************** Include Files *******************************/
 #include "AES_Interface.h"
+#include "xparameters.h"
 /************************** Function Definitions ***************************/
 
 
@@ -13,6 +14,20 @@
 #define AES_IVR0_OFFSET 0x20
 #define AES_SUSPR0_OFFSET 0x40
 
+AES_Config config =
+{
+		XPAR_AES_INTERFACE_0_DEVICE_ID,
+		XPAR_AES_INTERFACE_0_S_AXI_BASEADDR
+};
+
+
+AES_Config *AES_LookupConfig(u16 DeviceId)
+{
+	if (DeviceId == config.DeviceId)
+		return &config;
+	else
+		return (void*)0;
+}
 
 int AES_Initialize(AES *InstancePtr, UINTPTR BaseAddr)
 {
@@ -43,7 +58,7 @@ void AES_SetChainingMode(AES* InstancePtr, ChainingMode chainMode)
     // Set bit 5 and 6
     cr &= ((u32)chainMode & 0x3) << 5;
     // Set bit 16
-    cr &= ((u32)chainMode & 0x4) << 16-2;
+    cr &= ((u32)chainMode & 0x4) << (16-2);
     AES_Write(InstancePtr, AES_CR_OFFSET, cr);
 }
 
@@ -57,7 +72,7 @@ Mode AES_GetMode(AES *InstancePtr)
     return (Mode)((AES_Read(InstancePtr, AES_CR_OFFSET) >> 3) & 0x3);
 }
 
-ChainingMode AES_GetChainingMode(AES* InstancePtr, ChainingMode chainMode)
+ChainingMode AES_GetChainingMode(AES* InstancePtr)
 {
     u32 cr = AES_Read(InstancePtr, AES_CR_OFFSET);
 	// read bit 5 and 6

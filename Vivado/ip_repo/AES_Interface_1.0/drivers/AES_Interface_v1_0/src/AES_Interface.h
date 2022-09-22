@@ -6,29 +6,38 @@
 /****************** Include Files ********************/
 #include "xil_types.h"
 #include "xstatus.h"
+#include "xil_io.h"
 
 /**************************** Type Definitions *****************************/
 
 #define BLOCK_SIZE 16
 
-enum Mode {
+typedef enum {
     MODE_ENCRYPTION = 0,
     MODE_KEYEXPANSION = 1,
     MODE_DECRYPTION = 2,
     MODE_KEYEXPANSION_AND_DECRYPTION = 3
-};
+} Mode;
 
-enum ChainingMode {
+typedef enum {
     CHAINING_MODE_ECB = 0,
     CHAINING_MODE_CBC = 1,
     CHAINING_MODE_CTR = 2
-};
+} ChainingMode;
+
+
+
+typedef struct {
+	u16 DeviceId;	 /**< Unique ID  of device */
+	u32 BaseAddress; /**< Base address of device (IPIF) */
+} AES_Config;
 
 typedef struct {
 	UINTPTR BaseAddress;	/**< Device base address */
 } AES;
 
 
+AES_Config *AES_LookupConfig(u16 DeviceId);
 int AES_Initialize(AES *InstancePtr, UINTPTR BaseAddr);
 
 void AES_SetKey(AES *InstancePtr, u8 key[BLOCK_SIZE]);
@@ -37,7 +46,7 @@ void AES_SetChainingMode(AES* InstancePtr, ChainingMode chainMode);
 
 void AES_GetKey(AES *InstancePtr, u8 *outKey[BLOCK_SIZE]);
 Mode AES_GetMode(AES *InstancePtr);
-ChainingMode AES_GetChainingMode(AES* InstancePtr, ChainingMode chainMode);
+ChainingMode AES_GetChainingMode(AES* InstancePtr);
 
 
 

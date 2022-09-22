@@ -2,8 +2,9 @@
 /***************************** Include Files *******************************/
 #include "AES_Interface.h"
 #include "xparameters.h"
-#include "stdio.h"
 #include "xil_io.h"
+
+#include "xil_printf.h"
 
 /************************** Constant Definitions ***************************/
 #define READ_WRITE_MUL_FACTOR 0x10
@@ -28,9 +29,16 @@
  * @note    Self test may fail if data memory and device are not on the same bus.
  *
  */
+#define AES_CR_OFFSET 0x00
+#define AES_SR_OFFSET 0x04
+#define AES_DOUTR_OFFSET 0x0c
+#define AES_SUSPR0_OFFSET 0x40
+
+
+
 XStatus AES_Mem_SelfTest(void * baseaddr_p)
 {
-	int     Index;
+	int offset;
 	u32 baseaddr;
 	u32 Mem32Value;
 
@@ -46,19 +54,30 @@ XStatus AES_Mem_SelfTest(void * baseaddr_p)
 	xil_printf("User logic memory test...\n\r");
 	xil_printf("   - local memory address is 0x%08x\n\r", baseaddr);
 	xil_printf("   - write pattern to local BRAM and read back\n\r");
-	for ( Index = 0; Index < 16; Index++ )
+
+	for (offset = 0; offset < AES_SUSPR0_OFFSET+9; offset += 4)
 	{
-	  AES_INTERFACE_mWriteMemory(baseaddr+4*Index, (0xDEADBEEF % Index));
+		if (offset == AES_SR_OFFSET || offset == AES_DOUTR_OFFSET)
+		{
+			continue;
+		}
+		AES_mWriteMemory(baseaddr+offset, (0xDEADBEEF % offset));
 	}
 
-	for ( Index = 0; Index < 16; Index++ )
+	for ( offset = 0; offset < AES_SUSPR0_OFFSET+9; offset += 4)
 	{
-	  Mem32Value = AES_INTERFACE_mReadMemory(baseaddr+4*Index);
-	  if ( Mem32Value != (0xDEADBEEF % Index) )
-	  {
-	    xil_printf("   - write/read memory failed on address 0x%08x\n\r", baseaddr+4*Index);
-	    return XST_FAILURE;
-	  }
+		if (offset == AES_SR_OFFSET || offset == AES_DOUTR_OFFSET)
+		{
+			continue;
+		}
+		Mem32Value = AES_mReadMemory(baseaddr+offset);
+	    if ( Mem32Value != (0xDEADBEEF % offset) )
+		{
+	    	xil_printf("   - write/read memory failed on address 0x%08x\n\r", baseaddr+offset);
+			return XST_FAILURE;
+		}
+	    // Reset memory value to 0
+	    AES_mWriteMemory(baseaddr+offset, 0);
 	}
 	xil_printf("   - write/read memory passed\n\n\r");
 
