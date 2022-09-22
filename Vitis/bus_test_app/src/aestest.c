@@ -1,15 +1,14 @@
-#include "xil_printf.h"
-#include "xgpiops.h"
 #include "xparameters.h"
 #include "xscutimer.h"
 #include "xuartps.h"
-
-#include "xgpio.h"
-
+#include "xgpiops.h"
 
 
-#define AES_UNIT_BASEADDR 0x83c00000
-#define GPIO_BASEADDR 0x41200000
+#include "AES_Interface.h"
+
+
+
+#define AES_BASEADDR XPAR_AES_INTERFACE_0_S_AXI_BASEADDR
 #define DDR_BASEADDR XPAR_PS7_DDR_0_S_AXI_BASEADDR
 
 int main()
@@ -20,25 +19,30 @@ int main()
 	Xil_Out32(DDR_BASEADDR, 0xdeadbeef);
 	val = Xil_In32(DDR_BASEADDR);
 
-	// Configure AXI GPIO
-	XGpio_Config *gpioConfig = XGpio_LookupConfig(XPAR_AXI_GPIO_0_DEVICE_ID);
-    XGpio gpio;
-    XGpio_CfgInitialize(&gpio, gpioConfig, gpioConfig->BaseAddress);
-    u32 dir = XGpio_GetDataDirection(&gpio, 1);
-    XGpio_SetDataDirection(&gpio, 1, (0x00<<8) | (0xff));
-
-    while(1) {
-    	u32 vals = XGpio_DiscreteRead(&gpio, 1);
-    	vals <<= 8;
-    	XGpio_DiscreteWrite(&gpio, 1, vals);
-    }
-
-	/*while (1) {
-		val = Xil_In32(GPIO_BASEADDR);
-	}*/
-
-
     int status;
+
+    AES_Config *aesConfig = AES_LookupConfig(XPAR_AES_INTERFACE_0_DEVICE_ID);
+    AES aes;
+    AES_Initialize(&aes, aesConfig->BaseAddress);
+
+    status = AES_Mem_SelfTest((void*)(aes.BaseAddress));
+
+    u8 plaintext[BLOCK_SIZE] = {0x00, 0x10, 0x20, 0x30, 0x01, 0x11, 0x21, 0x31, 0x02, 0x12, 0x22, 0x32, 0x03, 0x13, 0x23, 0x33 };
+    u8 key[BLOCK_SIZE] =  {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
+
+    u8 readKey[BLOCK_SIZE];
+    AES_GetKey(&aes, readKey);
+    AES_SetKey(&aes, key);
+    AES_GetKey(&aes, readKey);
+
+    Mode mode = MODE_ENCRYPTION;
+    AES_SetMode(&aes, mode);
+    AES_SetChainingMode(&aes, CHAINING_MODE_ECB);
+    ChainingMode chMode = AES_GetChainingMode(&aes);
+
+    u8 ciphertext[BLOCK_SIZE];
+    AES_processBlock(&aes, plaintext, ciphertext);
+
 
     XUartPs_Config *uartConfig = XUartPs_LookupConfig(XPAR_PS7_UART_1_DEVICE_ID);
     XUartPs uart;
@@ -79,7 +83,6 @@ int main()
 				;
 
      }
-
 
 
     xil_printf("Successfully ran the application");
