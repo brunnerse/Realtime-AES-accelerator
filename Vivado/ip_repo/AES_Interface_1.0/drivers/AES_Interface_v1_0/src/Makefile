@@ -5,17 +5,21 @@ COMPILER_FLAGS=
 EXTRA_COMPILER_FLAGS=
 LIB=libxil.a
 
-RELEASEDIR=../../../lib
+RELEASEDIR=../../../lib/
 INCLUDEDIR=../../../include
 INCLUDES=-I./. -I${INCLUDEDIR}
 
 INCLUDEFILES=$(wildcard *.h)
-LIBSOURCES=$(wildcard *.c)
+SRCFILES=$(wildcard *.c)
 OUTS = $(wildcard *.o)
 
-libs:
-	echo "Compiling AES_Interface..."
-	$(COMPILER) $(COMPILER_FLAGS) $(EXTRA_COMPILER_FLAGS) $(INCLUDES) $(LIBSOURCES)
+OBJECTS = $(addprefix $(RELEASEDIR), $(addsuffix .o, $(basename $(wildcard *.c))))
+
+libs: $(OBJECTS)
+
+$(RELEASEDIR)%.o: %.c
+	echo "Compiling AES_Interface file $@"
+	$(COMPILER) $(COMPILER_FLAGS) $(EXTRA_COMPILER_FLAGS) $(INCLUDES) $< -o $@
 	$(ARCHIVER) -r ${RELEASEDIR}/${LIB} ${OUTS}
 	make clean
 

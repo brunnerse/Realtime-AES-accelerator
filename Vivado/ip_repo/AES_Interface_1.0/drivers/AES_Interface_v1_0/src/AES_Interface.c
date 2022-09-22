@@ -62,7 +62,7 @@ void AES_SetChainingMode(AES* InstancePtr, ChainingMode chainMode)
     AES_Write(InstancePtr, AES_CR_OFFSET, cr);
 }
 
-void AES_GetKey(AES *InstancePtr, u8 *outKey[BLOCK_SIZE])
+void AES_GetKey(AES *InstancePtr, u8 outKey[BLOCK_SIZE])
 {
    for (int i = 0; i < 4; i++)
         *(u32*)(outKey+i*4) = AES_Read(InstancePtr, AES_KEYR0_OFFSET+i*4);

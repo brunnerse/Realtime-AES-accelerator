@@ -44,7 +44,7 @@ void AES_SetKey(AES *InstancePtr, u8 key[BLOCK_SIZE]);
 void AES_SetMode(AES *InstancePtr, Mode mode);
 void AES_SetChainingMode(AES* InstancePtr, ChainingMode chainMode);
 
-void AES_GetKey(AES *InstancePtr, u8 *outKey[BLOCK_SIZE]);
+void AES_GetKey(AES *InstancePtr, u8 outKey[BLOCK_SIZE]);
 Mode AES_GetMode(AES *InstancePtr);
 ChainingMode AES_GetChainingMode(AES* InstancePtr);
 
