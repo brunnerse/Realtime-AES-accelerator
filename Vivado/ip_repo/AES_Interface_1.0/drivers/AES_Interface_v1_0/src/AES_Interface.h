@@ -25,6 +25,12 @@ typedef enum {
     CHAINING_MODE_CTR = 2
 } ChainingMode;
 
+typedef enum {
+	GCM_PHASE_INIT = 0,
+	GCM_PHASE_HEADER = 1,
+	GCM_PHASE_PAYLOAD = 2,
+	GCM_PHASE_FINAL = 3
+} GCMPhase;
 
 
 typedef struct {
@@ -41,17 +47,31 @@ AES_Config *AES_LookupConfig(u16 DeviceId);
 int AES_Initialize(AES *InstancePtr, UINTPTR BaseAddr);
 
 void AES_SetKey(AES *InstancePtr, u8 key[BLOCK_SIZE]);
+
+void AES_Setup(AES* InstancePtr, Mode mode, ChainingMode chMode, u32 enabled, GCMPhase gcmPhase);
 void AES_SetMode(AES *InstancePtr, Mode mode);
 void AES_SetChainingMode(AES* InstancePtr, ChainingMode chainMode);
+void AES_SetGCMPhase(AES* InstancePtr, GCMPhase gcmPhase);
+void AES_SetEnabled(AES* InstancePtr, u32 en);
 
 void AES_GetKey(AES *InstancePtr, u8 outKey[BLOCK_SIZE]);
 Mode AES_GetMode(AES *InstancePtr);
 ChainingMode AES_GetChainingMode(AES* InstancePtr);
-
+void AES_SetGCMPhase(AES* InstancePtr, GCMPhase gcmPhase);
+GCMPhase AES_GetGCMPhase(AES* InstancePtr);
+u32 AES_GetEnabled(AES* InstancePtr);
 
 
 void AES_PerformKeyExpansion(AES *InstancePtr);
-void AES_processBlock(AES* InstancePtr, u8 dataBlock[BLOCK_SIZE], u8 outDataBlock[BLOCK_SIZE]);
+
+// Process an entire data chunk at once instead of processing Blocks one by one
+void AES_processData(AES* InstancePtr, Mode mode, ChainingMode chMode, u8* data, u8* outData, u32 size);
+
+// Runs dataBlock through the AES unit and writes the output to outDataBlock.
+// Arrays must have size BLOCK_SIZE (16 bytes)
+void AES_processBlock(AES* InstancePtr, u8 *dataBlock, u8 *outDataBlock);
+
+void AES_waitUntilCompleted(AES* InstancePtr);
 
 /**
  *
@@ -64,8 +84,8 @@ void AES_processBlock(AES* InstancePtr, u8 dataBlock[BLOCK_SIZE], u8 outDataBloc
  *
  * @note
  * C-style signature:
- * 	void AES_INTERFACE_mWriteMemory(u32 Address, u32 Data)
- * 	u32 AES_INTERFACE_mReadMemory(u32 Address)
+ * 	void AES_mWriteMemory(u32 Address, u32 Data)
+ * 	u32 AES_mReadMemory(u32 Address)
  *
  */
 #define AES_mWriteMemory(Address, Data) \
