@@ -3,6 +3,7 @@
 #include "xuartps.h"
 #include "xgpiops.h"
 
+#include <stdio.h>
 
 #include "AES_Interface.h"
 
@@ -25,15 +26,28 @@ int main()
     AES aes;
     AES_Initialize(&aes, aesConfig->BaseAddress);
 
-    status = AES_Mem_SelfTest((void*)(aes.BaseAddress));
+    //status = AES_Mem_SelfTest((void*)(aes.BaseAddress));
 
     u8 plaintext[BLOCK_SIZE] = {0x00, 0x10, 0x20, 0x30, 0x01, 0x11, 0x21, 0x31, 0x02, 0x12, 0x22, 0x32, 0x03, 0x13, 0x23, 0x33 };
     u8 key[BLOCK_SIZE] =  {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
+
+    //u8 plaintext[BLOCK_SIZE] = {0x30, 0x20, 0x10, 0x00, 0x31, 0x21, 0x11, 0x01, 0x32, 0x22, 0x12, 0x02, 0x33, 0x23, 0x13, 0x03};
+    //u8 key[BLOCK_SIZE] =  {0x03, 0x02, 0x01, 0x00, 0x07, 0x06, 0x05, 0x04, 0x0b, 0x0a, 0x09, 0x08, 0x0f, 0x0e, 0x0d, 0x0c };
 
     u8 readKey[BLOCK_SIZE];
     AES_GetKey(&aes, readKey);
     AES_SetKey(&aes, key);
     AES_GetKey(&aes, readKey);
+    u32 testNumber = 0x01020304;
+    u8 testArr[] = {0x01, 0x02, 0x03, 0x04};
+    AES_SetEnabled(&aes, 1);
+    Xil_Out32(AES_BASEADDR+8, testNumber);
+    Xil_Out32(AES_BASEADDR+8, *(u32*)testArr);
+    Xil_Out32(AES_BASEADDR+8, 0);
+    AES_SetEnabled(&aes, 0);
+    AES_SetEnabled(&aes, 1);
+    for (int i = 0; i < 4; i++)
+    	Xil_Out8(AES_BASEADDR+8+i, testArr[i]);
 
     Mode mode = MODE_ENCRYPTION;
     AES_SetMode(&aes, mode);
@@ -41,7 +55,20 @@ int main()
     ChainingMode chMode = AES_GetChainingMode(&aes);
 
     u8 ciphertext[BLOCK_SIZE];
+
+    AES_SetEnabled(&aes, 1);
     AES_processBlock(&aes, plaintext, ciphertext);
+
+    char debugText[500];
+
+    for (int i = 0; i < 16; i++)
+            sprintf(debugText+i*3, "%02x ", plaintext[i]);
+    for (int i = 0; i < 16; i++)
+                sprintf(debugText+i*3, "%02x ", ciphertext[i]);
+
+    AES_processBlock(&aes, plaintext, ciphertext);
+    AES_SetEnabled(&aes, 0);
+    //AES_processData(&aes, MODE_ENCRYPTION, CHAINING_MODE_ECB, plaintext, ciphertext, 16);
 
 
     XUartPs_Config *uartConfig = XUartPs_LookupConfig(XPAR_PS7_UART_1_DEVICE_ID);
