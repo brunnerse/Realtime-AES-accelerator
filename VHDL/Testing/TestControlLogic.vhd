@@ -65,7 +65,7 @@ testKey <= x"000102030405060708090a0b0c0d0e0f";
 i_ControlLogic : entity work.ControlLogic(Behavioral)
     port map(
         Clock, Resetn, RdEnAHB, RdAddrAHB, RdDataAHB, 
-        WrEnAHB, WrAddrAHB, WrDataAHB, WrEnCore, WrAddrCore, WrDataCore,
+        WrEnAHB, WrAddrAHB, WrDataAHB, "1111", WrEnCore, WrAddrCore, WrDataCore,
         keyOut, testIV, H, Susp, din, testCiphertext, EnICore, EnOCore, mode, chaining_mode, GCMPhase
     );
 

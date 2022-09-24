@@ -115,12 +115,17 @@ RDERR <= '0';
 
 
 -- driver process for CCF status signal
-process (Resetn, EnOCore, En, CCFC)
+process (Clock, Resetn)
 begin
-if Resetn = '0' or CCFC = '1' or En = '0' then -- Clear flag when CCFC is set, reset is asserted or module is disabled
+if Resetn = '0' then 
     CCF <= '0';
-elsif EnOCore = '1' then
-    CCF <= '1'; -- Set CCF flag whenever the Core finished a calculation
+elsif rising_edge(Clock) then
+    if EnOCore = '1' then
+        CCF <= '1'; -- Set CCF flag whenever the Core finished a calculation
+    -- Clear flag when CCFC is set or module is disabled
+    elsif En = '0' or CCFC = '1' then
+        CCF <= '0';
+    end if;
 end if;
 end process;
 
