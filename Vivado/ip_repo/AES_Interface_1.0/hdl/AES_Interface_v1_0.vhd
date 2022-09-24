@@ -5,7 +5,7 @@ use ieee.numeric_std.all;
 entity AES_Interface_v1_0 is
 	generic (
 		-- Users to add parameters here
-
+        LittleEndian : boolean;
 		-- User parameters ends
 		-- Do not modify the parameters beyond this line
 
@@ -164,6 +164,8 @@ architecture arch_imp of AES_Interface_v1_0 is
 		);
 	end component AES_Interface_v1_0_S_AXI;
 
+
+    signal WrDataSignal, RdDataSignal : std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
 begin
 
 -- Instantiation of Axi Bus Interface S_AXI
@@ -226,16 +228,31 @@ AES_Interface_v1_0_S_AXI_inst : AES_Interface_v1_0_S_AXI
 		S_AXI_RVALID	=> s_axi_rvalid,
 		S_AXI_RREADY	=> s_axi_rready,
 		-- banked registers
-        WrData => WrData,
-		RdData => RdData,
+        WrData => WrDataSignal,
+		RdData => RdDataSignal,
 		WrAddr => WrAddr,
 		RdAddr => RdAddr,
 		WrEn => WrEn,
 		RdEn => RdEn
 	);
 
-	-- Add user logic here
-    WrStrb <= S_AXI_WSTRB;
+    DataForwardingBigEndian:
+        -- Big Endian case
+        if not LittleEndian generate
+            WrData <= WrDataSignal;
+            RdDataSignal <= RdData;
+            WrStrb <= S_AXI_WSTRB;
+        end generate;
+    DataForwardingLittleEndian:
+        if LittleEndian generate
+            loopGen: 
+            for i in 3 downto 0 generate
+                WrData(i*8+7 downto i*8) <= WrDataSignal((3-i)*8+7 downto (3-i)*8);
+                RdDataSignal(i*8+7 downto i*8) <= RdData((3-i)*8+7 downto (3-i)*8);
+                WrStrb(i) <= S_AXI_WSTRB(3 - i);
+            end generate;
+        end generate;
+    
 	-- User logic ends
 
 end arch_imp;
