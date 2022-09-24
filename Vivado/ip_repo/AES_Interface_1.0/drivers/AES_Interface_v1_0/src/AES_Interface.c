@@ -5,6 +5,9 @@
 #include "xparameters.h"
 /************************** Function Definitions ***************************/
 
+// Comment this line on Big Endian systems
+#define LITTLE_ENDIAN
+
 
 #define AES_CR_OFFSET 0x00
 #define AES_SR_OFFSET 0x04
@@ -13,6 +16,27 @@
 #define AES_KEYR0_OFFSET 0x10
 #define AES_IVR0_OFFSET 0x20
 #define AES_SUSPR0_OFFSET 0x40
+
+// Position definitions in the Control Register CR
+#ifdef LITTLE_ENDIAN
+#define EN_POS 24
+#define MODE_POS 27
+#define CHAIN_MODE_POS1 29
+#define CHAIN_MODE_POS2 8
+#define GCM_PHASE_POS 13
+#else // Normal, Big Endian Positions of the bits
+#define EN_POS 0
+#define MODE_POS 3
+#define CHAIN_MODE_POS1 5
+#define CHAIN_MODE_POS2 16
+#define GCM_PHASE_POS 21
+#endif
+
+#define EN_LEN 1
+#define MODE_LEN 2
+#define CHAIN_MODE_LEN1 2
+#define CHAIN_MODE_LEN2 1
+#define GCM_PHASE_LEN 2
 
 
 /*************************** Private Function declarations **********************/
@@ -53,15 +77,15 @@ void AES_Setup(AES* InstancePtr, Mode mode, ChainingMode chainMode, u32 enabled,
     u32 cr = AES_Read(InstancePtr, AES_CR_OFFSET);
 
     // Set mode
-    setBits(&cr, (u32)mode, 3, 2);
+    setBits(&cr, (u32)mode, MODE_POS, MODE_LEN);
     // Set chaining mode: Set bit 5 and 6
-    setBits(&cr, (u32)chainMode & 0x3, 5, 2);
+    setBits(&cr, (u32)chainMode & 0x3, CHAIN_MODE_POS1, CHAIN_MODE_LEN1);
     // Set chaining mode: Set bit 16
-    setBits(&cr, (u32)chainMode >> 2, 16, 1);
+    setBits(&cr, (u32)chainMode >> 2, CHAIN_MODE_POS2, CHAIN_MODE_LEN2);
     // Set GCMPhase
-    setBits(&cr, (u32)gcmPhase, 13, 2);
+    setBits(&cr, (u32)gcmPhase, GCM_PHASE_POS, GCM_PHASE_LEN);
     // Set enabled
-    setBits(&cr, enabled, 0, 1);
+    setBits(&cr, enabled, EN_POS, EN_LEN);
 
     AES_Write(InstancePtr, AES_CR_OFFSET, cr);
 }
@@ -70,7 +94,7 @@ void AES_Setup(AES* InstancePtr, Mode mode, ChainingMode chainMode, u32 enabled,
 void AES_SetMode(AES *InstancePtr, Mode mode)
 {
     u32 cr = AES_Read(InstancePtr, AES_CR_OFFSET);
-    setBits(&cr, (u32)mode, 3, 2);
+    setBits(&cr, (u32)mode, MODE_POS, MODE_LEN);
     AES_Write(InstancePtr, AES_CR_OFFSET, cr);
 }
 
@@ -79,16 +103,16 @@ void AES_SetChainingMode(AES* InstancePtr, ChainingMode chainMode)
 {
     u32 cr = AES_Read(InstancePtr, AES_CR_OFFSET);
     // Set bit 5 and 6
-    setBits(&cr, (u32)chainMode & 0x3, 5, 2);
+    setBits(&cr, (u32)chainMode & 0x3, CHAIN_MODE_POS1, CHAIN_MODE_LEN1);
     // Set bit 16
-    setBits(&cr, (u32)chainMode >> 2, 16, 1);
+    setBits(&cr, (u32)chainMode >> 2, CHAIN_MODE_POS2, CHAIN_MODE_LEN2);
     AES_Write(InstancePtr, AES_CR_OFFSET, cr);
 }
 
 void AES_SetGCMPhase(AES* InstancePtr, GCMPhase gcmPhase)
 {
     u32 cr = AES_Read(InstancePtr, AES_CR_OFFSET);
-    setBits(&cr, (u32)gcmPhase, 13, 2);
+    setBits(&cr, (u32)gcmPhase, GCM_PHASE_POS, GCM_PHASE_LEN);
 
     AES_Write(InstancePtr, AES_CR_OFFSET, cr);
 }
@@ -96,7 +120,7 @@ void AES_SetGCMPhase(AES* InstancePtr, GCMPhase gcmPhase)
 void AES_SetEnabled(AES* InstancePtr, u32 en)
 {
     u32 cr = AES_Read(InstancePtr, AES_CR_OFFSET);
-    setBits(&cr, en, 0, 1);
+    setBits(&cr, en, EN_POS, EN_LEN);
     AES_Write(InstancePtr, AES_CR_OFFSET, cr);
 }
 
@@ -108,28 +132,28 @@ void AES_GetKey(AES *InstancePtr, u8 outKey[BLOCK_SIZE])
 }
 Mode AES_GetMode(AES *InstancePtr)
 {
-    return (Mode)getBits(AES_Read(InstancePtr, AES_CR_OFFSET), 3, 2);
+    return (Mode)getBits(AES_Read(InstancePtr, AES_CR_OFFSET), MODE_POS, MODE_LEN);
 }
 
 ChainingMode AES_GetChainingMode(AES* InstancePtr)
 {
     u32 cr = AES_Read(InstancePtr, AES_CR_OFFSET);
 	// read bit 5 and 6
-	u32 chMode = getBits(cr, 5, 2);
+	u32 chMode = getBits(cr, CHAIN_MODE_POS1, CHAIN_MODE_LEN1);
 	// read bit 16
-	chMode |= getBits(cr, 16, 1) << 2;
+	chMode |= getBits(cr, CHAIN_MODE_POS2, CHAIN_MODE_LEN2) << CHAIN_MODE_LEN1;
     return (ChainingMode)chMode;
 }
 
 GCMPhase AES_GetGCMPhase(AES* InstancePtr)
 {
     u32 cr = AES_Read(InstancePtr, AES_CR_OFFSET);
-    return (GCMPhase)getBits(cr, 13, 2);
+    return (GCMPhase)getBits(cr, GCM_PHASE_POS, GCM_PHASE_LEN);
 }
 
 u32 AES_GetEnabled(AES* InstancePtr)
 {
-	return getBits(AES_Read(InstancePtr, AES_CR_OFFSET), 0, 1);
+	return getBits(AES_Read(InstancePtr, AES_CR_OFFSET), EN_POS, EN_LEN);
 }
 
 
