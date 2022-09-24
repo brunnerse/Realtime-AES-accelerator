@@ -92,9 +92,9 @@ constant HTRANS_TYPE_NONSEQ : std_logic_vector(1 downto 0) := "10";
 constant HTRANS_TYPE_SEQ  : std_logic_vector(1 downto 0) := "11";
 
 
-function calcLocalAddr(addr : std_logic_vector(ADDR_WIDTH-1 downto 0)) return std_logic_vector is
+function calcLocalAddr(addr : std_logic_vector) return std_logic_vector is
 begin
-    return std_logic_vector(unsigned(addr) - to_unsigned(ADDR_BASE, ADDR_WIDTH));
+    return std_logic_vector(unsigned(addr(ADDR_WIDTH downto 0)) - to_unsigned(ADDR_BASE, ADDR_WIDTH));
 end function;
 
   
@@ -140,7 +140,8 @@ elsif rising_edge(s_ahb_hclk) then
                         else
                             -- Read: Set Read enable signal
                             RdEn <= '1';
-                            s_ahb_hready <= '1';
+                            s_ahb_hready <= '0'; -- delay reading for one cycle for now 
+                            -- TODO make this superfluous, i.e. implement reading in the same cycle e.g. by directly forwarding the RdEn and address signals
                             s_ahb_hresp <= '0';
                         end if;
                     when others =>

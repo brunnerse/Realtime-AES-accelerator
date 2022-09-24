@@ -49,7 +49,6 @@ begin
 process (Clock, Resetn)
 begin
 if Resetn = '0' then
-    dOut <= (others => '0');
     EnO <= '0';
 elsif rising_edge(Clock) then
     EnO <= EnI;

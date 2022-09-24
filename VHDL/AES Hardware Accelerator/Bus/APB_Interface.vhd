@@ -41,7 +41,7 @@ entity APB_Interface is
            s_apb_pready : out std_logic_vector (3 downto 0);
 
            s_apb_psel : in std_logic_vector (3 downto 0);
-           s_apb_pslverr : out std_logic (3 downto 0);
+           s_apb_pslverr : out std_logic_vector(3 downto 0);
            s_apb_pstrb : in std_logic_vector (3 downto 0);
            s_apb_pwdata : in std_logic_vector (31 downto 0);
            s_apb_pwrite : in std_logic;

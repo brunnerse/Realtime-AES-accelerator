@@ -61,6 +61,7 @@ signal WrEnAHB, RdEnAHB, WrEnCore : std_logic;
 -- signals between ControlLogic and Core
 signal key, IV, DIN, DOUT, H, Susp : std_logic_vector(KEY_SIZE-1 downto 0);
 signal EnICore, EnOCore : std_logic;
+signal WrStrb : std_logic_vector(3 downto 0);
 signal mode, GCMPhase : std_logic_vector(1 downto 0);
 signal chaining_mode : std_logic_vector(2 downto 0);
 
@@ -78,7 +79,7 @@ i_AHB_Interface : entity work.AHB_Interface(Behavioral)
 i_ControlLogic : entity work.ControlLogic(Behavioral)
     port map(
         s_ahb_hclk, s_ahb_hresetn, RdEnAHB, RdAddrAHB, RdDataAHB, 
-        WrEnAHB, WrAddrAHB, WrDataAHB, WrEnCore, WrAddrCore, WrDataCore,
+        WrEnAHB, WrAddrAHB, WrDataAHB, WrStrb, WrEnCore, WrAddrCore, WrDataCore, 
         key, IV, H, Susp, DIN, DOUT, EnOCore, EnICore, mode, chaining_mode, GCMPhase
     );
 
