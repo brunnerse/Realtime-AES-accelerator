@@ -24,12 +24,17 @@
 #define CHAIN_MODE_POS1 29
 #define CHAIN_MODE_POS2 8
 #define GCM_PHASE_POS 13
-#else // Normal, Big Endian Positions of the bits
+#define CCFC_POS 31
+#define SR_CCF_POS 24
+#else
+// Normal, Big Endian Positions of the bits
 #define EN_POS 0
 #define MODE_POS 3
 #define CHAIN_MODE_POS1 5
 #define CHAIN_MODE_POS2 16
 #define GCM_PHASE_POS 21
+#define CCFC_POS 7
+#define SR_CCF_POS 1
 #endif
 
 #define EN_LEN 1
@@ -37,6 +42,9 @@
 #define CHAIN_MODE_LEN1 2
 #define CHAIN_MODE_LEN2 1
 #define GCM_PHASE_LEN 2
+#define CCFC_LEN 1
+#define SR_CCF_LEN 1
+
 
 
 /*************************** Private Function declarations **********************/
@@ -182,6 +190,7 @@ void AES_processData(AES* InstancePtr, Mode mode, ChainingMode chMode, u8* data,
 
 void AES_processBlock(AES* InstancePtr, u8 *dataBlock, u8 *outDataBlock)
 {
+	// TODO Ohne for-Schleife schneller?
 	// Write four times to DIN
     for (u32 i = 0; i < 4; i++)
 		AES_Write(InstancePtr, AES_DINR_OFFSET, *(u32*)(dataBlock+i*4));
@@ -197,14 +206,14 @@ void AES_waitUntilCompleted(AES* InstancePtr)
 {
 	u32 CCF;
 	do {
-		CCF = getBits(AES_Read(InstancePtr, AES_SR_OFFSET), 0, 1);
+		CCF = getBits(AES_Read(InstancePtr, AES_SR_OFFSET), SR_CCF_POS, SR_CCF_LEN);
 	} while (CCF == 0);
 	// Clear CCF bit
     u32 cr = AES_Read(InstancePtr, AES_CR_OFFSET);
-    setBits(&cr, 1, 7, 1);
+    setBits(&cr, 1, CCFC_POS, CCFC_LEN);
     AES_Write(InstancePtr, AES_CR_OFFSET, cr);
     // TODO need to reset CCFC manually?
-    setBits(&cr, 0, 7, 1);
+    setBits(&cr, 0, CCFC_POS, CCFC_LEN);
     AES_Write(InstancePtr, AES_CR_OFFSET, cr);
 }
 
@@ -221,8 +230,9 @@ u32 getBits(u32 val, u32 lowestBitIndex, u32 bitLen)
 void setBits(u32* ptr, u32 bits, u32 lowestBitIndex, u32 bitLen)
 {
 	u32 highBits = (1 << bitLen) - 1; // has bitLen ones, e.g. 0b00000111 for bitLen=3
-	// Set bits to 1
-	*ptr |= highBits << lowestBitIndex;
-	// At that spot, clear the bits that are 0
-	*ptr &= (bits & highBits) << lowestBitIndex;
+	// Clear bits
+	u32 clearMask = ~(highBits << lowestBitIndex);
+	*ptr &= clearMask;
+	// Set the bits
+	*ptr |= (bits & highBits) << lowestBitIndex;
 }
