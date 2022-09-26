@@ -4,10 +4,15 @@
 #include "xgpiops.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include "AES_Interface.h"
 
-
+void hexToString(u8 *array, int len, char* outStr)
+{
+    for (int i = 0; i < len; i++)
+            sprintf(outStr+i*3, "%02x ", array[i]);
+}
 
 #define AES_BASEADDR XPAR_AES_INTERFACE_0_S_AXI_BASEADDR
 #define DDR_BASEADDR XPAR_PS7_DDR_0_S_AXI_BASEADDR
@@ -38,16 +43,8 @@ int main()
     AES_GetKey(&aes, readKey);
     AES_SetKey(&aes, key);
     AES_GetKey(&aes, readKey);
-    u32 testNumber = 0x01020304;
-    u8 testArr[] = {0x01, 0x02, 0x03, 0x04};
-    AES_SetEnabled(&aes, 1);
-    Xil_Out32(AES_BASEADDR+8, testNumber);
-    Xil_Out32(AES_BASEADDR+8, *(u32*)testArr);
-    Xil_Out32(AES_BASEADDR+8, 0);
-    AES_SetEnabled(&aes, 0);
-    AES_SetEnabled(&aes, 1);
-    for (int i = 0; i < 4; i++)
-    	Xil_Out8(AES_BASEADDR+8+i, testArr[i]);
+
+    //AES_PerformKeyExpansion(&aes);
 
     Mode mode = MODE_ENCRYPTION;
     AES_SetMode(&aes, mode);
@@ -58,17 +55,20 @@ int main()
 
     AES_SetEnabled(&aes, 1);
     AES_processBlock(&aes, plaintext, ciphertext);
+    AES_SetEnabled(&aes, 0);
 
     char debugText[500];
 
-    for (int i = 0; i < 16; i++)
-            sprintf(debugText+i*3, "%02x ", plaintext[i]);
-    for (int i = 0; i < 16; i++)
-                sprintf(debugText+i*3, "%02x ", ciphertext[i]);
+    hexToString(plaintext, 16, debugText);
+    hexToString(ciphertext, 16, debugText);
 
-    AES_processBlock(&aes, plaintext, ciphertext);
-    AES_SetEnabled(&aes, 0);
-    //AES_processData(&aes, MODE_ENCRYPTION, CHAINING_MODE_ECB, plaintext, ciphertext, 16);
+    memcpy(plaintext, ciphertext, 16);
+
+    AES_SetMode(&aes, MODE_DECRYPTION);
+	AES_SetEnabled(&aes, 1);
+	AES_processBlock(&aes, plaintext, ciphertext);
+	AES_SetEnabled(&aes, 0);
+
 
 
     XUartPs_Config *uartConfig = XUartPs_LookupConfig(XPAR_PS7_UART_1_DEVICE_ID);
