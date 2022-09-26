@@ -122,7 +122,7 @@ EnO <= EnOARK when encrypt = '1' else     EnOSB;
 
 isLastCycle <= EnOMC when encrypt = '1' and isLastRound = '0' else  -- For encryption, the second last component is MixColumns
                EnOSR when encrypt = '1' and isLastRound = '1' else
-               EnOSR;   -- For decryption, the second last component is SubBytes
+               EnOSR;   -- For decryption, the second last component is ShiftRows
 
 
 end Behavioral;
