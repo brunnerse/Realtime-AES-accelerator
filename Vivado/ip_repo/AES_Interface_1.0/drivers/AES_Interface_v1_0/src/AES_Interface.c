@@ -26,6 +26,8 @@
 #define GCM_PHASE_POS 13
 #define CCFC_POS 31
 #define SR_CCF_POS 24
+#define MODE_CTR_IV_INIT 0x01000000
+#define MODE_GCM_IV_INIT 0x02000000
 #else
 // Normal, Big Endian Positions of the bits
 #define EN_POS 0
@@ -35,6 +37,9 @@
 #define GCM_PHASE_POS 21
 #define CCFC_POS 7
 #define SR_CCF_POS 1
+#define MODE_CTR_IV_INIT 0x00000001
+#define MODE_GCM_IV_INIT 0x00000002
+#define MODE_
 #endif
 
 #define EN_LEN 1
@@ -75,8 +80,21 @@ int AES_Initialize(AES *InstancePtr, UINTPTR BaseAddr)
 
 void AES_SetKey(AES *InstancePtr, u8 key[BLOCK_SIZE])
 {
-   for (int i = 0; i < 4; i++)
-        AES_Write(InstancePtr, AES_KEYR0_OFFSET+i*4, *(u32*)(key+i*4));
+   for (u32 i = 0; i < BLOCK_SIZE; i+=4)
+        AES_Write(InstancePtr, AES_KEYR0_OFFSET+i, *(u32*)(key+i));
+}
+
+void AES_SetIV(AES* InstancePtr, u8 *IV, u32 IVLen)
+{
+	for (u32 i = 0; i < IVLen; i+=4)
+		AES_Write(InstancePtr, AES_IVR0_OFFSET+i, *(u32*)(IV+i));
+}
+
+void AES_SetSusp(AES* InstancePtr, u8 Susp[BLOCK_SIZE])
+{
+	for (u32 i = 0; i < BLOCK_SIZE; i+=4)
+		AES_Write(InstancePtr, AES_SUSPR0_OFFSET+i, *(u32*)(Susp+i));
+
 }
 
 void AES_Setup(AES* InstancePtr, Mode mode, ChainingMode chainMode, u32 enabled, GCMPhase gcmPhase)
@@ -176,10 +194,37 @@ void AES_PerformKeyExpansion(AES *InstancePtr)
 	AES_SetMode(InstancePtr, prevMode);
 }
 
-void AES_processData(AES* InstancePtr, Mode mode, ChainingMode chMode, u8* data, u8* outData, u32 size)
+void AES_processDataECB(AES* InstancePtr, int encrypt, u8* data, u8* outData, u32 size)
 {
-	AES_Setup(InstancePtr, mode, chMode, 1, GCM_PHASE_INIT);
-	for (u32 blockOffset = 0; blockOffset < size; blockOffset += BLOCK_SIZE)
+	AES_Setup(InstancePtr, encrypt == 0 ? MODE_ENCRYPTION : MODE_KEYEXPANSION_AND_DECRYPTION, CHAINING_MODE_ECB, 1, GCM_PHASE_INIT);
+	u32 blockOffset = 0;
+	if (encrypt == 0 && size > 0)
+	{
+		// Perform one decryption with keyexpansion_and_decryption mode, than change to decryption mode
+		AES_processBlock(InstancePtr, data, outData);
+		AES_SetMode(InstancePtr, MODE_DECRYPTION);
+	}
+	for (; blockOffset < size; blockOffset += BLOCK_SIZE)
+	{
+		AES_processBlock(InstancePtr, data+blockOffset, outData+blockOffset);
+	}
+	// Disable the AES Unit when finished
+	AES_SetEnabled(InstancePtr, 0);
+}
+
+void AES_processDataCBC(AES* InstancePtr, int encrypt, u8* data, u8* outData, u32 size, u8 IV[16])
+{
+	AES_SetIV(InstancePtr, IV, 16);
+	AES_Setup(InstancePtr, encrypt == 0 ? MODE_ENCRYPTION : MODE_KEYEXPANSION_AND_DECRYPTION, CHAINING_MODE_CBC, 1, GCM_PHASE_INIT);
+	u32 blockOffset = 0;
+
+	if (encrypt == 0 && size > 0)
+	{
+		// Perform one decryption with keyexpansion_and_decryption mode, than change to decryption mode
+		AES_processBlock(InstancePtr, data, outData);
+		AES_SetMode(InstancePtr, MODE_DECRYPTION);
+	}
+	for (; blockOffset < size; blockOffset += BLOCK_SIZE)
 	{
 		AES_processBlock(InstancePtr, data+blockOffset, outData+blockOffset);
 	}
@@ -188,17 +233,69 @@ void AES_processData(AES* InstancePtr, Mode mode, ChainingMode chMode, u8* data,
 }
 
 
+void AES_processDataCTR(AES* InstancePtr,  u8* data, u8* outData, u32 size, u8 IV[12])
+{
+	AES_SetIV(InstancePtr, IV, 12);
+	// Write last word of the IV manually
+	AES_Write(InstancePtr, AES_IVR0_OFFSET+12, MODE_CTR_IV_INIT);
+	AES_Setup(InstancePtr, MODE_ENCRYPTION, CHAINING_MODE_CTR, 1, GCM_PHASE_INIT);
+	for (u32 blockOffset = 0; blockOffset < size; blockOffset += BLOCK_SIZE)
+	{
+		AES_processBlock(InstancePtr, data+blockOffset, outData+blockOffset);
+	}
+}
+
+void AES_processDataGCM(AES* InstancePtr, u8* header, u32 headerLen, u8* payload, u8* outProcessedPayload, u32 payloadLen, u8 IV[12], u8 outTag[BLOCK_SIZE])
+{
+	AES_SetIV(InstancePtr, IV, 12);
+	// Write last word of the IV manually
+	AES_Write(InstancePtr, AES_IVR0_OFFSET+12, MODE_GCM_IV_INIT);
+	AES_Setup(InstancePtr, MODE_ENCRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_INIT);
+	AES_waitUntilCompleted(InstancePtr);
+	// Process Header
+	AES_SetGCMPhase(InstancePtr, GCM_PHASE_HEADER);
+	for (u32 i = 0; i < headerLen; i += BLOCK_SIZE)
+	{
+		// Writing is enough, as the header isn't encrypted
+		for (u32 j = 0; j < BLOCK_SIZE; j+=4)
+			AES_Write(InstancePtr, AES_DINR_OFFSET, *(u32*)header+i+j);
+		AES_waitUntilCompleted(InstancePtr);
+	}
+	// Process Payload
+	AES_SetGCMPhase(InstancePtr, GCM_PHASE_PAYLOAD);
+	for (u32 i = 0; i < payloadLen; i += BLOCK_SIZE)
+	{
+		AES_processBlock(InstancePtr, payload+i, outProcessedPayload+i);
+	}
+	// Final
+	AES_SetGCMPhase(InstancePtr, GCM_PHASE_FINAL);
+	AES_Write(InstancePtr, AES_DINR_OFFSET, 0);
+#ifdef LITTLE_ENDIAN
+	AES_Write(InstancePtr, AES_DINR_OFFSET, Xil_EndianSwap32(headerLen));
+	AES_Write(InstancePtr, AES_DINR_OFFSET, 0);
+	AES_Write(InstancePtr, AES_DINR_OFFSET, Xil_EndianSwap32(payloadLen));
+#else
+	AES_Write(InstancePtr, AES_DINR_OFFSET, headerLen);
+	AES_Write(InstancePtr, AES_DINR_OFFSET, 0);
+	AES_Write(InstancePtr, AES_DINR_OFFSET, payloadLen);
+#endif
+	AES_waitUntilCompleted(InstancePtr);
+	// Read the tag from the DOUT register
+    for (u32 i = 0; i < BLOCK_SIZE; i+=4)
+    	*(u32*)(outTag+i) = AES_Read(InstancePtr, AES_DOUTR_OFFSET);
+
+}
+
 void AES_processBlock(AES* InstancePtr, u8 *dataBlock, u8 *outDataBlock)
 {
-	// TODO Ohne for-Schleife schneller?
 	// Write four times to DIN
-    for (u32 i = 0; i < 4; i++)
-		AES_Write(InstancePtr, AES_DINR_OFFSET, *(u32*)(dataBlock+i*4));
+    for (u32 i = 0; i < BLOCK_SIZE; i+=4)
+		AES_Write(InstancePtr, AES_DINR_OFFSET, *(u32*)(dataBlock+i));
     // Wait until computation has completed
     AES_waitUntilCompleted(InstancePtr);
     // Read DOUT for times
-    for (u32 i = 0; i < 4; i++)
-    	*(u32*)(outDataBlock+i*4) = AES_Read(InstancePtr, AES_DOUTR_OFFSET);
+    for (u32 i = 0; i < BLOCK_SIZE; i+=4)
+    	*(u32*)(outDataBlock+i) = AES_Read(InstancePtr, AES_DOUTR_OFFSET);
 }
 
 

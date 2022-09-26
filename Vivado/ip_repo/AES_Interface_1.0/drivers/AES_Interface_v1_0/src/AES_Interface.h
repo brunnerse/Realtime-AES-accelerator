@@ -22,7 +22,8 @@ typedef enum {
 typedef enum {
     CHAINING_MODE_ECB = 0,
     CHAINING_MODE_CBC = 1,
-    CHAINING_MODE_CTR = 2
+    CHAINING_MODE_CTR = 2,
+	CHAINING_MODE_GCM = 3
 } ChainingMode;
 
 typedef enum {
@@ -53,6 +54,9 @@ void AES_SetMode(AES *InstancePtr, Mode mode);
 void AES_SetChainingMode(AES* InstancePtr, ChainingMode chainMode);
 void AES_SetGCMPhase(AES* InstancePtr, GCMPhase gcmPhase);
 void AES_SetEnabled(AES* InstancePtr, u32 en);
+void AES_SetIV(AES* InstancePtr, u8 *IV, u32 IVLen);
+void AES_SetSusp(AES* InstancePtr, u8 Susp[BLOCK_SIZE]);
+
 
 void AES_GetKey(AES *InstancePtr, u8 outKey[BLOCK_SIZE]);
 Mode AES_GetMode(AES *InstancePtr);
@@ -65,7 +69,11 @@ u32 AES_GetEnabled(AES* InstancePtr);
 void AES_PerformKeyExpansion(AES *InstancePtr);
 
 // Process an entire data chunk at once instead of processing Blocks one by one
-void AES_processData(AES* InstancePtr, Mode mode, ChainingMode chMode, u8* data, u8* outData, u32 size);
+void AES_processDataECB(AES* InstancePtr, int encrypt, u8* data, u8* outData, u32 size);
+void AES_processDataCBC(AES* InstancePtr, int encrypt, u8* data, u8* outData, u32 size, u8 IV[16]);
+// encrypt is indifferent, as decryption and encryption is the same process
+void AES_processDataCTR(AES* InstancePtr, u8* data, u8* outData, u32 size, u8 IV[12]);
+void AES_processDataGCM(AES* InstancePtr, int encrypt, u8* header, u32 headerLen, u8* payload, u8* outProcessedPayload, u32 payloadLen, u8 IV[12], u8 outTag[BLOCK_SIZE]);
 
 // Runs dataBlock through the AES unit and writes the output to outDataBlock.
 // Arrays must have size BLOCK_SIZE (16 bytes)
