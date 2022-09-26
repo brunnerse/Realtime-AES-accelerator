@@ -165,11 +165,11 @@ modeNonTag : AES_Mode_ECBCBCCTR
             port map(IV, dIn, dOutMNT, EnIMNT, EnOMNT, encryptAEA, 
                      EnIAEAMNT, EnOAEAMNT, dInAEAMNT, dOutAEA, 
                      WrEnMNT, WrAddrMNT, WrDataMNT, mode, chaining_mode, Clock, Resetn); 
-modeGCM  : AES_Mode_GCM 
-            generic map (ADDR_IV, ADDR_SUSP, ADDR_H)
-            port map(IV, H, Susp, dIn, dOutGCM, EnIGCM, EnOGCM, not mode(1), GCMPhase, 
-                     EnIAEAGCM, EnOAEAGCM, dInAEAGCM, dOutAEA, 
-                     WrEnGCM, WrAddrGCM, WrDataGCM,Clock, Resetn); 
+--modeGCM  : AES_Mode_GCM 
+--            generic map (ADDR_IV, ADDR_SUSP, ADDR_H)
+--            port map(IV, H, Susp, dIn, dOutGCM, EnIGCM, EnOGCM, not mode(1), GCMPhase, 
+--                     EnIAEAGCM, EnOAEAGCM, dInAEAGCM, dOutAEA, 
+--                     WrEnGCM, WrAddrGCM, WrDataGCM,Clock, Resetn); 
 
 
 -- Set encrypt and keyExpandFlag signals according to the mode
