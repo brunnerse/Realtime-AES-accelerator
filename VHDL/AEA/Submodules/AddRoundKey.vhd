@@ -46,14 +46,16 @@ architecture Behavioral of AddRoundKey is
 
 begin
 
-process (Clock, Resetn)
+process (Clock)
 begin
-if Resetn = '0' then
-    EnO <= '0';
-elsif rising_edge(Clock) then
-    EnO <= EnI;
-    if EnI = '1' then
-        dOut <= din xor key;
+if rising_edge(Clock) then
+    if Resetn = '0' then
+        EnO <= '0';
+    else
+        EnO <= EnI;
+        if EnI = '1' then
+            dOut <= din xor key;
+        end if;
     end if;
 end if;
 end process;

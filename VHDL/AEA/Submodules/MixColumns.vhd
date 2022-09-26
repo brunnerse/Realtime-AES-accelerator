@@ -102,7 +102,7 @@ dinToTable:   VectorToTable port map(dIn, tableIn);
 tableToDout : TableToVector port map(tableOut, dOut);
 
 
-process (Clock, Resetn)
+process (Clock)
 
 variable times2, times3, a3 : std_logic_vector(7 downto 0);
 variable temp1, temp2, temp3, temp4 : std_logic_vector(7 downto 0);
@@ -110,41 +110,43 @@ variable extendedCol : std_logic_vector(55 downto 0);
 variable extColLine : integer;
 
 begin
-if Resetn = '0' then
-    EnO <= '0';
-elsif rising_edge(Clock) then
-    EnO <= EnI;
-    if EnI = '1' then
-        if encrypt = '1' then
-            for col in KEY_SIZE/32-1 downto 0 loop
-                -- Extend the column by its first three elements for simpler indexing
-                extendedCol := tableIn(col)(31 downto 0) & tableIn(col)(31 downto 8);
+if rising_edge(Clock) then
+    if Resetn = '0' then
+        EnO <= '0';
+    else
+        EnO <= EnI;
+        if EnI = '1' then
+            if encrypt = '1' then
+                for col in KEY_SIZE/32-1 downto 0 loop
+                    -- Extend the column by its first three elements for simpler indexing
+                    extendedCol := tableIn(col)(31 downto 0) & tableIn(col)(31 downto 8);
 
-                for line in 3 downto 0 loop
-                    extColLine := line + 3;
-                    tableOut(col)(line*8+7 downto line*8) <= 
-                        mulGFby2(extendedCol(extColLine*8+7 downto extColLine*8)) -- Multiply the byte in the current cell [line, col] by 2
-                        xor mulGFby3(extendedCol(extColLine*8-1 downto extColLine*8-8)) -- Multiply next byte by 3
-                        xor extendedCol(extColLine*8-9 downto extColLine*8-16)
-                        xor extendedCol(extColLine*8-17 downto extColLine*8-24);
-                end loop;               
-            end loop;
-        else
-            -- decrypt
-            for col in KEY_SIZE/32-1 downto 0 loop
-                -- Extend the column by its first three elements for simpler indexing
-                extendedCol := tableIn(col)(31 downto 0) & tableIn(col)(31 downto 8);
+                    for line in 3 downto 0 loop
+                        extColLine := line + 3;
+                        tableOut(col)(line*8+7 downto line*8) <= 
+                            mulGFby2(extendedCol(extColLine*8+7 downto extColLine*8)) -- Multiply the byte in the current cell [line, col] by 2
+                            xor mulGFby3(extendedCol(extColLine*8-1 downto extColLine*8-8)) -- Multiply next byte by 3
+                            xor extendedCol(extColLine*8-9 downto extColLine*8-16)
+                            xor extendedCol(extColLine*8-17 downto extColLine*8-24);
+                    end loop;               
+                end loop;
+            else
+                -- decrypt
+                for col in KEY_SIZE/32-1 downto 0 loop
+                    -- Extend the column by its first three elements for simpler indexing
+                    extendedCol := tableIn(col)(31 downto 0) & tableIn(col)(31 downto 8);
 
-                for line in 3 downto 0 loop
-                    extColLine := line + 3;
-                    tableOut(col)(line*8+7 downto line*8) <= 
-                        mulGF(extendedCol(extColLine*8+7 downto extColLine*8), x"e")
-                        xor mulGF(extendedCol(extColLine*8-1 downto extColLine*8-8), x"b")
-                        xor mulGF(extendedCol(extColLine*8-9 downto extColLine*8-16), x"d")
-                        xor mulGF(extendedCol(extColLine*8-17 downto extColLine*8-24), x"9");
-                end loop;          
-            end loop;
-            
+                    for line in 3 downto 0 loop
+                        extColLine := line + 3;
+                        tableOut(col)(line*8+7 downto line*8) <= 
+                            mulGF(extendedCol(extColLine*8+7 downto extColLine*8), x"e")
+                            xor mulGF(extendedCol(extColLine*8-1 downto extColLine*8-8), x"b")
+                            xor mulGF(extendedCol(extColLine*8-9 downto extColLine*8-16), x"d")
+                            xor mulGF(extendedCol(extColLine*8-17 downto extColLine*8-24), x"9");
+                    end loop;          
+                end loop;
+                
+            end if;
         end if;
     end if;
 end if;

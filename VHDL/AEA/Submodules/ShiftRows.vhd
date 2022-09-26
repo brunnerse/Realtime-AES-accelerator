@@ -63,24 +63,26 @@ begin
 dinToTable: VectorToTable port map(dIn, tableIn);
 tableToDout : TableToVector port map(tableOut, dOut);
 
-process (Clock, Resetn)
+process (Clock)
 begin
-if Resetn = '0' then
-    EnO <= '0';
-elsif rising_edge(Clock) then
-    EnO <= EnI;
-    if encrypt = '1' then    
-        -- Rotate the rows manually. Keep in mind that the table is made out of columns, not rows!
-        tableOut(0) <= tableIn(0)(31 downto 24) & tableIn(1)(23 downto 16) & tableIn(2)(15 downto 8) & tableIn(3)(7 downto 0);
-        tableOut(1) <= tableIn(1)(31 downto 24) & tableIn(2)(23 downto 16) & tableIn(3)(15 downto 8) & tableIn(0)(7 downto 0);
-        tableOut(2) <= tableIn(2)(31 downto 24) & tableIn(3)(23 downto 16) & tableIn(0)(15 downto 8) & tableIn(1)(7 downto 0); 
-        tableOut(3) <= tableIn(3)(31 downto 24) & tableIn(0)(23 downto 16) & tableIn(1)(15 downto 8) & tableIn(2)(7 downto 0);
-    else 
-    -- decrypt: reverse the rotate direction
-        tableOut(0) <= tableIn(0)(31 downto 24) & tableIn(3)(23 downto 16) & tableIn(2)(15 downto 8) & tableIn(1)(7 downto 0);
-        tableOut(1) <= tableIn(1)(31 downto 24) & tableIn(0)(23 downto 16) & tableIn(3)(15 downto 8) & tableIn(2)(7 downto 0);
-        tableOut(2) <= tableIn(2)(31 downto 24) & tableIn(1)(23 downto 16) & tableIn(0)(15 downto 8) & tableIn(3)(7 downto 0); 
-        tableOut(3) <= tableIn(3)(31 downto 24) & tableIn(2)(23 downto 16) & tableIn(1)(15 downto 8) & tableIn(0)(7 downto 0);
+if rising_edge(Clock) then
+    if Resetn = '0' then
+        EnO <= '0';
+    else
+        EnO <= EnI;
+        if encrypt = '1' then    
+            -- Rotate the rows manually. Keep in mind that the table is made out of columns, not rows!
+            tableOut(0) <= tableIn(0)(31 downto 24) & tableIn(1)(23 downto 16) & tableIn(2)(15 downto 8) & tableIn(3)(7 downto 0);
+            tableOut(1) <= tableIn(1)(31 downto 24) & tableIn(2)(23 downto 16) & tableIn(3)(15 downto 8) & tableIn(0)(7 downto 0);
+            tableOut(2) <= tableIn(2)(31 downto 24) & tableIn(3)(23 downto 16) & tableIn(0)(15 downto 8) & tableIn(1)(7 downto 0); 
+            tableOut(3) <= tableIn(3)(31 downto 24) & tableIn(0)(23 downto 16) & tableIn(1)(15 downto 8) & tableIn(2)(7 downto 0);
+        else 
+        -- decrypt: reverse the rotate direction
+            tableOut(0) <= tableIn(0)(31 downto 24) & tableIn(3)(23 downto 16) & tableIn(2)(15 downto 8) & tableIn(1)(7 downto 0);
+            tableOut(1) <= tableIn(1)(31 downto 24) & tableIn(0)(23 downto 16) & tableIn(3)(15 downto 8) & tableIn(2)(7 downto 0);
+            tableOut(2) <= tableIn(2)(31 downto 24) & tableIn(1)(23 downto 16) & tableIn(0)(15 downto 8) & tableIn(3)(7 downto 0); 
+            tableOut(3) <= tableIn(3)(31 downto 24) & tableIn(2)(23 downto 16) & tableIn(1)(15 downto 8) & tableIn(0)(7 downto 0);
+        end if;
     end if;
 end if;
 end process;

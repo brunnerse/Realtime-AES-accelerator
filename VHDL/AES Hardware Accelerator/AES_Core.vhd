@@ -178,93 +178,36 @@ encryptAEA <= not mode(1) when chaining_mode = CHAINING_MODE_ECB or chaining_mod
 keyExpandFlagAEA <= mode(0) when chaining_mode = CHAINING_MODE_ECB or chaining_mode = CHAINING_MODE_CBC else
             '0'; -- never key expand in CTR or GCM mode
 
--- Process to start the selected mode
-process (EnI, Resetn)
-begin
-case chaining_mode is
-    -- Only activate the Mode unit that is currently selected
-    when CHAINING_MODE_GCM =>
-        EnIGCM <= EnI;
-    when others =>
-    --when CHAINING_MODE_ECB | CHAINING_MODE_CBC | CHAINING_MODE_CTR =>
-        EnIMNT <= EnI;
-end case;
--- don't activate the units in keyexpansion mode
-if Resetn = '0' then
-    EnIMNT <= '0';
-    EnIGCM <= '0';
-end if;
-end process;
+EnIGCM <= EnI when chaining_mode = CHAINING_MODE_GCM else
+ '0';
+with chaining_mode select
+EnIMNT <= EnI when CHAINING_MODE_ECB | CHAINING_MODE_CBC | CHAINING_MODE_CTR,
+          '0' when others;
 
--- process to forward the data from the Mode Unit to the AEA
-process (EnI, EnIAEAMNT, EnIAEAGCM, Resetn)
-begin
-case chaining_mode is
-    -- Only activate the Mode unit that is currently selected
-    when CHAINING_MODE_GCM =>
-        EnIAEA <= EnIAEAGCM;
-        dInAEA <= dInAEAGCM;
-    when others =>
-    --when CHAINING_MODE_ECB | CHAINING_MODE_CBC | CHAINING_MODE_CTR =>
-        EnIAEA <= EnIAEAMNT;
-        dInAEA <= dInAEAMNT;
-end case;
-if Resetn = '0' then
-    EnIAEA <= '0';
-end if;
-end process;
+--  forward the data from the Mode Unit to the AEA      
+EnIAEA <=   EnIAEAGCM when chaining_mode = CHAINING_MODE_GCM else
+            EnIAEAMNT;
+dInAEA <=   dInAEAGCM when chaining_mode = CHAINING_MODE_GCM else
+            dInAEAMNT;
+            
+-- activate the Mode Unit again after the AEA finished
+EnOAEAGCM <=    EnOAEA when chaining_mode = CHAINING_MODE_GCM else
+                '0';
+with chaining_mode select
+EnOAEAMNT <=    EnOAEA when CHAINING_MODE_ECB | CHAINING_MODE_CBC | CHAINING_MODE_CTR,
+                '0' when others;
 
--- process to activate the Mode Unit again after AEA finished
-process (EnOAEA)
-begin
-case chaining_mode is
-    -- Only activate the Mode unit that is currently selected
-    when CHAINING_MODE_GCM =>
-        EnOAEAGCM <= EnOAEA;
-    when others =>
-    --when CHAINING_MODE_ECB | CHAINING_MODE_CBC | CHAINING_MODE_CTR =>
-        EnOAEAMNT <= EnOAEA;
-end case;
-if Resetn = '0' then
-    EnOAEAGCM <= '0';
-    EnOAEAMNT <= '0';
-end if;
-end process;
+-- forward the final data from the Mode Unit to the outputs
+EnO <=      EnOGCM when chaining_mode = CHAINING_MODE_GCM else
+            EnOMNT;
+dOut <=     dOutGCM when chaining_mode = CHAINING_MODE_GCM else
+            dOutMNT;
 
--- process to forward the final data from the Mode Unit to the outputs
-process (EnOMNT, EnOGCM, Resetn)
-begin
-case chaining_mode is
-    when CHAINING_MODE_GCM =>
-        dOut <= dOutGCM;
-        EnO <= EnOGCM;
-    when CHAINING_MODE_ECB | CHAINING_MODE_CBC | CHAINING_MODE_CTR =>
-        dOut <= dOutMNT;
-        EnO <= EnOMNT;
-    when others =>
-end case;
-if Resetn = '0' then
-    EnO <= '0';
-end if;
-end process;
-
--- process to forward the write signals of the modes
-process (Resetn, WrEnMNT, WrEnGCM)
-begin
-    if Resetn = '0' then
-        WrEn <= '0';
-    else
-        case chaining_mode is
-            when CHAINING_MODE_GCM =>
-                WrEn <= WrEnGCM;
-                WrData <= WrDataGCM;
-                WrAddr <= WrAddrGCM;
-            when others =>
-                WrEn <= WrEnMNT;
-                WrData <= WrDataMNT;
-                WrAddr <= WrAddrMNT;
-        end case;
-    end if;
-end process;
-
+-- forward the write signals of the modes
+WrEn <=     WrEnGCM when chaining_mode = CHAINING_MODE_GCM else
+            WrEnMNT;
+WrData <=   WrDataGCM when chaining_mode = CHAINING_MODE_GCM else
+            WrDataMNT;
+WrAddr <=   WrAddrGCM when chaining_mode = CHAINING_MODE_GCM else
+            WrAddrMNT;       
 end Behavioral;

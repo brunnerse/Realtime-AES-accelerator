@@ -69,12 +69,14 @@ architecture Behavioral of APB_Interface is
 
 begin
 
-process (pclk, presetn)
+process (pclk)
 begin
-if presetn = '0' then 
-    control <= '0';
-elsif rising_edge(pclk) then
-    control <= '1';
+if rising_edge(pclk) then
+    if presetn = '0' then 
+        control <= '0';
+    else
+        control <= '1';
+    end if;
 end if;
 end process;
 

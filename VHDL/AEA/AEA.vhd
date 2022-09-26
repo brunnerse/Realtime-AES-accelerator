@@ -125,54 +125,56 @@ EnO <= '0' when state /= Idle else
 roundKey <= roundKeys(to_integer(unsigned(currentRound)));
 
 -- process that counts up/down the currentRound variable and sets isLastRound accordingly
-process (Clock, Resetn)
+process (Clock)
 begin
-if Resetn = '0' then
-    isLastRound <= '0';
-elsif rising_edge(Clock) then
-    case(state) is
-        when Idle =>
-            if encrypt = '1' then
-                currentRound <= x"1";
-                isLastRound <= '0';
-            else
-                -- for decryption, start with the last round
-                currentRound <= x"a";
-                isLastRound <= '1';
-            end if;
-            -- start calculation on enable signal if not in keyExpansion mode
-            if EnI = '1' and not (encrypt = '1' and keyExpandFlag = '1') then
-                state <= RoundState;
-            end if;
-        when RoundState =>
-            -- Increment currentRound and set the next roundKey in the cycle before the round finishes
-            if roundIsLastCycle = '1' then
-                isLastRound <= '0'; -- set it to zero because in decryption, it is 1 in the first round
+if rising_edge(Clock) then
+    if Resetn = '0' then
+        isLastRound <= '0';
+    else
+        case(state) is
+            when Idle =>
                 if encrypt = '1' then
-                    currentRound <= std_logic_vector(unsigned(currentRound) + to_unsigned(1, 4));
+                    currentRound <= x"1";
+                    isLastRound <= '0';
                 else
-                    -- decrement for decryption 
-                    currentRound <= std_logic_vector(unsigned(currentRound) - to_unsigned(1, 4)); 
-                end if;
-                
-                -- If next round is the last one, change to FinalRoundState
-                if encrypt = '1' and currentRound = std_logic_vector(to_unsigned(NUM_ROUNDS-1, 4)) then
+                    -- for decryption, start with the last round
+                    currentRound <= x"a";
                     isLastRound <= '1';
-                    state <= FinalRoundState;
-                elsif encrypt = '0' and currentRound = std_logic_vector(to_unsigned(1, 4)) then
-                    -- Next round is round 1, which is the last round, as round 0 is the preARK
-                    state <= FinalRoundState;
                 end if;
-            end if;
-        when FinalRoundState =>
-            -- wait until the last component gives its enable signal, then return to idle state
-            if (encrypt = '1' and roundIsLastCycle = '1') or (encrypt = '0' and EnIPreARK = '1') then
-                state <= Idle;
-                isLastRound <= '0';
-                -- TODO reset currentRound already here? If doing it in Idle, it will be one cycle delayed. 
-            end if;
-        when others =>
-    end case;
+                -- start calculation on enable signal if not in keyExpansion mode
+                if EnI = '1' and not (encrypt = '1' and keyExpandFlag = '1') then
+                    state <= RoundState;
+                end if;
+            when RoundState =>
+                -- Increment currentRound and set the next roundKey in the cycle before the round finishes
+                if roundIsLastCycle = '1' then
+                    isLastRound <= '0'; -- set it to zero because in decryption, it is 1 in the first round
+                    if encrypt = '1' then
+                        currentRound <= std_logic_vector(unsigned(currentRound) + to_unsigned(1, 4));
+                    else
+                        -- decrement for decryption 
+                        currentRound <= std_logic_vector(unsigned(currentRound) - to_unsigned(1, 4)); 
+                    end if;
+                    
+                    -- If next round is the last one, change to FinalRoundState
+                    if encrypt = '1' and currentRound = std_logic_vector(to_unsigned(NUM_ROUNDS-1, 4)) then
+                        isLastRound <= '1';
+                        state <= FinalRoundState;
+                    elsif encrypt = '0' and currentRound = std_logic_vector(to_unsigned(1, 4)) then
+                        -- Next round is round 1, which is the last round, as round 0 is the preARK
+                        state <= FinalRoundState;
+                    end if;
+                end if;
+            when FinalRoundState =>
+                -- wait until the last component gives its enable signal, then return to idle state
+                if (encrypt = '1' and roundIsLastCycle = '1') or (encrypt = '0' and EnIPreARK = '1') then
+                    state <= Idle;
+                    isLastRound <= '0';
+                    -- TODO reset currentRound already here? If doing it in Idle, it will be one cycle delayed. 
+                end if;
+            when others =>
+        end case;
+    end if;
 end if;
 end process;
 

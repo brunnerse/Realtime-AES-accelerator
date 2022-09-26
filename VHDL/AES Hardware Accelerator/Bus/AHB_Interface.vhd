@@ -111,79 +111,81 @@ RdAddr <= local_addr;
 s_ahb_hrdata <= RdData;
 
 
-process (s_ahb_hresetn, s_ahb_hclk)
+process (s_ahb_hclk)
 begin
-if s_ahb_hresetn = '0' then
-    state <= IdleOrRead;
-    s_ahb_hready <= '1';
-elsif rising_edge(s_ahb_hclk) then
-    -- This subordinate never has to insert wait states, so hready_out is always 1
-    s_ahb_hready <= '1';
-    -- Set RdEn and WrEn to 0; if there's an access, the process will set it to 1 later
-    RdEn <= '0';
-    WrEn <= '0';
-    
-    if s_ahb_hsel = '1' then
-        case state is
-            when IdleOrRead =>
-                case s_ahb_htrans is
-                    when HTRANS_TYPE_IDLE | HTRANS_TYPE_BUSY => -- ignore idle 
-                        s_ahb_hresp <= '0';
-                    -- bursts don't have to be considered for read accesses
-                    when HTRANS_TYPE_NONSEQ | HTRANS_TYPE_SEQ => 
-                        -- Calculate index in mem array from the address
-                        local_addr <= calcLocalAddr(s_ahb_haddr);
-                        -- Check hwrite signal 
-                        if s_ahb_hwrite = '1' then
-                            -- Write: read from hwdata in the next cycle (data phase)
-                            state <= Write; 
-                        else
-                            -- Read: Set Read enable signal
-                            RdEn <= '1';
-                            s_ahb_hready <= '0'; -- delay reading for one cycle for now 
-                            -- TODO make this superfluous, i.e. implement reading in the same cycle e.g. by directly forwarding the RdEn and address signals
-                            s_ahb_hresp <= '0';
-                        end if;
-                    when others =>
-                end case;
-            when Write =>
-                -- TODO necessary to wait for hready signal to be high?
-                
-                -- Write strobes are not supported
-                WrEn <= '1';
-                WrAddr <= local_addr;
-                WrData <= s_ahb_hwdata;
-                s_ahb_hready <= '1';
-                s_ahb_hresp <= '0';
-                -- Check control data if burst is not yet finished
-                case s_ahb_htrans is
-                    when HTRANS_TYPE_SEQ =>
-                        -- Next write access in the burst; update the address
-                        local_addr <= calcLocalAddr(s_ahb_haddr);
-                when HTRANS_TYPE_BUSY =>
-                    -- Write burst transfer is interrupted
-                    state <= BusyWrite;
-                when others => -- burst finished
-                    state <= IdleorRead;
-                end case;
-            when BusyWrite =>
-                case s_ahb_htrans is
-                    when HTRANS_TYPE_SEQ =>
-                        -- Writing continues in next cycle
-                        -- update the address
-                        local_addr <= calcLocalAddr(s_ahb_haddr);
-                        state <= Write;
-                    when HTRANS_TYPE_BUSY =>
-                        -- stay in BusyWrite state
-                    when others =>
-                        -- Burst has ended
-                        state <= IdleOrRead;
-                end case;
-            when others =>
-        end case;
-    else 
-        -- Select signal is low
+if rising_edge(s_ahb_hclk) then
+    if s_ahb_hresetn = '0' then
         state <= IdleOrRead;
+        s_ahb_hready <= '1';
+    else
+        -- This subordinate never has to insert wait states, so hready_out is always 1
+        s_ahb_hready <= '1';
+        -- Set RdEn and WrEn to 0; if there's an access, the process will set it to 1 later
+        RdEn <= '0';
+        WrEn <= '0';
+        
+        if s_ahb_hsel = '1' then
+            case state is
+                when IdleOrRead =>
+                    case s_ahb_htrans is
+                        when HTRANS_TYPE_IDLE | HTRANS_TYPE_BUSY => -- ignore idle 
+                            s_ahb_hresp <= '0';
+                        -- bursts don't have to be considered for read accesses
+                        when HTRANS_TYPE_NONSEQ | HTRANS_TYPE_SEQ => 
+                            -- Calculate index in mem array from the address
+                            local_addr <= calcLocalAddr(s_ahb_haddr);
+                            -- Check hwrite signal 
+                            if s_ahb_hwrite = '1' then
+                                -- Write: read from hwdata in the next cycle (data phase)
+                                state <= Write; 
+                            else
+                                -- Read: Set Read enable signal
+                                RdEn <= '1';
+                                s_ahb_hready <= '0'; -- delay reading for one cycle for now 
+                                -- TODO make this superfluous, i.e. implement reading in the same cycle e.g. by directly forwarding the RdEn and address signals
+                                s_ahb_hresp <= '0';
+                            end if;
+                        when others =>
+                    end case;
+                when Write =>
+                    -- TODO necessary to wait for hready signal to be high?
+                    
+                    -- Write strobes are not supported
+                    WrEn <= '1';
+                    WrAddr <= local_addr;
+                    WrData <= s_ahb_hwdata;
+                    s_ahb_hready <= '1';
+                    s_ahb_hresp <= '0';
+                    -- Check control data if burst is not yet finished
+                    case s_ahb_htrans is
+                        when HTRANS_TYPE_SEQ =>
+                            -- Next write access in the burst; update the address
+                            local_addr <= calcLocalAddr(s_ahb_haddr);
+                    when HTRANS_TYPE_BUSY =>
+                        -- Write burst transfer is interrupted
+                        state <= BusyWrite;
+                    when others => -- burst finished
+                        state <= IdleorRead;
+                    end case;
+                when BusyWrite =>
+                    case s_ahb_htrans is
+                        when HTRANS_TYPE_SEQ =>
+                            -- Writing continues in next cycle
+                            -- update the address
+                            local_addr <= calcLocalAddr(s_ahb_haddr);
+                            state <= Write;
+                        when HTRANS_TYPE_BUSY =>
+                            -- stay in BusyWrite state
+                        when others =>
+                            -- Burst has ended
+                            state <= IdleOrRead;
+                    end case;
+                when others =>
+            end case;
+        else 
+            -- Select signal is low
+            state <= IdleOrRead;
+        end if;
     end if;
 end if;
 

@@ -124,20 +124,22 @@ EnO <=  EnOXOR when chaining_mode = CHAINING_MODE_CTR or (chaining_mode = CHAINI
 
 
 -- update IV
+-- TODO Das Schreiben erfolgt einen Takt nachdem das EnO Signal ausgegeben wird. EnO verzögern?
 WrAddr <= std_logic_vector(to_unsigned(ADDR_IV, ADDR_WIDTH)); 
-process(Resetn, Clock, EnOAEA)
+process(Clock)
 begin
-if Resetn = '0' then
+if rising_edge(Clock) then 
     WrEn <= '0';
-elsif EnOAEA = '1' and chaining_mode = CHAINING_MODE_CBC then
-    WrEn <= '1';
-    if encrypt = '1' then
-        WrData <= dOutAEA;
-    else
-        WrData <= dIn;
-    end if;
-elsif rising_edge(Clock) then 
-    if EnI = '1' and chaining_mode = CHAINING_MODE_CTR then
+    -- For chaining mode CBC, write ciphertext once the AEA has finished
+    if EnOAEA = '1' and chaining_mode = CHAINING_MODE_CBC then
+        WrEn <= '1';
+        if encrypt = '1' then
+            WrData <= dOutAEA;
+        else
+            WrData <= dIn;
+        end if;
+    -- For chaining mode CTR, write the incremented IV back immediately
+    elsif EnI = '1' and chaining_mode = CHAINING_MODE_CTR then
         WrEn <= '1';
         WrData <= incrementIV(IV);
     else

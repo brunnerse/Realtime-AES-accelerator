@@ -148,40 +148,40 @@ EnO <=  EnOAEA when GCMPhase = GCM_PHASE_INIT or (GCMPhase = GCM_PHASE_PAYLOAD a
 
 
 -- process to write the new IV to the register set
-process(Clock, Resetn, EnOAEA, EnOMul)
+-- TODO Das Schreiben erfolgt einen Takt nachdem das EnO Signal ausgegeben wird. EnO verzögern?
+process(Clock)
 begin
-if Resetn = '0' then
+if rising_edge(Clock) then
     WrEn <= '0';
-elsif EnOAEA = '1' and GCMPhase = GCM_PHASE_INIT then
-    WrAddr <= std_logic_vector(to_unsigned(ADDR_H, ADDR_WIDTH));
-    WrData <= dOutAEA;
-    WrEn <= '1';
-elsif EnOMul = '1' and (GCMPhase = GCM_PHASE_HEADER or GCMPhase = GCM_PHASE_PAYLOAD) then 
-    WrAddr <= std_logic_vector(to_unsigned(ADDR_SUSP, ADDR_WIDTH));
-    WrData <= dOutMul;
-    WrEn <= '1';
-elsif rising_edge(Clock) then
-    if EnI = '1' and GCMPhase = GCM_PHASE_PAYLOAD then
+    if EnOAEA = '1' and GCMPhase = GCM_PHASE_INIT then
+        WrAddr <= std_logic_vector(to_unsigned(ADDR_H, ADDR_WIDTH));
+        WrData <= dOutAEA;
         WrEn <= '1';
+    elsif EnOMul = '1' and (GCMPhase = GCM_PHASE_HEADER or GCMPhase = GCM_PHASE_PAYLOAD) then 
+        WrAddr <= std_logic_vector(to_unsigned(ADDR_SUSP, ADDR_WIDTH));
+        WrData <= dOutMul;
+        WrEn <= '1';
+    elsif EnI = '1' and GCMPhase = GCM_PHASE_PAYLOAD then
         WrAddr <= std_logic_vector(to_unsigned(ADDR_IV, ADDR_WIDTH));
         WrData <= incrementIV(IV);
-    else
-        WrEn <= '0';
+        WrEn <= '1';
     end if;
 end if;
 end process;
 
 -- process performing the GF2 multiplication on each rising clock edge when EnIMul is asserted
-process (Clock, Resetn)
+process (Clock)
 begin
-if Resetn = '0' then
-    EnOMul <= '0';
-elsif rising_edge(Clock) then
-    if EnIMul = '1' then
-        dOutMul <= mulGF(dInMul, H);
-        EnOMul <= '1';
-    else
+if rising_edge(Clock) then
+    if Resetn = '0' then
         EnOMul <= '0';
+    else
+        if EnIMul = '1' then
+            dOutMul <= mulGF(dInMul, H);
+            EnOMul <= '1';
+        else
+            EnOMul <= '0';
+        end if;
     end if;
 end if;
 

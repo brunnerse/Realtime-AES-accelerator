@@ -115,40 +115,44 @@ RDERR <= '0';
 
 
 -- driver process for CCF status signal
-process (Clock, Resetn)
+process (Clock)
 begin
-if Resetn = '0' then 
-    CCF <= '0';
-elsif rising_edge(Clock) then
-    if EnOCore = '1' then
-        CCF <= '1'; -- Set CCF flag whenever the Core finished a calculation
-    -- Clear flag when CCFC is set or module is disabled
-    elsif En = '0' or CCFC = '1' then
+if rising_edge(Clock) then
+    if Resetn = '0' then 
         CCF <= '0';
+    else
+        if EnOCore = '1' then
+            CCF <= '1'; -- Set CCF flag whenever the Core finished a calculation
+        -- Clear flag when CCFC is set or module is disabled
+        elsif En = '0' or CCFC = '1' then
+            CCF <= '0';
+        end if;
     end if;
 end if;
 end process;
 
 -- read process;
-process (Clock, Resetn)
+process (Clock)
 begin
-if Resetn = '0' then -- reset counter when unit is disabled
-    readCounter <= "00";
-elsif rising_edge(Clock) then
-    if RdEn = '1' then
-        -- For registers DOUTR and SR, don't actually read from memory. This way the registers appear read-only
-        if RdAddr(ADDR_WIDTH-1 downto 2) =  std_logic_vector(to_unsigned(ADDR_DOUTR, ADDR_WIDTH)(ADDR_WIDTH-1 downto 2) ) then
-            RdData <= dataOut(127-to_integer(readCounter)*32 downto 96-to_integer(readCounter)*32);
-            readCounter <= readCounter + to_unsigned(1, 2);
-        elsif RdAddr =  std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)) then
-            RdData <= x"0000000" & BUSY & WRERR & RDERR & CCF;
-        else
-            RdData <= mem(to_integer(unsigned(RdAddr(ADDR_WIDTH-1 downto 2)))); -- divide address by four, as array is indexed word-wise
-        end if;
-    end if;
-    -- Reset counter when unit is disabled
-    if En = '0' and prevEn = '1' then
+if rising_edge(Clock) then
+    if Resetn = '0' then -- reset counter when unit is disabled
         readCounter <= "00";
+    else
+        if RdEn = '1' then
+            -- For registers DOUTR and SR, don't actually read from memory. This way the registers appear read-only
+            if RdAddr(ADDR_WIDTH-1 downto 2) =  std_logic_vector(to_unsigned(ADDR_DOUTR, ADDR_WIDTH)(ADDR_WIDTH-1 downto 2) ) then
+                RdData <= dataOut(127-to_integer(readCounter)*32 downto 96-to_integer(readCounter)*32);
+                readCounter <= readCounter + to_unsigned(1, 2);
+            elsif RdAddr =  std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)) then
+                RdData <= x"0000000" & BUSY & WRERR & RDERR & CCF;
+            else
+                RdData <= mem(to_integer(unsigned(RdAddr(ADDR_WIDTH-1 downto 2)))); -- divide address by four, as array is indexed word-wise
+            end if;
+        end if;
+        -- Reset counter when unit is disabled  TODO Always reset for En = '0'?
+        if En = '0' and prevEn = '1' then
+            readCounter <= "00";
+        end if;
     end if;
 end if;
 end process;
@@ -162,48 +166,53 @@ begin
 end process;
 
 -- write process
-process (Clock, Resetn)
+process (Clock)
 begin
-if Resetn = '0' then
-    for i in 0 to ADDR_SUSPR7/4 loop
-        mem(i) <= (others => '0');
-    end loop;
-    writeCounter <= "00";
-    EnICore <= '0';
-elsif rising_edge(Clock) then
-    EnICore <= '0';
-    if WrEn1 = '1' then
-        for i in 3 downto 0 loop
-            if WrStrb1(i) = '1' then
-                mem(to_integer(unsigned(WrAddr1(ADDR_WIDTH-1 downto 2))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
-            end if;
-        end loop;
-        -- Remember write accesses to DINR, start the AES Core after four write accesses
-        if En = '1' and WrAddr1(ADDR_WIDTH-1 downto 2) = std_logic_vector(to_unsigned(ADDR_DINR, ADDR_WIDTH)(ADDR_WIDTH-1 downto 2)) then
-            writeCounter <= writeCounter + to_unsigned(1,2);
-            dataIn(127-to_integer(writeCounter)*32 downto 96-to_integer(writeCounter)*32) <= WrData1;
-            if writeCounter = to_unsigned(3,2) then
-                -- All four bytes have been written, enable the AES Core
-                EnICore <= '1';
-            end if;
-        end if;
-    end if;
-    if WrEn2 = '1' then
-        -- write four words, i.e. 128 bit
-        for i in 0 to 3 loop
-         mem(to_integer(unsigned(WrAddr2(ADDR_WIDTH-1 downto 2))+i)) <= WrData2(127-i*32 downto 96-i*32);
-        end loop;
-    end if;
-    -- Reset counter and clear susp register when unit is disabled
-    if En = '0' and prevEn = '1' then
-        writeCounter <= "00";
-        for i in ADDR_SUSPR0/4 to ADDR_SUSPR3/4 loop
+if rising_edge(Clock) then
+    if Resetn = '0' then
+        for i in 0 to ADDR_SUSPR7/4 loop
             mem(i) <= (others => '0');
         end loop;
-    end if;
-    -- If mode is keyexpansion, start the AES Core without waiting for the four write accesses
-    if modeSignal = MODE_KEYEXPANSION and En = '1' and prevEn = '0' then
-        EnICore <= '1';
+        writeCounter <= "00";
+        EnICore <= '0';
+    else
+        EnICore <= '0';
+        -- Write port 1 (from the Interface)
+        if WrEn1 = '1' then
+            for i in 3 downto 0 loop
+                if WrStrb1(i) = '1' then
+                    mem(to_integer(unsigned(WrAddr1(ADDR_WIDTH-1 downto 2))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
+                end if;
+            end loop;
+            -- Remember write accesses to DINR when enabled, start the AES Core after four write accesses
+            -- (downto 2) to ignore the last two bits, as the address is divisible by four
+            if En = '1' and WrAddr1(ADDR_WIDTH-1 downto 2) = std_logic_vector(to_unsigned(ADDR_DINR, ADDR_WIDTH)(ADDR_WIDTH-1 downto 2)) then
+                writeCounter <= writeCounter + to_unsigned(1,2);
+                dataIn(127-to_integer(writeCounter)*32 downto 96-to_integer(writeCounter)*32) <= WrData1;
+                if writeCounter = to_unsigned(3,2) then
+                    -- All four bytes have been written, enable the AES Core
+                    EnICore <= '1';
+                end if;
+            end if;
+        end if;
+        -- Write port 2 (from the AES Core)
+        if WrEn2 = '1' then
+            -- write four words, i.e. 128 bit
+            for i in 0 to 3 loop
+                mem(to_integer(unsigned(WrAddr2(ADDR_WIDTH-1 downto 2))+i)) <= WrData2(127-i*32 downto 96-i*32);
+            end loop;
+        end if;
+        -- Reset counter and clear susp register when unit is disabled  TODO always during En = 0?
+        if En = '0' and prevEn = '1' then
+            writeCounter <= "00";
+            for i in ADDR_SUSPR0/4 to ADDR_SUSPR3/4 loop
+                mem(i) <= (others => '0');
+            end loop;
+        end if;
+        -- If mode is keyexpansion, start the AES Core without waiting for the four write accesses
+        if modeSignal = MODE_KEYEXPANSION and En = '1' and prevEn = '0' then
+            EnICore <= '1';
+        end if;
     end if;
 end if;
 end process;

@@ -136,84 +136,86 @@ M_AXI_wlast <= '1';
 M_AXI_awprot <= "000";
 M_AXI_arprot <= "000";
 
-process(M_AXI_aclk, M_AXI_aresetn, ReadEn, WriteEn)
+process(M_AXI_aclk, ReadEn, WriteEn)
 begin
-if M_AXI_aresetn = '0' then
-    busy <= '0';
-    ReadEnReceived <= '0';
-    WriteEnReceived <= '0';
-    state <= Idle;
-    M_AXI_awvalid <= '0';
-    M_AXI_wvalid <= '0';
-    M_AXI_bready <= '0';
-    M_AXI_arvalid <= '0';
-    M_AXI_rready <= '0';
-elsif ReadEn = '1' and state=Idle then
+if ReadEn = '1' and state=Idle then
         ReadEnReceived <= '1';
         busy <= '1';
 elsif WriteEn = '1' and state=Idle then
         WriteEnReceived <= '1';
         busy <= '1';
 elsif rising_edge(M_AXI_aclk) then
-    case state is
-        when Idle =>
-            if ReadEnReceived='1' then
-                ReadEnReceived <= '0';
-                M_AXI_araddr <= Address;
-                M_AXI_arvalid <= '1';  -- araddr is valid
-                M_AXI_rready <= '1';  -- ready to receive data
-                state <= WaitARReady;
-            elsif WriteEnReceived='1' then
-                WriteEnReceived <= '0';
-                M_AXI_awaddr <= Address;
-                M_AXI_awvalid <= '1'; -- indicate that awaddr is valid
-                M_AXI_wdata <= DataIn;
-                M_AXI_wstrb <= WrByteEna;
-                M_AXI_wvalid <= '1'; -- indicate that write data are valid
-                M_AXI_bready <= '1'; -- ready to receive response
-                state <= WaitAWReady_WReady;             
-            end if;
-        when WaitARReady =>
-            if M_AXI_arready = '1' then -- handshake successful
-                M_AXI_arvalid <= '0';
-                state <= Read;
-            end if;
-        when Read =>
-            if M_AXI_rvalid = '1' then -- data received successfully
-                DataOut <= M_AXI_rdata;
-                M_AXI_rready <= '0';
-                busy <= '0';  -- indicate that read is complete
-                state <= Idle;
-            end if;
-        when WaitAWReady_WReady =>
-            if M_AXI_awready = '1' and M_AXI_wready = '1' then -- slave read address and data successfully
-                M_AXI_awvalid <= '0';
-                M_AXI_wvalid <= '0';
-                state <= Write;
-            elsif M_AXI_awready = '1' and M_AXI_wready = '0' then
-                M_AXI_awvalid <= '0';
-                state <= WaitWReady;
-            elsif M_AXI_awready = '0' and M_AXI_wready = '1' then
-                M_AXI_wvalid <= '0';
-                state <= WaitAWReady;
-            end if;
-        when WaitAWReady =>
-            if M_AXI_awready = '1' then
-                M_AXI_awvalid <= '0';
-                state <= Write;
-             end if;
-        when WaitWReady =>
-            if M_AXI_wready = '1' then
-                M_AXI_wvalid <= '0';
-                state <= Write;
-            end if;
-        when Write =>
-            if M_AXI_bvalid = '1' then
-                M_AXI_bready <= '0'; 
-                busy <= '0';
-                state <= Idle;
-            end if;     
-    end case;
+    if M_AXI_aresetn = '0' then
+        busy <= '0';
+        ReadEnReceived <= '0';
+        WriteEnReceived <= '0';
+        state <= Idle;
+        M_AXI_awvalid <= '0';
+        M_AXI_wvalid <= '0';
+        M_AXI_bready <= '0';
+        M_AXI_arvalid <= '0';
+        M_AXI_rready <= '0';
+    else
+        case state is
+            when Idle =>
+                if ReadEnReceived='1' then
+                    ReadEnReceived <= '0';
+                    M_AXI_araddr <= Address;
+                    M_AXI_arvalid <= '1';  -- araddr is valid
+                    M_AXI_rready <= '1';  -- ready to receive data
+                    state <= WaitARReady;
+                elsif WriteEnReceived='1' then
+                    WriteEnReceived <= '0';
+                    M_AXI_awaddr <= Address;
+                    M_AXI_awvalid <= '1'; -- indicate that awaddr is valid
+                    M_AXI_wdata <= DataIn;
+                    M_AXI_wstrb <= WrByteEna;
+                    M_AXI_wvalid <= '1'; -- indicate that write data are valid
+                    M_AXI_bready <= '1'; -- ready to receive response
+                    state <= WaitAWReady_WReady;             
+                end if;
+            when WaitARReady =>
+                if M_AXI_arready = '1' then -- handshake successful
+                    M_AXI_arvalid <= '0';
+                    state <= Read;
+                end if;
+            when Read =>
+                if M_AXI_rvalid = '1' then -- data received successfully
+                    DataOut <= M_AXI_rdata;
+                    M_AXI_rready <= '0';
+                    busy <= '0';  -- indicate that read is complete
+                    state <= Idle;
+                end if;
+            when WaitAWReady_WReady =>
+                if M_AXI_awready = '1' and M_AXI_wready = '1' then -- slave read address and data successfully
+                    M_AXI_awvalid <= '0';
+                    M_AXI_wvalid <= '0';
+                    state <= Write;
+                elsif M_AXI_awready = '1' and M_AXI_wready = '0' then
+                    M_AXI_awvalid <= '0';
+                    state <= WaitWReady;
+                elsif M_AXI_awready = '0' and M_AXI_wready = '1' then
+                    M_AXI_wvalid <= '0';
+                    state <= WaitAWReady;
+                end if;
+            when WaitAWReady =>
+                if M_AXI_awready = '1' then
+                    M_AXI_awvalid <= '0';
+                    state <= Write;
+                end if;
+            when WaitWReady =>
+                if M_AXI_wready = '1' then
+                    M_AXI_wvalid <= '0';
+                    state <= Write;
+                end if;
+            when Write =>
+                if M_AXI_bvalid = '1' then
+                    M_AXI_bready <= '0'; 
+                    busy <= '0';
+                    state <= Idle;
+                end if;     
+        end case;
+    end if;
 end if;
 end process;
 

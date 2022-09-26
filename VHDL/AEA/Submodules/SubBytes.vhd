@@ -42,22 +42,24 @@ architecture Behavioral of SubBytes is
 	  
 begin
 
-process (Clock, Resetn)
+process (Clock)
 begin
-if Resetn = '0' then
-    EnO <= '0';
-elsif rising_edge(Clock) then
-    EnO <= EnI;
-    if EnI = '1' then
-        if encrypt = '1' then    
-            for i in KEY_SIZE/8-1 downto 0 loop
-                dout(i*8+7 downto i*8) <= sbox_encrypt(to_integer(unsigned(dIn(i*8+7 downto i*8))));
-            end loop;
-        else
-            for i in KEY_SIZE/8-1 downto 0 loop
-                dout(i*8+7 downto i*8) <= sbox_decrypt(to_integer(unsigned(dIn(i*8+7 downto i*8))));
-            end loop;
-        end if;
+if rising_edge(Clock) then
+    if Resetn = '0' then
+        EnO <= '0';
+    else
+        EnO <= EnI;
+        if EnI = '1' then
+            if encrypt = '1' then    
+                for i in KEY_SIZE/8-1 downto 0 loop
+                    dout(i*8+7 downto i*8) <= sbox_encrypt(to_integer(unsigned(dIn(i*8+7 downto i*8))));
+                end loop;
+            else
+                for i in KEY_SIZE/8-1 downto 0 loop
+                    dout(i*8+7 downto i*8) <= sbox_decrypt(to_integer(unsigned(dIn(i*8+7 downto i*8))));
+                end loop;
+            end if;
+        end if;     
     end if;
 end if;
 end process;
