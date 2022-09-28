@@ -57,8 +57,8 @@ entity ControlLogic is
 -- Control to AES core
     EnICore : out std_logic;
     EnOCore : in std_logic;
-    mode : out std_logic_vector (1 downto 0);
-    chaining_mode : out std_logic_vector (2 downto 0);
+    mode : out std_logic_vector (MODE_LEN-1 downto 0);
+    chaining_mode : out std_logic_vector (CHMODE_LEN-1 downto 0);
     GCMPhase : out std_logic_vector(1 downto 0)
   );
 end ControlLogic;
@@ -98,7 +98,7 @@ H <=  mem(ADDR_SUSPR4/4) & mem(ADDR_SUSPR5/4) & mem(ADDR_SUSPR6/4) & mem(ADDR_SU
 En <= mem(ADDR_CR/4)(0);
 modeSignal <= mem(ADDR_CR/4)(4 downto 3);
 mode <= modeSignal;
-chaining_mode <= mem(ADDR_CR/4)(16) & mem(ADDR_CR/4)(6 downto 5);
+chaining_mode <= mem(ADDR_CR/4)(6 downto 5);
 DMAOUTEN <= mem(ADDR_CR/4)(12);
 DMAINEN <= mem(ADDR_CR/4)(11);
 ERRIE <= mem(ADDR_CR/4)(10);

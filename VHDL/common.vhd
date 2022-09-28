@@ -20,10 +20,13 @@ constant MODE_KEYEXPANSION : std_logic_vector := "01";
 constant MODE_DECRYPTION : std_logic_vector := "10";
 constant MODE_KEYEXPANSION_AND_DECRYPTION : std_logic_vector := "11";
 
-constant CHAINING_MODE_ECB : std_logic_vector := "000";
-constant CHAINING_MODE_CBC : std_logic_vector := "001";
-constant CHAINING_MODE_CTR : std_logic_vector := "010";
-constant CHAINING_MODE_GCM : std_logic_vector := "011";
+constant CHAINING_MODE_ECB : std_logic_vector := "00";
+constant CHAINING_MODE_CBC : std_logic_vector := "01";
+constant CHAINING_MODE_CTR : std_logic_vector := "10";
+constant CHAINING_MODE_GCM : std_logic_vector := "11";
+
+constant MODE_LEN : integer := 2;
+constant CHMODE_LEN : integer := 2;
 
 -- Galois Counter-Mode Phase definitions
 constant GCM_PHASE_INIT : std_logic_vector := "00";

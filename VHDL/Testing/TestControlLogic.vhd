@@ -51,8 +51,8 @@ signal WrDataCore : std_logic_vector(KEY_SIZE-1 downto 0);
 
 
 
-signal mode : std_logic_vector(1 downto 0) := MODE_KEYEXPANSION_AND_DECRYPTION;
-signal chaining_mode : std_logic_vector(2 downto 0) := CHAINING_MODE_CBC;
+signal mode : std_logic_vector(MODE_LEN-1 downto 0) := MODE_KEYEXPANSION_AND_DECRYPTION;
+signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0) := CHAINING_MODE_CBC;
 signal GCMPhase : std_logic_vector(1 downto 0) := GCM_PHASE_INIT;
 
 begin

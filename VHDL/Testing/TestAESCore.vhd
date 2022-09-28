@@ -52,8 +52,8 @@ component AES_Core is
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            EnI : in std_logic;
            EnO : out std_logic;
-           mode : in std_logic_vector (1 downto 0);
-           chaining_mode : in std_logic_vector (2 downto 0);
+           mode : in std_logic_vector (MODE_LEN-1 downto 0);
+           chaining_mode : in std_logic_vector (CHMODE_LEN-1 downto 0);
            GCMPhase : in std_logic_vector(1 downto 0);
            Clock : in std_logic;
            Resetn : in std_logic
@@ -70,8 +70,8 @@ signal WrEn : std_logic;
 signal WrData : std_logic_vector(KEY_SIZE-1 downto 0);
 signal WrAddr  : std_logic_vector(ADDR_WIDTH-1 downto 0);
 
-signal mode : std_logic_vector(1 downto 0) := MODE_KEYEXPANSION_AND_DECRYPTION;
-signal chaining_mode : std_logic_vector(2 downto 0) := CHAINING_MODE_CBC;
+signal mode : std_logic_vector(MODE_LEN-1 downto 0) := MODE_KEYEXPANSION_AND_DECRYPTION;
+signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0) := CHAINING_MODE_CBC;
 
 begin
 

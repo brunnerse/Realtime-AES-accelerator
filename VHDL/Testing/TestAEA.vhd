@@ -70,8 +70,8 @@ component AES_Core is
            --SaveRestore : inout std_logic;
            EnI : in std_logic;
            EnO : out std_logic;
-           mode : in std_logic_vector (1 downto 0);
-           chaining_mode : in std_logic_vector (2 downto 0);
+           mode : in std_logic_vector (MODE_LEN-1 downto 0);
+           chaining_mode : in std_logic_vector (CHMODE_LEN-1 downto 0);
            Clock : in std_logic;
            Resetn : in std_logic
            );

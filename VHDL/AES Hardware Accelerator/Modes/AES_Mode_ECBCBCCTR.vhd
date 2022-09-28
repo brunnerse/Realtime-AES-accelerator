@@ -49,8 +49,8 @@ entity AES_Mode_ECBCBCCTR is
            WrAddr : out STD_LOGIC_VECTOR(ADDR_WIDTH-1 downto 0);
            WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
            
-           mode : in std_logic_vector (1 downto 0);
-           chaining_mode : in std_logic_vector (2 downto 0);
+           mode : in std_logic_vector (MODE_LEN-1 downto 0);
+           chaining_mode : in std_logic_vector (CHMODE_LEN-1 downto 0);
            Clock : in std_logic;
            Resetn : in std_logic
            );
@@ -124,7 +124,7 @@ EnO <=  EnOXOR when chaining_mode = CHAINING_MODE_CTR or (chaining_mode = CHAINI
 
 
 -- update IV
--- TODO Das Schreiben erfolgt einen Takt nachdem das EnO Signal ausgegeben wird. EnO verzögern?
+-- TODO Das Schreiben erfolgt einen Takt nachdem das EnO Signal ausgegeben wird. EnO verzï¿½gern?
 WrAddr <= std_logic_vector(to_unsigned(ADDR_IV, ADDR_WIDTH)); 
 process(Clock)
 begin
