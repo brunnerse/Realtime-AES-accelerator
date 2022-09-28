@@ -473,20 +473,9 @@ begin
    RdAddr <= axi_araddr; -- when axi_arv_arr_flag = '1' else (others => '0');
  
    WrEn <= axi_wready and S_AXI_WVALID;
-   RdEn <= axi_arv_arr_flag ;
+   RdEn <= axi_arready and S_AXI_ARVALID; -- arready should already be enough
   
    WrData <= S_AXI_WDATA;
-
-    -- Todo einfach immer axi_rdata <= RdData?
-	process(RdData, axi_rvalid ) is
-	begin
-	  if (axi_rvalid = '1') then
-	    -- When there is a valid read address (S_AXI_ARVALID) with 
-	    -- acceptance of read address by the slave (axi_arready), 
-	    -- output the read dada 
-	    axi_rdata <= RdData;  -- memory range 0 read data
-	  else
-	    axi_rdata <= (others => '0');
-	  end if;  
-	end process;
+   axi_rdata <= RdData;
+   
 end arch_imp;
