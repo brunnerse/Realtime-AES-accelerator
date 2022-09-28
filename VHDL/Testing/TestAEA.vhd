@@ -102,7 +102,7 @@ Clock <= '0'; wait for 5 ns;
 end process;
 process begin
 report "Starting";
-Resetn <= '0'; wait for 10 ns;
+Resetn <= '0'; wait for 20 ns;
 report "Deactivating reset...";
 Resetn <= '1'; wait;
 end process;
@@ -117,7 +117,7 @@ end process;
 
 -- Enable encryption once at the start, then disable it
 process begin
-EnEncI <= '0'; wait for 10 ns; -- Wait until Resetn is over
+EnEncI <= '0'; wait for 50 ns; -- Wait until Resetn is over
 EnEncI <= '1'; 
 testPlaintext <= x"00102030011121310212223203132333";
 wait for 10 ns;
