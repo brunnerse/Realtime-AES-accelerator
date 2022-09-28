@@ -85,6 +85,8 @@ constant ZERO : std_logic_vector(KEY_SIZE-2 downto 0) := (others => '0');
 -- we don't need the x^128 in the polynomial
 constant POLYGF : std_logic_vector(KEY_SIZE-1 downto 0) := x"e1000000000000000000000000000000";
 
+constant MULTIPLICATIONS_PER_CYCLE : integer := 128/8; -- Do 16 calculations per clock cycle. TODO Test the best value!
+
 function mulGF(val : std_logic_vector(KEY_SIZE-1 downto 0); prod : std_logic_vector(KEY_SIZE-1 downto 0)) return std_logic_vector is
     variable c, v : std_logic_vector(KEY_SIZE-1 downto 0);
 begin
@@ -171,22 +173,55 @@ end process;
 
 -- process performing the GF2 multiplication on each rising clock edge when EnIMul is asserted
 process (Clock)
+variable lastIdx : integer;
+variable calculationInProgress : boolean;
+variable c, v : std_logic_vector(KEY_SIZE-1 downto 0);
 begin
 if rising_edge(Clock) then
     if Resetn = '0' then
         EnOMul <= '0';
+        calculationInProgress := false;
     else
+        EnOMul <= '0';
+        -- Set up a new mulGF operation
         if EnIMul = '1' then
-            dOutMul <= mulGF(dInMul, H);
-            EnOMul <= '1';
-        else
-            EnOMul <= '0';
+            -- start a new multiplication
+            lastIdx := KEY_SIZE;
+            calculationInProgress := true;
+            v := dInMul; -- v is the input
+            c := (others => '0'); -- c is the result
         end if;
+        if calculationInProgress then
+            -- Polynomial Multiplication; Little-Endian, i.e. x^0 is bit 127, x^127 is bit 0 ! 
+            for i in lastIdx-1 downto lastIdx-MULTIPLICATIONS_PER_CYCLE loop
+                -- if the second factor (H) is 1 at the current position, add the (shifted) first factor to the result
+                if H(i) = '1' then
+                    c := c xor v; -- add the (shifted) first factor to the result
+                end if;
+                -- shift the first factor one bit to the right (corresponds to multiplying the polynomial by x)
+                -- if the result would be divisible by x^128, subtract the GF polynomial
+                if v(0) = '0' then
+                    v := '0' & v(KEY_SIZE-1 downto 1); -- multiply the by x (i.e. right shift by 1)
+                else
+                    v := ('0' & v(KEY_SIZE-1 downto 1)) xor POLYGF; -- result was larger or equal to x^128:  subtract polynom after multiplication
+                end if;
+            end loop;
+            
+            -- check if finished
+            if lastIdx = MULTIPLICATIONS_PER_CYCLE then
+                calculationInProgress := false;
+                EnOMul <= '1';
+                dOutMul <= c;
+            end if;
+            
+            lastIdx := lastIdx - MULTIPLICATIONS_PER_CYCLE;        
+        end if;
+        
+
+        
     end if;
 end if;
 
 end process;
-
-
 
 end Behavioral;
