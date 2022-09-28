@@ -21,8 +21,8 @@
 #ifdef LITTLE_ENDIAN
 #define EN_POS 24
 #define MODE_POS 27
-#define CHAIN_MODE_POS1 29
-#define CHAIN_MODE_POS2 8
+#define CHAIN_MODE_POS 29
+//#define CHAIN_MODE_POS2 8
 #define GCM_PHASE_POS 13
 #define CCFC_POS 31
 #define SR_CCF_POS 24
@@ -32,8 +32,8 @@
 // Normal, Big Endian Positions of the bits
 #define EN_POS 0
 #define MODE_POS 3
-#define CHAIN_MODE_POS1 5
-#define CHAIN_MODE_POS2 16
+#define CHAIN_MODE_POS 5
+//#define CHAIN_MODE_POS2 16
 #define GCM_PHASE_POS 21
 #define CCFC_POS 7
 #define SR_CCF_POS 1
@@ -44,8 +44,8 @@
 
 #define EN_LEN 1
 #define MODE_LEN 2
-#define CHAIN_MODE_LEN1 2
-#define CHAIN_MODE_LEN2 1
+#define CHAIN_MODE_LEN 2
+//#define CHAIN_MODE_LEN2 1
 #define GCM_PHASE_LEN 2
 #define CCFC_LEN 1
 #define SR_CCF_LEN 1
@@ -105,9 +105,9 @@ void AES_Setup(AES* InstancePtr, Mode mode, ChainingMode chainMode, u32 enabled,
     // Set mode
     setBits(&cr, (u32)mode, MODE_POS, MODE_LEN);
     // Set chaining mode: Set bit 5 and 6
-    setBits(&cr, (u32)chainMode & 0x3, CHAIN_MODE_POS1, CHAIN_MODE_LEN1);
+    setBits(&cr, (u32)chainMode & 0x3, CHAIN_MODE_POS, CHAIN_MODE_LEN);
     // Set chaining mode: Set bit 16
-    setBits(&cr, (u32)chainMode >> 2, CHAIN_MODE_POS2, CHAIN_MODE_LEN2);
+    //setBits(&cr, (u32)chainMode >> 2, CHAIN_MODE_POS2, CHAIN_MODE_LEN2);
     // Set GCMPhase
     setBits(&cr, (u32)gcmPhase, GCM_PHASE_POS, GCM_PHASE_LEN);
     // Set enabled
@@ -129,9 +129,9 @@ void AES_SetChainingMode(AES* InstancePtr, ChainingMode chainMode)
 {
     u32 cr = AES_Read(InstancePtr, AES_CR_OFFSET);
     // Set bit 5 and 6
-    setBits(&cr, (u32)chainMode & 0x3, CHAIN_MODE_POS1, CHAIN_MODE_LEN1);
+    setBits(&cr, (u32)chainMode & 0x3, CHAIN_MODE_POS, CHAIN_MODE_LEN);
     // Set bit 16
-    setBits(&cr, (u32)chainMode >> 2, CHAIN_MODE_POS2, CHAIN_MODE_LEN2);
+    //setBits(&cr, (u32)chainMode >> 2, CHAIN_MODE_POS2, CHAIN_MODE_LEN2);
     AES_Write(InstancePtr, AES_CR_OFFSET, cr);
 }
 
@@ -165,9 +165,9 @@ ChainingMode AES_GetChainingMode(AES* InstancePtr)
 {
     u32 cr = AES_Read(InstancePtr, AES_CR_OFFSET);
 	// read bit 5 and 6
-	u32 chMode = getBits(cr, CHAIN_MODE_POS1, CHAIN_MODE_LEN1);
+	u32 chMode = getBits(cr, CHAIN_MODE_POS, CHAIN_MODE_LEN);
 	// read bit 16
-	chMode |= getBits(cr, CHAIN_MODE_POS2, CHAIN_MODE_LEN2) << CHAIN_MODE_LEN1;
+	//chMode |= getBits(cr, CHAIN_MODE_POS2, CHAIN_MODE_LEN2) << CHAIN_MODE_LEN;
     return (ChainingMode)chMode;
 }
 
@@ -196,13 +196,14 @@ void AES_PerformKeyExpansion(AES *InstancePtr)
 
 void AES_processDataECB(AES* InstancePtr, int encrypt, u8* data, u8* outData, u32 size)
 {
-	AES_Setup(InstancePtr, encrypt == 0 ? MODE_ENCRYPTION : MODE_KEYEXPANSION_AND_DECRYPTION, CHAINING_MODE_ECB, 1, GCM_PHASE_INIT);
+	AES_Setup(InstancePtr, encrypt == 1 ? MODE_ENCRYPTION : MODE_KEYEXPANSION_AND_DECRYPTION, CHAINING_MODE_ECB, 1, GCM_PHASE_INIT);
 	u32 blockOffset = 0;
 	if (encrypt == 0 && size > 0)
 	{
 		// Perform one decryption with keyexpansion_and_decryption mode, than change to decryption mode
 		AES_processBlock(InstancePtr, data, outData);
 		AES_SetMode(InstancePtr, MODE_DECRYPTION);
+		blockOffset = BLOCK_SIZE;
 	}
 	for (; blockOffset < size; blockOffset += BLOCK_SIZE)
 	{
@@ -215,7 +216,7 @@ void AES_processDataECB(AES* InstancePtr, int encrypt, u8* data, u8* outData, u3
 void AES_processDataCBC(AES* InstancePtr, int encrypt, u8* data, u8* outData, u32 size, u8 IV[16])
 {
 	AES_SetIV(InstancePtr, IV, 16);
-	AES_Setup(InstancePtr, encrypt == 0 ? MODE_ENCRYPTION : MODE_KEYEXPANSION_AND_DECRYPTION, CHAINING_MODE_CBC, 1, GCM_PHASE_INIT);
+	AES_Setup(InstancePtr, encrypt == 1 ? MODE_ENCRYPTION : MODE_KEYEXPANSION_AND_DECRYPTION, CHAINING_MODE_CBC, 1, GCM_PHASE_INIT);
 	u32 blockOffset = 0;
 
 	if (encrypt == 0 && size > 0)

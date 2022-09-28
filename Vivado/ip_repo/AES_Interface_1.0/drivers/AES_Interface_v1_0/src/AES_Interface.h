@@ -73,7 +73,7 @@ void AES_processDataECB(AES* InstancePtr, int encrypt, u8* data, u8* outData, u3
 void AES_processDataCBC(AES* InstancePtr, int encrypt, u8* data, u8* outData, u32 size, u8 IV[16]);
 // encrypt is indifferent, as decryption and encryption is the same process
 void AES_processDataCTR(AES* InstancePtr, u8* data, u8* outData, u32 size, u8 IV[12]);
-void AES_processDataGCM(AES* InstancePtr, int encrypt, u8* header, u32 headerLen, u8* payload, u8* outProcessedPayload, u32 payloadLen, u8 IV[12], u8 outTag[BLOCK_SIZE]);
+void AES_processDataGCM(AES* InstancePtr, u8* header, u32 headerLen, u8* payload, u8* outProcessedPayload, u32 payloadLen, u8 IV[12], u8 outTag[BLOCK_SIZE]);
 
 // Runs dataBlock through the AES unit and writes the output to outDataBlock.
 // Arrays must have size BLOCK_SIZE (16 bytes)
