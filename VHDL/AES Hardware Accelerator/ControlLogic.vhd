@@ -81,7 +81,9 @@ signal mem : addr_range;
 signal dataIn, dataOut : std_logic_vector(KEY_SIZE-1 downto 0);
 
 signal readCounter, writeCounter : unsigned(1 downto 0);
-signal modeSignal : std_logic_vector(1 downto 0);
+signal modeSignal : std_logic_vector(MODE_LEN-1 downto 0);
+signal chainingModeSignal : std_logic_vector(CHMODE_LEN-1 downto 0);
+signal GCMPhaseSignal : std_logic_vector(1 downto 0);
 
 begin
 
@@ -95,17 +97,20 @@ Susp <=  mem(ADDR_SUSPR0/4) & mem(ADDR_SUSPR1/4) & mem(ADDR_SUSPR2/4) & mem(ADDR
 H <=  mem(ADDR_SUSPR4/4) & mem(ADDR_SUSPR5/4) & mem(ADDR_SUSPR6/4) & mem(ADDR_SUSPR7/4);
 
 -- set AES control signals
+-- copy mode, chaining_mode and GCMPhase to internal signals first, so we can check them in internal processes
 En <= mem(ADDR_CR/4)(0);
 modeSignal <= mem(ADDR_CR/4)(4 downto 3);
 mode <= modeSignal;
-chaining_mode <= mem(ADDR_CR/4)(6 downto 5);
+chainingModeSignal <= mem(ADDR_CR/4)(6 downto 5);
+chaining_mode <= chainingModeSignal;
+GCMPhaseSignal <= mem(ADDR_CR/4)(14 downto 13);
+GCMPhase <= GCMPhaseSignal;
 DMAOUTEN <= mem(ADDR_CR/4)(12);
 DMAINEN <= mem(ADDR_CR/4)(11);
 ERRIE <= mem(ADDR_CR/4)(10);
 CCFIE <= mem(ADDR_CR/4)(9);
 ERRC <= mem(ADDR_CR/4)(8);
 CCFC <= mem(ADDR_CR/4)(7);
-GCMPhase <= mem(ADDR_CR/4)(14 downto 13);
 
 
 -- set unused status flags to 0 for now 
@@ -209,8 +214,9 @@ if rising_edge(Clock) then
                 mem(i) <= (others => '0');
             end loop;
         end if;
-        -- If mode is keyexpansion, start the AES Core without waiting for the four write accesses
-        if modeSignal = MODE_KEYEXPANSION and En = '1' and prevEn = '0' then
+        -- If mode is keyexpansion or the GCM init mode, start the AES Core without waiting for the four write accesses
+        if (modeSignal = MODE_KEYEXPANSION or (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT)) and 
+            En = '1' and prevEn = '0' then
             EnICore <= '1';
         end if;
     end if;
