@@ -33,6 +33,9 @@ use IEEE.NUMERIC_STD.ALL;
 --use UNISIM.VComponents.all;
 
 entity ShiftRows is
+    Generic (
+        synchronous : boolean := false
+        );
     Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            encrypt : in STD_LOGIC;
@@ -63,8 +66,24 @@ begin
 dinToTable: VectorToTable port map(dIn, tableIn);
 tableToDout : TableToVector port map(tableOut, dOut);
 
+GenAsync: if not synchronous generate
+    EnO <= EnI;
+    tableOut(0) <= tableIn(0)(31 downto 24) & tableIn(1)(23 downto 16) & tableIn(2)(15 downto 8) & tableIn(3)(7 downto 0) when encrypt = '1' else
+                   tableIn(0)(31 downto 24) & tableIn(3)(23 downto 16) & tableIn(2)(15 downto 8) & tableIn(1)(7 downto 0);
+    tableOut(1) <= tableIn(1)(31 downto 24) & tableIn(2)(23 downto 16) & tableIn(3)(15 downto 8) & tableIn(0)(7 downto 0) when encrypt = '1' else
+                   tableIn(1)(31 downto 24) & tableIn(0)(23 downto 16) & tableIn(3)(15 downto 8) & tableIn(2)(7 downto 0);
+    tableOut(2) <= tableIn(2)(31 downto 24) & tableIn(3)(23 downto 16) & tableIn(0)(15 downto 8) & tableIn(1)(7 downto 0) when encrypt = '1' else 
+                   tableIn(2)(31 downto 24) & tableIn(1)(23 downto 16) & tableIn(0)(15 downto 8) & tableIn(3)(7 downto 0);
+    tableOut(3) <= tableIn(3)(31 downto 24) & tableIn(0)(23 downto 16) & tableIn(1)(15 downto 8) & tableIn(2)(7 downto 0) when encrypt = '1' else  
+                   tableIn(3)(31 downto 24) & tableIn(2)(23 downto 16) & tableIn(1)(15 downto 8) & tableIn(0)(7 downto 0);            
+end generate;
+
+
+GenSync:  if synchronous generate
+    
 process (Clock)
 begin
+
 if rising_edge(Clock) then
     if Resetn = '0' then
         EnO <= '0';
@@ -86,6 +105,10 @@ if rising_edge(Clock) then
     end if;
 end if;
 end process;
+
+end generate;
+
+
 
 
 end Behavioral;
