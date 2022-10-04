@@ -110,6 +110,8 @@ end function;
 signal  dIn1XOR1, dIn2XOR1, dIn1XOR2,dIn2XOR2, dOutXOR1, dOutXOR2, dInMul, dOutMul: std_logic_vector(KEY_SIZE-1 downto 0);
 signal  EnIXOR1, EnIXOR2, EnOXOR1, EnOXOR2, EnIMul, EnOMul : std_logic;
 
+signal lastIdx : integer; -- used for the multiplication process
+
 begin
 -- Use an AddRoundKey unit as XOR;  First XOR unit is for CTR mode, second is for GF2mul
 xorUnit1 : AddRoundKey port map(dIn1XOR1, dOutXOR1, dIn2XOR1, EnIXOR1, EnOXOR1, Clock, Resetn);
@@ -173,7 +175,6 @@ end process;
 
 -- process performing the GF2 multiplication on each rising clock edge when EnIMul is asserted
 process (Clock)
-variable lastIdx : integer;
 variable calculationInProgress : boolean;
 variable c, v : std_logic_vector(KEY_SIZE-1 downto 0);
 begin
@@ -181,21 +182,21 @@ if rising_edge(Clock) then
     if Resetn = '0' then
         EnOMul <= '0';
         calculationInProgress := false;
+        lastIdx <= KEY_SIZE;
     else
         EnOMul <= '0';
         -- Set up a new mulGF operation
         if EnIMul = '1' then
             -- start a new multiplication
-            lastIdx := KEY_SIZE;
             calculationInProgress := true;
             v := dInMul; -- v is the input
             c := (others => '0'); -- c is the result
         end if;
         if calculationInProgress then
             -- Polynomial Multiplication; Little-Endian, i.e. x^0 is bit 127, x^127 is bit 0 ! 
-            for i in lastIdx-1 downto lastIdx-MULTIPLICATIONS_PER_CYCLE loop
+            for i in 1 to MULTIPLICATIONS_PER_CYCLE loop
                 -- if the second factor (H) is 1 at the current position, add the (shifted) first factor to the result
-                if H(i) = '1' then
+                if H(lastIdx - i) = '1' then
                     c := c xor v; -- add the (shifted) first factor to the result
                 end if;
                 -- shift the first factor one bit to the right (corresponds to multiplying the polynomial by x)
@@ -212,9 +213,11 @@ if rising_edge(Clock) then
                 calculationInProgress := false;
                 EnOMul <= '1';
                 dOutMul <= c;
+                lastIdx <= KEY_SIZE;
+            else
+                lastIdx <= lastIdx - MULTIPLICATIONS_PER_CYCLE; 
             end if;
             
-            lastIdx := lastIdx - MULTIPLICATIONS_PER_CYCLE;        
         end if;
         
 
