@@ -2,7 +2,7 @@
 
 from Cryptodome.Cipher import AES
 from functools import reduce
-from AES import *
+from AES import printAsHex
  
 def xor(x,y):
     """Returns the exclusive or (xor) between two vectors"""
@@ -48,13 +48,22 @@ def GHASH (hkey,aad,ctext):
     # padding
     aadP = aad + bytes((16-len(aad)%16)%16) 
     ctextP = ctext + bytes((16-len(ctext)%16)%16)
+    print("\nSteps of the hash:")
+    printAsHex(x)
     # iterator over aad
     for i in range(0,len(aadP),16):
+        print("\t Adding\t", end="")
+        printAsHex(aadP[i:i+16])
         x = xorMultH(x,aadP[i:i+16])
+        printAsHex(x)
     # payload phase
     for i in range(0,len(ctextP),16):
+        print("\t Adding\t", end="")
+        printAsHex(ctextP[i:i+16])
         x = xorMultH(x,ctextP[i:i+16])
+        printAsHex(x)
     # final phase
+    printAsHex(xorMultH(x,gLen(aad) + gLen(ctext)))
     return xorMultH(x,gLen(aad) + gLen(ctext))
  
 def GCM_crypt(keysize,key,iv,input,aad):
@@ -85,6 +94,8 @@ def GCM_crypt(keysize,key,iv,input,aad):
         output += bytes(ctextBlock)
     g = obj.encrypt(y0)
     tag = xor(GHASH(h,aad,output),g)
+    print("Tag is finally hashed with")
+    printAsHex(g)
     return output,tag,g,h
   
 def GCM_encrypt(keysize,key,iv,ptext,aad):
@@ -95,15 +106,16 @@ def GCM_encrypt(keysize,key,iv,ptext,aad):
 def GCM_decrypt(keysize,key,iv,ctext,aad,tag):
     """GCM's Authenticated Decryption Operation"""
     (ptext,_,g,h) = GCM_crypt(keysize,key,iv,ctext,aad)
+    tag = xor(GHASH(h,aad,ctext),g) 
     print("Tag: ")
-    printAsHex(xor(GHASH(h,aad,ctext),g))
+    printAsHex(tag)
     if tag == xor(GHASH(h,aad,ctext),g):
         return True,ptext
     else:
         return False,ptext
  
 
-
+print("\n\nGCM\n")
 
 key = bytes([0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f])
 
