@@ -34,7 +34,7 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity ShiftRows is
     Generic (
-        synchronous : boolean := false
+        synchronous : boolean := true
         );
     Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
