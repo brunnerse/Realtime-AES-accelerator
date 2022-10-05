@@ -67,7 +67,7 @@ Clock <= '1'; wait for 5 ns;
 Clock <= '0'; wait for 5 ns;
 end process;
 process begin
-Resetn <= '0'; wait for 10 ns;
+Resetn <= '0'; wait for 20 ns;
 Resetn <= '1'; wait;
 end process;
 
@@ -75,12 +75,12 @@ end process;
 
 -- Set up GCM encryption
 process begin
-EnCoreI <= '0'; wait for 10 ns; -- Wait until Resetn is over
+EnCoreI <= '0'; wait for 40 ns; -- Wait until Resetn is over
 EnCoreI <= '1'; 
 GCMPhase <= GCM_PHASE_INIT;
 wait for 10 ns;
 EnCoreI <= '0';
-wait until EnCoreO <= '1'; wait for 10ns;
+wait until EnCoreO <= '1'; wait for 20ns;
 -- Enter header phase
 GCMPhase <= GCM_PHASE_HEADER;
 testPlaintext <= x"00102030011121310212223203132333";
@@ -93,26 +93,26 @@ testPlaintext <= x"affedeadbeefdadcabbeadbeec0cabad";
 EnCoreI <= '1';
 wait for 10ns;
 EnCoreI <= '0';
-wait until EnCoreO <= '1'; wait for 10ns;
+wait until EnCoreO <= '1'; wait for 20ns;
 -- Enter payload phase
 GCMPhase <= GCM_PHASE_PAYLOAD;
 EnCoreI <= '1';
 testPlaintext <= x"00102030011121310212223203132333";
 wait for 10ns;
 EnCoreI <= '0';
-wait until EnCoreO <= '1'; wait for 10ns;
+wait until EnCoreO <= '1'; wait for 20ns;
 wait for 10ns;
 -- second payload block
 EnCoreI <= '1';
 wait for 10ns;
 EnCoreI <= '0';
-wait until EnCoreO <= '1'; wait for 10ns;
+wait until EnCoreO <= '1'; wait for 20ns;
 -- third payload block
 testPlaintext <= testKey;
 EnCoreI <= '1';
 wait for 10ns;
 EnCoreI <= '0';
-wait until EnCoreO <= '1'; wait for 10ns;
+wait until EnCoreO <= '1'; wait for 20ns;
 -- enter final phase
 GCMPhase <= GCM_PHASE_FINAL;
 -- gLen(header) & gLen(cipher), length in bits

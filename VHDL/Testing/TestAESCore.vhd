@@ -97,7 +97,7 @@ end process;
 
 -- Enable encryption three times
 process begin
-EnCoreI <= '0'; wait for 10 ns; -- Wait until Resetn is over
+EnCoreI <= '0'; wait for 40ns; -- Wait until Resetn is over
 EnCoreI <= '1'; 
 testPlaintext <= x"00102030011121310212223203132333";
 wait for 10 ns;
