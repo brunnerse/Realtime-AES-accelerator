@@ -251,15 +251,15 @@ begin
 	      axi_awv_awr_flag <= '0';
 	    else
 	      if (axi_awready = '0' and S_AXI_AWVALID = '1' and axi_awv_awr_flag = '0' and axi_arv_arr_flag = '0') then
-	        -- slave is ready to accept an address and
-	        -- associated control signals
-	        axi_awv_awr_flag  <= '1'; -- used for generation of bresp() and bvalid
-	        axi_awready <= '1';
+                -- slave is ready to accept an address and
+                -- associated control signals
+                axi_awv_awr_flag  <= '1'; -- used for generation of bresp() and bvalid
+                axi_awready <= '1';
 	      elsif (S_AXI_WLAST = '1' and axi_wready = '1') then 
-	      -- preparing to accept next address after current write burst tx completion
-	        axi_awv_awr_flag  <= '0';
+              -- preparing to accept next address after current write burst tx completion
+               axi_awv_awr_flag  <= '0';
 	      else
-	        axi_awready <= '0';
+	           axi_awready <= '0';
 	      end if;
 	    end if;
 	  end if;         

@@ -216,7 +216,7 @@ if rising_edge(Clock) then
         end if;
         -- If mode is keyexpansion or the GCM init mode, start the AES Core without waiting for the four write accesses
         if (modeSignal = MODE_KEYEXPANSION or (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT)) and 
-            En = '1' and prevEn = '0' then
+                En = '1' and prevEn = '0' then
             EnICore <= '1';
         end if;
     end if;
