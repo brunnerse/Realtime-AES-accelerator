@@ -52,21 +52,11 @@ int main()
     u8 plaintext[BLOCK_SIZE] = {0x00, 0x10, 0x20, 0x30, 0x01, 0x11, 0x21, 0x31, 0x02, 0x12, 0x22, 0x32, 0x03, 0x13, 0x23, 0x33 };
     u8 key[BLOCK_SIZE] =  {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
 
-    //u8 plaintext[BLOCK_SIZE] = {0x30, 0x20, 0x10, 0x00, 0x31, 0x21, 0x11, 0x01, 0x32, 0x22, 0x12, 0x02, 0x33, 0x23, 0x13, 0x03};
-    //u8 key[BLOCK_SIZE] =  {0x03, 0x02, 0x01, 0x00, 0x07, 0x06, 0x05, 0x04, 0x0b, 0x0a, 0x09, 0x08, 0x0f, 0x0e, 0x0d, 0x0c };
-
     u8 readKey[BLOCK_SIZE];
     AES_SetKey(&aes, key);
     AES_GetKey(&aes, readKey);
 
     //AES_PerformKeyExpansion(&aes);
-
-    /*
-    Mode mode = MODE_ENCRYPTION;
-    AES_SetMode(&aes, mode);
-
-    ChainingMode chMode = AES_GetChainingMode(&aes);
-    */
 
     u8 ciphertext[BLOCK_SIZE];
 
@@ -75,6 +65,7 @@ int main()
     AES_processBlock(&aes, plaintext, ciphertext);
     AES_SetEnabled(&aes, 0);
 
+    // One quick ECB test
     char debugText[500];
     xil_printf("===== ECB ======\n\r");
     hexToString(plaintext, 16, debugText);
@@ -88,7 +79,6 @@ int main()
 	AES_SetEnabled(&aes, 1);
 	AES_processBlock(&aes, plaintext, ciphertext);
 	AES_SetEnabled(&aes, 0);
-
 
 	xil_printf("Ciphertext after decryption:\n\r");
 	hexToStdOut(ciphertext, 16);
@@ -139,6 +129,42 @@ int main()
 		hexToStdOut(deciphered_cipherdata, 16*3);
 	}
 
+
+
+	xil_printf("\n==== GCM ====\n\r");
+	u8 header[2*BLOCK_SIZE];
+	u8 tag[BLOCK_SIZE], decryptTag[BLOCK_SIZE];
+
+	// setup header =  block1 | block3
+	memcpy(header, block1, BLOCK_SIZE);
+	memcpy(header+BLOCK_SIZE, block3, BLOCK_SIZE);
+	// setup data  = block1 | block1 | block2
+	memcpy(data, block1, BLOCK_SIZE);
+	memcpy(data+BLOCK_SIZE, block1, BLOCK_SIZE);
+	memcpy(data+2*BLOCK_SIZE, block2, BLOCK_SIZE);
+
+	AES_processDataGCM(&aes, 1, header, 2*BLOCK_SIZE, data, cipherdata, 3*BLOCK_SIZE, IV, tag);
+	xil_printf("Tag after encryption:\n\r\t");
+	hexToStdOut(tag, 16);
+	// decryption
+	AES_processDataGCM(&aes, 0, header, 2*BLOCK_SIZE, cipherdata, deciphered_cipherdata, 3*BLOCK_SIZE, IV, decryptTag);
+	xil_printf("\r\nTag after decryption:\n\r\t");
+	hexToStdOut(decryptTag, 16);
+
+	if (AES_compareTags(tag, decryptTag) == 0)
+		xil_printf("Test passed: Tags are equal\r\n");
+	else
+		xil_printf("Test failed: Tags are not equal\r\n");
+
+	xil_printf("\r\nPlaintext:\n\r");
+	hexToStdOut(data, 16*3);
+	xil_printf("Ciphertext:\n\r");
+	hexToStdOut(cipherdata, 16*3);
+	xil_printf("Deciphered Ciphertext:\n\r");
+	hexToStdOut(deciphered_cipherdata, 16*3);
+
+
+	xil_printf("Processed all AES tests.\n\r");
 
 
 
