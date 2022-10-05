@@ -85,7 +85,7 @@ constant ZERO : std_logic_vector(KEY_SIZE-2 downto 0) := (others => '0');
 -- we don't need the x^128 in the polynomial
 constant POLYGF : std_logic_vector(KEY_SIZE-1 downto 0) := x"e1000000000000000000000000000000";
 
-constant MULTIPLICATIONS_PER_CYCLE : integer := 128/8; -- Do 16 calculations per clock cycle. TODO Test the best value!
+constant MULTIPLICATIONS_PER_CYCLE : integer := 128/4; -- Do 32 calculations per clock cycle. TODO Test the best value!
 
 function mulGF(val : std_logic_vector(KEY_SIZE-1 downto 0); prod : std_logic_vector(KEY_SIZE-1 downto 0)) return std_logic_vector is
     variable c, v : std_logic_vector(KEY_SIZE-1 downto 0);
@@ -108,7 +108,7 @@ end function;
 
 -- signal definitions
 signal  dIn1XOR1, dIn2XOR1, dIn1XOR2,dIn2XOR2, dOutXOR1, dOutXOR2, dInMul, dOutMul: std_logic_vector(KEY_SIZE-1 downto 0);
-signal  EnIXOR1, EnIXOR2, EnOXOR1, EnOXOR2, EnIMul, EnOMul : std_logic;
+signal  EnIXOR1, EnIXOR2, EnOXOR1, EnOXOR2, EnIMul, EnOMul, WrEnSignal : std_logic;
 
 signal lastIdx : integer; -- used for the multiplication process
 
@@ -145,30 +145,32 @@ dInAEA <=   IV when GCMPhase /= GCM_PHASE_INIT else
 EnIAEA <=   EnI when GCMPhase /= GCM_PHASE_HEADER else
             '0'; -- Do not use AEA unit in Header phase
 
--- in Header phase and during decryption, the last component to finish is the AEA                                
-EnO <=  EnOAEA when GCMPhase = GCM_PHASE_INIT or (GCMPhase = GCM_PHASE_PAYLOAD and encrypt = '0') else
-        EnOMul when GCMPhase = GCM_PHASE_HEADER or GCMPhase =  GCM_PHASE_PAYLOAD else
-        EnOXOR1; -- in the Final phase, the last component is xorUnit1   
+EnO <=  EnOXOR1 when GCMPhase = GCM_PHASE_FINAL else
+        WrEnSignal when GCMPhase = GCM_PHASE_INIT or GCMPhase = GCM_PHASE_HEADER else
+        EnOAEA when encrypt = '0' else -- payload phase, decryption
+        EnOMul; -- payload phase, encryption  
+        -- TODO: Fuer den letzten Fall wird Susp immer noch einen Takt später geschrieben! Sollte aber nichts machen?
+        
 
-
+WrEn <= WrEnSignal;
+               
 -- process to write the new IV to the register set
--- TODO Das Schreiben erfolgt einen Takt nachdem das EnO Signal ausgegeben wird. EnO verzögern?
 process(Clock)
 begin
 if rising_edge(Clock) then
-    WrEn <= '0';
+    WrEnSignal <= '0';
     if EnOAEA = '1' and GCMPhase = GCM_PHASE_INIT then
         WrAddr <= std_logic_vector(to_unsigned(ADDR_H, ADDR_WIDTH));
         WrData <= dOutAEA;
-        WrEn <= '1';
+        WrEnSignal <= '1';
     elsif EnOMul = '1' and (GCMPhase = GCM_PHASE_HEADER or GCMPhase = GCM_PHASE_PAYLOAD) then 
         WrAddr <= std_logic_vector(to_unsigned(ADDR_SUSP, ADDR_WIDTH));
         WrData <= dOutMul;
-        WrEn <= '1';
+        WrEnSignal <= '1';
     elsif EnI = '1' and GCMPhase = GCM_PHASE_PAYLOAD then
         WrAddr <= std_logic_vector(to_unsigned(ADDR_IV, ADDR_WIDTH));
         WrData <= incrementIV(IV);
-        WrEn <= '1';
+        WrEnSignal <= '1';
     end if;
 end if;
 end process;

@@ -150,7 +150,7 @@ end component;
 
 -- signal definitions
 signal dInAEA, dOutAEA : std_logic_vector(KEY_SIZE-1 downto 0);
-signal encryptAEA, EnIAEA, EnOAEA, keyExpandFlagAEA : std_logic;
+signal encryptGCM, encryptAEA, EnIAEA, EnOAEA, keyExpandFlagAEA : std_logic;
 
 -- signal to mode components
 signal EnIMNT, EnIGCM, EnOMNT, EnOGCM, EnIAEAMNT, EnIAEAGCM, EnOAEAMNT, EnOAEAGCM, WrEnMNT, WrEnGCM : std_logic;
@@ -165,13 +165,17 @@ modeNonTag : AES_Mode_ECBCBCCTR
             port map(IV, dIn, dOutMNT, EnIMNT, EnOMNT, encryptAEA, 
                      EnIAEAMNT, EnOAEAMNT, dInAEAMNT, dOutAEA, 
                      WrEnMNT, WrAddrMNT, WrDataMNT, mode, chaining_mode, Clock, Resetn); 
---modeGCM  : AES_Mode_GCM 
---            generic map (ADDR_IV, ADDR_SUSP, ADDR_H)
---            port map(IV, H, Susp, dIn, dOutGCM, EnIGCM, EnOGCM, not mode(1), GCMPhase, 
---                     EnIAEAGCM, EnOAEAGCM, dInAEAGCM, dOutAEA, 
---                     WrEnGCM, WrAddrGCM, WrDataGCM,Clock, Resetn); 
+modeGCM  : AES_Mode_GCM 
+            generic map (ADDR_IV, ADDR_SUSP, ADDR_H)
+            port map(IV => IV, H => H, Susp => Susp,
+                     dIn => dIn, dOut => dOutGCM, EnI => EnIGCM, EnO => EnOGCM, 
+                     encrypt => encryptGCM, GCMPhase => GCMPhase, 
+                     EnIAEA => EnIAEAGCM, EnOAEA => EnOAEAGCM, dInAEA => dInAEAGCM, dOutAEA => dOutAEA, 
+                     WrEn => WrEnGCM, WrAddr => WrAddrGCM, WrData => WrDataGCM,
+                     Clock => Clock, Resetn => Resetn); 
 
-
+-- signal GCM unit whether to apply encryption or decryption
+encryptGCM <= not mode(1);
 -- Set encrypt and keyExpandFlag signals according to the mode
 encryptAEA <= not mode(1) when chaining_mode = CHAINING_MODE_ECB or chaining_mode = CHAINING_MODE_CBC else
             '1'; -- always set AEA unit to encryption in CTR or GCMmode
