@@ -23,7 +23,7 @@
 #define MODE_POS 27
 #define CHAIN_MODE_POS 29
 //#define CHAIN_MODE_POS2 8
-#define GCM_PHASE_POS 13
+#define GCM_PHASE_POS 21
 #define CCFC_POS 31
 #define SR_CCF_POS 24
 #define MODE_GCM_IV_INIT 0x02000000
@@ -34,7 +34,7 @@
 #define MODE_POS 3
 #define CHAIN_MODE_POS 5
 //#define CHAIN_MODE_POS2 16
-#define GCM_PHASE_POS 21
+#define GCM_PHASE_POS 13
 #define CCFC_POS 7
 #define SR_CCF_POS 1
 #define MODE_GCM_IV_INIT 0x00000002
@@ -262,7 +262,7 @@ void AES_processDataGCM(AES* InstancePtr, int encrypt, u8* header, u32 headerLen
 	{
 		// Writing is enough, as the header isn't encrypted
 		for (u32 j = 0; j < BLOCK_SIZE; j+=4)
-			AES_Write(InstancePtr, AES_DINR_OFFSET, *(u32*)header+i+j);
+			AES_Write(InstancePtr, AES_DINR_OFFSET, *(u32*)(header+i+j));
 		AES_waitUntilCompleted(InstancePtr);
 	}
 	// Process Payload
@@ -277,12 +277,12 @@ void AES_processDataGCM(AES* InstancePtr, int encrypt, u8* header, u32 headerLen
     AES_SetIV(InstancePtr, IV, 12); // TODO remove: This should not be necessary, as the counter is only 32 bits
 	// Write last word of the IV manually
 	AES_Write(InstancePtr, AES_IVR0_OFFSET+12, MODE_GCM_IV_FINAL);
-	// Write headerLen (64 bit) ||  payloadLen(64 bit) to DINR
+	// Write headerLen (64 bit) ||  payloadLen(64 bit) to DINR;  lengths have to be in bits
 	AES_Write(InstancePtr, AES_DINR_OFFSET, 0);
 #ifdef LITTLE_ENDIAN
-	AES_Write(InstancePtr, AES_DINR_OFFSET, Xil_EndianSwap32(headerLen));
+	AES_Write(InstancePtr, AES_DINR_OFFSET, Xil_EndianSwap32(headerLen * 8));
 	AES_Write(InstancePtr, AES_DINR_OFFSET, 0);
-	AES_Write(InstancePtr, AES_DINR_OFFSET, Xil_EndianSwap32(payloadLen));
+	AES_Write(InstancePtr, AES_DINR_OFFSET, Xil_EndianSwap32(payloadLen * 8));
 #else
 	AES_Write(InstancePtr, AES_DINR_OFFSET, headerLen);
 	AES_Write(InstancePtr, AES_DINR_OFFSET, 0);
@@ -295,6 +295,17 @@ void AES_processDataGCM(AES* InstancePtr, int encrypt, u8* header, u32 headerLen
 
 	// Disable the AES Unit when finished
 	AES_SetEnabled(InstancePtr, 0);
+}
+
+int AES_compareTags(u8 tag1[BLOCK_SIZE], u8 tag2[BLOCK_SIZE])
+{
+	for (u32 i = 0; i < BLOCK_SIZE; i += 4)
+	{
+	    // Compare four bytes at once by casting to u32
+		if (*(u32*)(tag1+i) != *(u32*)(tag2+i))
+			return -1;
+	}
+	return 0;
 }
 
 void AES_processBlock(AES* InstancePtr, u8 *dataBlock, u8 *outDataBlock)
@@ -328,14 +339,14 @@ void AES_waitUntilCompleted(AES* InstancePtr)
 // -------------
 // private functions
 // --------------
-u32 getBits(u32 val, u32 lowestBitIndex, u32 bitLen)
+inline u32 getBits(u32 val, u32 lowestBitIndex, u32 bitLen)
 {
 	u32 highBits = (1 << bitLen) - 1; // has bitLen ones, e.g. 0b00000111 for bitLen=3
 	return (val >> lowestBitIndex) & highBits;
 }
 
 // Sets the bits at lowestBitIndex to lowestBitIndex+bitLen-1 to bits.
-void setBits(u32* ptr, u32 bits, u32 lowestBitIndex, u32 bitLen)
+inline void setBits(u32* ptr, u32 bits, u32 lowestBitIndex, u32 bitLen)
 {
 	u32 highBits = (1 << bitLen) - 1; // has bitLen ones, e.g. 0b00000111 for bitLen=3
 	// Clear bits

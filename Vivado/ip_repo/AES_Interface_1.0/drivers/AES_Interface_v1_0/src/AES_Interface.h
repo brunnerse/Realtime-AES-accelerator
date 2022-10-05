@@ -75,6 +75,8 @@ void AES_processDataCBC(AES* InstancePtr, int encrypt, u8* data, u8* outData, u3
 void AES_processDataCTR(AES* InstancePtr, u8* data, u8* outData, u32 size, u8 IV[12]);
 void AES_processDataGCM(AES* InstancePtr, int encrypt, u8* header, u32 headerLen, u8* payload, u8* outProcessedPayload, u32 payloadLen, u8 IV[12], u8 outTag[BLOCK_SIZE]);
 
+// Compares two tags. Returns 0 if identical, otherwise -1
+int AES_compareTags(u8 tag1[BLOCK_SIZE], u8 tag2[BLOCK_SIZE]);
 // Runs dataBlock through the AES unit and writes the output to outDataBlock.
 // Arrays must have size BLOCK_SIZE (16 bytes)
 void AES_processBlock(AES* InstancePtr, u8 *dataBlock, u8 *outDataBlock);
