@@ -6,6 +6,7 @@
 /****************** Include Files ********************/
 #include "xil_types.h"
 #include "xstatus.h"
+#include "xil_io.h"
 
 
 /**************************** Type Definitions *****************************/
@@ -43,9 +44,14 @@ typedef struct {
 } AES;
 
 
+typedef void (*AES_InterruptHandler)(AES* instancePtr);
+
+
 /************************** Function Prototypes ****************************/
 AES_Config *AES_LookupConfig(u16 DeviceId);
-int AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr);
+s32 AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr);
+
+s32 AES_SetupInterrupt(AES* InstancePtr, XScuGic* InterruptCtrlPtr, AES_InterruptHandler interruptHandler);
 
 void AES_SetKey(AES *InstancePtr, u8 key[BLOCK_SIZE]);
 

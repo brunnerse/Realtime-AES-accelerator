@@ -3,6 +3,7 @@
 /***************************** Include Files *******************************/
 #include "AES_Interface_M.h"
 #include "xparameters.h"
+#include "xscugic.h"
 /************************** Function Definitions ***************************/
 
 // Comment this line on Big Endian systems
@@ -72,7 +73,7 @@ AES_Config *AES_LookupConfig(u16 DeviceId)
 		return NULL;
 }
 
-s32 AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr);
+s32 AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr)
 {
     InstancePtr->BaseAddress = ConfigPtr->BaseAddress;
     return (s32)(XST_SUCCESS);
@@ -291,7 +292,9 @@ void AES_processDataGCM(AES* InstancePtr, int encrypt, u8* header, u32 headerLen
 	AES_waitUntilCompleted(InstancePtr);
 	// Read the tag from the DOUT register
     for (u32 i = 0; i < BLOCK_SIZE; i+=4)
+	{
     	*(u32*)(outTag+i) = AES_Read(InstancePtr, AES_DOUTR_OFFSET);
+	}
 
 	// Disable the AES Unit when finished
 	AES_SetEnabled(InstancePtr, 0);
@@ -336,6 +339,27 @@ void AES_waitUntilCompleted(AES* InstancePtr)
     AES_Write(InstancePtr, AES_CR_OFFSET, cr);
 }
 
+
+
+
+s32 AES_SetupInterrupt(AES* InstancePtr, XScuGic* InterruptCtrlPtr, AES_InterruptHandler interruptHandler)
+{
+	s32 status = XST_SUCCESS;
+
+	// Set the priority of the interrupt to 0xA0 (highest 0xF8, lowest 0x00) and a trigger for a rising edge 0x3
+	XScuGic_SetPriorityTriggerType(InterruptCtrlPtr, XPAR_FABRIC_CONTROLLOGIC_0_INTERRUPT_INTR, 0xA0, 0x3);
+	// Connect a device driver handler that will be called when an interrupt for the device occurs
+	// the device driver handler performs the specific interrupt processing for the device
+	status |= XScuGic_Connect(InterruptCtrlPtr, XPAR_FABRIC_CONTROLLOGIC_0_INTERRUPT_INTR, (Xil_ExceptionHandler)interruptHandler, NULL);
+	// Enable the interrupt for the ControlLogic peripheral
+	XScuGic_Enable(InterruptCtrlPtr, XPAR_FABRIC_CONTROLLOGIC_0_INTERRUPT_INTR);
+
+	return status;
+}
+
+
+
+
 // -------------
 // private functions
 // --------------
@@ -355,3 +379,6 @@ inline void setBits(u32* ptr, u32 bits, u32 lowestBitIndex, u32 bitLen)
 	// Set the bits
 	*ptr |= (bits & highBits) << lowestBitIndex;
 }
+
+
+

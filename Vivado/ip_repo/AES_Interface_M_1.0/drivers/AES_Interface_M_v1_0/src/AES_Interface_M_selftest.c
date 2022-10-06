@@ -7,7 +7,9 @@
 
 /************************** Constant Definitions ***************************/
 #define READ_WRITE_MUL_FACTOR 0x10
-
+#define AES_SR_OFFSET 0x04
+#define AES_DOUTR_OFFSET 0x0c
+#define AES_SUSPR0_OFFSET 0x40
 /************************** Function Definitions ***************************/
 /**
  *
