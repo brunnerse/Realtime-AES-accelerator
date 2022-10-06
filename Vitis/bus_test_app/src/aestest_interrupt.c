@@ -8,7 +8,7 @@
 #include <string.h>
 
 
-#include "AES_Interface.h"
+#include "AES_Interface_M.h"
 
 void hexToString(u8 *array, int len, char* outStr)
 {
@@ -32,14 +32,14 @@ void hexToStdOut(u8* array, int len)
 #define AES_BASEADDR XPAR_AES_INTERFACE_0_S_AXI_BASEADDR
 #define DDR_BASEADDR XPAR_PS7_DDR_0_S_AXI_BASEADDR
 
-int oldmain()
+int main()
 {
     xil_printf("Starting main\n");
 	// Do a test write to the DDR memory
-    /*u32 val = Xil_In32(DDR_BASEADDR);
+    u32 val = Xil_In32(DDR_BASEADDR);
 	Xil_Out32(DDR_BASEADDR, 0xdeadbeef);
 	val = Xil_In32(DDR_BASEADDR);
-	*/
+
 
     int status;
 
@@ -47,7 +47,7 @@ int oldmain()
     AES aes;
     AES_Initialize(&aes, aesConfig->BaseAddress);
 
-    //status = AES_Mem_SelfTest((void*)(aes.BaseAddress));
+    status = AES_Mem_SelfTest((void*)(aes.BaseAddress));
 
     u8 plaintext[BLOCK_SIZE] = {0x00, 0x10, 0x20, 0x30, 0x01, 0x11, 0x21, 0x31, 0x02, 0x12, 0x22, 0x32, 0x03, 0x13, 0x23, 0x33 };
     u8 key[BLOCK_SIZE] =  {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
