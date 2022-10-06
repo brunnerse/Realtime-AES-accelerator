@@ -79,15 +79,15 @@
 # ----------------------------------------------------------------------------
 # Clock Source - Bank 13
 # ---------------------------------------------------------------------------- 
-set_property PACKAGE_PIN Y9 [get_ports {GCLK}];  # "GCLK"
+#set_property PACKAGE_PIN Y9 [get_ports {GCLK}];  # "GCLK"
 
 # ----------------------------------------------------------------------------
 # JA Pmod - Bank 13
 # ----------------------------------------------------------------------------
-set_property PACKAGE_PIN Y11  [get_ports {JA1 JA[0] spi_rtl_ss_io[0]}];  # "JA1"
-set_property PACKAGE_PIN AA11 [get_ports {JA2 JA[1] spi_rtl_io0_io}];  # "JA2"
-set_property PACKAGE_PIN Y10  [get_ports {JA3 JA[2] spi_rtl_io1_io}];  # "JA3"
-set_property PACKAGE_PIN AA9  [get_ports {JA4 JA[3] spi_rtl_sck_io}];  # "JA4"
+#set_property PACKAGE_PIN Y11  [get_ports {JA1 JA[0]}];  # "JA1"
+#set_property PACKAGE_PIN AA11 [get_ports {JA2 JA[1]}];  # "JA2"
+#set_property PACKAGE_PIN Y10  [get_ports {JA3 JA[2]}];  # "JA3"
+#set_property PACKAGE_PIN AA9  [get_ports {JA4 JA[3]}];  # "JA4"
 #set_property PACKAGE_PIN AB11 [get_ports {JA7 JA[4]}];  # "JA7"
 #set_property PACKAGE_PIN AB10 [get_ports {JA8 JA[5]}];  # "JA8"
 #set_property PACKAGE_PIN AB9  [get_ports {JA9 JA[6]}];  # "JA9"
@@ -173,14 +173,14 @@ set_property PACKAGE_PIN AA9  [get_ports {JA4 JA[3] spi_rtl_sck_io}];  # "JA4"
 # ----------------------------------------------------------------------------
 # User LEDs - Bank 33
 # ----------------------------------------------------------------------------
-set_property PACKAGE_PIN T22 [get_ports {LD0 LED[0] gpio_rtl_tri_io[8]}];  # "LD0"
-set_property PACKAGE_PIN T21 [get_ports {LD1 LED[1] gpio_rtl_tri_io[9]}];  # "LD1"
-set_property PACKAGE_PIN U22 [get_ports {LD2 LED[2] gpio_rtl_tri_io[10]}];  # "LD2"
-set_property PACKAGE_PIN U21 [get_ports {LD3 LED[3] gpio_rtl_tri_io[11]}];  # "LD3"
-set_property PACKAGE_PIN V22 [get_ports {LD4 LED[4] gpio_rtl_tri_io[12]}];  # "LD4"
-set_property PACKAGE_PIN W22 [get_ports {LD5 LED[5] gpio_rtl_tri_io[13]}];  # "LD5"
-set_property PACKAGE_PIN U19 [get_ports {LD6 LED[6] gpio_rtl_tri_io[14]}];  # "LD6"
-set_property PACKAGE_PIN U14 [get_ports {LD7 LED[7] gpio_rtl_tri_io[15]}];  # "LD7"
+#set_property PACKAGE_PIN T22 [get_ports {LD0 LED[0]}];  # "LD0"
+#set_property PACKAGE_PIN T21 [get_ports {LD1 LED[1]}];  # "LD1"
+#set_property PACKAGE_PIN U22 [get_ports {LD2 LED[2]}];  # "LD2"
+#set_property PACKAGE_PIN U21 [get_ports {LD3 LED[3]}];  # "LD3"
+#set_property PACKAGE_PIN V22 [get_ports {LD4 LED[4]}];  # "LD4"
+#set_property PACKAGE_PIN W22 [get_ports {LD5 LED[5]}];  # "LD5"
+#set_property PACKAGE_PIN U19 [get_ports {LD6 LED[6]}];  # "LD6"
+#set_property PACKAGE_PIN U14 [get_ports {LD7 LED[7]}];  # "LD7"
 
 # ----------------------------------------------------------------------------
 # VGA Output - Bank 33
@@ -205,7 +205,7 @@ set_property PACKAGE_PIN U14 [get_ports {LD7 LED[7] gpio_rtl_tri_io[15]}];  # "L
 # ---------------------------------------------------------------------------- 
 #set_property PACKAGE_PIN P16 [get_ports {BTNC}];  # "BTNC"
 #set_property PACKAGE_PIN R16 [get_ports {BTND}];  # "BTND"
-set_property PACKAGE_PIN N15 [get_ports {BTNL}];  # "BTNL"
+#set_property PACKAGE_PIN N15 [get_ports {BTNL}];  # "BTNL"
 #set_property PACKAGE_PIN R18 [get_ports {BTNR}];  # "BTNR"
 #set_property PACKAGE_PIN T18 [get_ports {BTNU}];  # "BTNU"
 
@@ -235,14 +235,14 @@ set_property PACKAGE_PIN N15 [get_ports {BTNL}];  # "BTNL"
 ## ----------------------------------------------------------------------------
 ## User DIP Switches - Bank 35
 ## ----------------------------------------------------------------------------
-set_property PACKAGE_PIN F22 [get_ports {SW0 SW[0] gpio_rtl_tri_io[0]}];  # "SW0"
-set_property PACKAGE_PIN G22 [get_ports {SW1 SW[1] gpio_rtl_tri_io[1]}];  # "SW1"
-set_property PACKAGE_PIN H22 [get_ports {SW2 SW[2] gpio_rtl_tri_io[2]}];  # "SW2"
-set_property PACKAGE_PIN F21 [get_ports {SW3 SW[3] gpio_rtl_tri_io[3]}];  # "SW3"
-set_property PACKAGE_PIN H19 [get_ports {SW4 SW[4] gpio_rtl_tri_io[4]}];  # "SW4"
-set_property PACKAGE_PIN H18 [get_ports {SW5 SW[5] gpio_rtl_tri_io[5]}];  # "SW5"
-set_property PACKAGE_PIN H17 [get_ports {SW6 SW[6] gpio_rtl_tri_io[6]}];  # "SW6"
-set_property PACKAGE_PIN M15 [get_ports {SW7 SW[7] gpio_rtl_tri_io[7]}];  # "SW7"
+#set_property PACKAGE_PIN F22 [get_ports {SW0 SW[0]}];  # "SW0"
+#set_property PACKAGE_PIN G22 [get_ports {SW1 SW[1]}];  # "SW1"
+#set_property PACKAGE_PIN H22 [get_ports {SW2 SW[2]}];  # "SW2"
+#set_property PACKAGE_PIN F21 [get_ports {SW3 SW[3]}];  # "SW3"
+#set_property PACKAGE_PIN H19 [get_ports {SW4 SW[4]}];  # "SW4"
+#set_property PACKAGE_PIN H18 [get_ports {SW5 SW[5]}];  # "SW5"
+#set_property PACKAGE_PIN H17 [get_ports {SW6 SW[6]}];  # "SW6"
+#set_property PACKAGE_PIN M15 [get_ports {SW7 SW[7]}];  # "SW7"
 
 ## ----------------------------------------------------------------------------
 ## XADC AD Channels - Bank 35
@@ -375,6 +375,3 @@ set_property IOSTANDARD LVCMOS18 [get_ports -of_objects [get_iobanks 35]];
 
 # Note that the bank voltage for IO Bank 13 is fixed to 3.3V on ZedBoard. 
 set_property IOSTANDARD LVCMOS33 [get_ports -of_objects [get_iobanks 13]];
-
-set_property PULLDOWN true [get_ports {spi_rtl_*}]
-set_property PULLDOWN true [get_ports {gpio_rtl_tri_io[*]}]
