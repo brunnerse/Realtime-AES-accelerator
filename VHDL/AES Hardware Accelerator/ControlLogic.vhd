@@ -31,11 +31,8 @@ use IEEE.NUMERIC_STD.ALL;
 
 
 entity ControlLogic is
-  Port ( 
--- global signals
-    Clock    : in std_logic;
-    RESETn   : in std_logic;
--- Ports to the AHB interface: Classic register ports
+  Port (    
+-- Ports to the AES interface: Classic register ports
     RdEn : in std_logic;  -- signal to indicate a read access
     RdAddr : in std_logic_vector(ADDR_WIDTH-1 downto 0);
     RdData : out std_logic_vector(DATA_WIDTH-1 downto 0);
@@ -59,7 +56,11 @@ entity ControlLogic is
     EnOCore : in std_logic;
     mode : out std_logic_vector (MODE_LEN-1 downto 0);
     chaining_mode : out std_logic_vector (CHMODE_LEN-1 downto 0);
-    GCMPhase : out std_logic_vector(1 downto 0)
+    GCMPhase : out std_logic_vector(1 downto 0);
+-- global signals
+    interrupt : out std_logic;
+    Clock    : in std_logic;
+    Resetn   : in std_logic
   );
 end ControlLogic;
 
@@ -125,11 +126,14 @@ begin
 if rising_edge(Clock) then
     if Resetn = '0' then 
         CCF <= '0';
+        interrupt <= '0';
     else
+        interrupt <= '0';
         if EnOCore = '1' then
             CCF <= '1'; -- Set CCF flag whenever the Core finished a calculation
+            interrupt <= '1';
         -- Clear flag when CCFC is set or module is disabled
-        elsif En = '0' or CCFC = '1' then
+        elsif En = '0' or CCFC = '1' then -- TODO or EnICore = '1'
             CCF <= '0';
         end if;
     end if;
