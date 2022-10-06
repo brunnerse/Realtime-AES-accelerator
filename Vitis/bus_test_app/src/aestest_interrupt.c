@@ -1,7 +1,8 @@
 #include "xparameters.h"
 #include "xscutimer.h"
-#include "xuartps.h"
 #include "xgpiops.h"
+#include "xscugic.h"
+
 
 #include "xil_printf.h"
 #include <stdio.h>
@@ -9,6 +10,9 @@
 
 
 #include "AES_Interface_M.h"
+
+
+int interruptCount = 0;
 
 void hexToString(u8 *array, int len, char* outStr)
 {
@@ -28,12 +32,43 @@ void hexToStdOut(u8* array, int len)
     xil_printf("\n\r");
 }
 
+void onInterrupt(AES* aes)
+{
+	xil_printf("\nInterrupt called!\n\r");
+	interruptCount += 1;
+}
 
-#define AES_BASEADDR XPAR_AES_INTERFACE_0_S_AXI_BASEADDR
+s32 AES_SetupInterruptI()
+{
+	s32 status = XST_SUCCESS;
+	XScuGic_Config *IntcConfig;
+	XScuGic IntcInstance;
+	IntcConfig = XScuGic_LookupConfig(XPAR_SCUGIC_0_DEVICE_ID);
+	status |= XScuGic_CfgInitialize(&IntcInstance, IntcConfig, IntcConfig->CpuBaseAddress);
+
+	// Set up the interrupt controller
+	// Connect a device driver handler that will be called when an interrupt for the device occurs
+	// the device driver handler performs the specific interrupt processing for the device
+	XScuGic_SetPriorityTriggerType(&IntcInstance, XPAR_FABRIC_CONTROLLOGIC_0_INTERRUPT_INTR, 0xA0, 0x3);
+	status |= XScuGic_Connect(&IntcInstance, XPAR_FABRIC_CONTROLLOGIC_0_INTERRUPT_INTR, (Xil_ExceptionHandler)onInterrupt, NULL);
+	// Enable the interrupt for the ControlLogic peripheral
+	XScuGic_Enable(&IntcInstance, XPAR_FABRIC_CONTROLLOGIC_0_INTERRUPT_INTR);
+
+	return status;
+}
+
+
+
+#define AES_BASEADDR XPAR_AES_INTERFACE_M_0_S_AXI_BASEADDR
 #define DDR_BASEADDR XPAR_PS7_DDR_0_S_AXI_BASEADDR
 
 int main()
 {
+    s32 status;
+    // Define aes here so I can use it in the interrupt call TODO move back later
+    AES aes;
+
+
     xil_printf("Starting main\n");
 	// Do a test write to the DDR memory
     u32 val = Xil_In32(DDR_BASEADDR);
@@ -41,11 +76,31 @@ int main()
 	val = Xil_In32(DDR_BASEADDR);
 
 
-    int status;
 
-    AES_Config *aesConfig = AES_LookupConfig(XPAR_AES_INTERFACE_0_DEVICE_ID);
-    AES aes;
-    AES_Initialize(&aes, aesConfig->BaseAddress);
+	XScuGic_Config *IntcConfig;
+	XScuGic IntcInstance;
+
+	// Initialise the Interrupt controller so that it is ready to use.
+	IntcConfig = XScuGic_LookupConfig(XPAR_SCUGIC_0_DEVICE_ID);
+	status = XScuGic_CfgInitialize(&IntcInstance, IntcConfig, IntcConfig->CpuBaseAddress);
+
+	AES_SetupInterruptI();
+
+	// Initialise exceptions on the ARM processor
+	Xil_ExceptionInit();
+	// Connect the interrupt controller interrupt handler to the hardware interrupt handling logic in the processor.
+	Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_IRQ_INT, (Xil_ExceptionHandler)XScuGic_InterruptHandler, &IntcInstance);
+	// Enable interrupts in the Processor.
+	Xil_ExceptionEnable();
+
+
+
+	// Set up the AES unit
+
+    AES_Config *aesConfigPtr = AES_LookupConfig(XPAR_AES_INTERFACE_M_0_DEVICE_ID);
+    status = AES_CfgInitialize(&aes, aesConfigPtr);
+
+
 
     status = AES_Mem_SelfTest((void*)(aes.BaseAddress));
 
