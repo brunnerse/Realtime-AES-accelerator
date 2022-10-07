@@ -66,6 +66,23 @@ end ControlLogic;
 
 architecture Behavioral of ControlLogic is
 
+ATTRIBUTE X_INTERFACE_INFO : STRING;
+ATTRIBUTE X_INTERFACE_INFO of WrEn1: SIGNAL is
+    "xilinx.com:user:ReadWritePort:1.0 S_ReadWritePort WrEn";
+ATTRIBUTE X_INTERFACE_INFO of RdEn: SIGNAL is
+"xilinx.com:user:ReadWritePort:1.0 S_ReadWritePort RdEn";
+ATTRIBUTE X_INTERFACE_INFO of WrData1: SIGNAL is
+"xilinx.com:user:ReadWritePort:1.0 S_ReadWritePort WrData";
+ATTRIBUTE X_INTERFACE_INFO of WrAddr1: SIGNAL is
+"xilinx.com:user:ReadWritePort:1.0 S_ReadWritePort WrAddr";
+ATTRIBUTE X_INTERFACE_INFO of WrStrb1: SIGNAL is
+"xilinx.com:user:ReadWritePort:1.0 S_ReadWritePort WrStrb";
+ATTRIBUTE X_INTERFACE_INFO of WrAddr1: SIGNAL is
+"xilinx.com:user:ReadWritePort:1.0 S_ReadWritePort WrAddr";
+ATTRIBUTE X_INTERFACE_INFO of RdData: SIGNAL is
+"xilinx.com:user:ReadWritePort:1.0 S_ReadWritePort RdData";
+ATTRIBUTE X_INTERFACE_INFO of RdAddr: SIGNAL is
+"xilinx.com:user:ReadWritePort:1.0 S_ReadWritePort RdAddr";
 
 signal En, prevEn : std_logic;
 
