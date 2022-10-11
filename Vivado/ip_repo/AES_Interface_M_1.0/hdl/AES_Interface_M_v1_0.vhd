@@ -34,7 +34,7 @@ entity AES_Interface_M_v1_0 is
 	);
 	port (
 		-- Users to add ports here
-        -- to banked registers
+        -- ReadWritePort to banked registers
         RdEn : out std_logic;
         RdAddr : out std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
         RdData : in std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
@@ -42,6 +42,14 @@ entity AES_Interface_M_v1_0 is
 	    WrAddr : out std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
         WrData : out std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
         WrStrb : out std_logic_vector(C_S_AXI_DATA_WIDTH/8-1 downto 0);
+        -- ReadyValid_RW_Port to ControlLogic
+        S_RW_valid : out std_logic;
+        S_RW_ready : in std_logic;
+        S_RW_addr : in std_logic_vector(31 downto 0);
+        S_RW_wrData : in std_logic_vector(127 downto 0);
+        S_RW_rdData : out std_logic_vector(127 downto 0);
+        S_RW_write : in std_logic;
+        S_RW_error : out std_logic; 
 		-- User ports ends
 		
 		-- Do not modify the ports beyond this line
@@ -96,9 +104,6 @@ entity AES_Interface_M_v1_0 is
 		s_axi_rready	: in std_logic;
 
 		-- Ports of Axi Master Bus Interface M_AXI
-		m_axi_init_axi_txn	: in std_logic;
-		m_axi_txn_done	: out std_logic;
-		m_axi_error	: out std_logic;
 		m_axi_aclk	: in std_logic;
 		m_axi_aresetn	: in std_logic;
 		m_axi_awid	: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
@@ -228,9 +233,14 @@ architecture arch_imp of AES_Interface_M_v1_0 is
 		C_M_AXI_BUSER_WIDTH	: integer	:= 0
 		);
 		port (
-		INIT_AXI_TXN	: in std_logic;
-		TXN_DONE	: out std_logic;
-		ERROR	: out std_logic;
+		        -- ReadyValid_RW_Port to ControlLogic
+        S_RW_VALID : out std_logic;
+        S_RW_READY : in std_logic;
+        S_RW_ADDR : in std_logic_vector(31 downto 0);
+        S_RW_WRDATA : in std_logic_vector(127 downto 0);
+        S_RW_RDDATA : out std_logic_vector(127 downto 0);
+        S_RW_WRITE : in std_logic; 
+		S_RW_ERROR	: out std_logic;
 		M_AXI_ACLK	: in std_logic;
 		M_AXI_ARESETN	: in std_logic;
 		M_AXI_AWID	: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
@@ -280,6 +290,7 @@ architecture arch_imp of AES_Interface_M_v1_0 is
 
 	-- signals to forward the RdData and WrData Signals
     signal WrDataSignal, RdDataSignal : std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+    signal S_RW_rdDataSignal, S_RW_wrDataSignal :  std_logic_vector(127 downto 0);
 begin
 
 -- Instantiation of Axi Bus Interface S_AXI
@@ -365,9 +376,13 @@ AES_Interface_M_v1_0_M_AXI_inst : AES_Interface_M_v1_0_M_AXI
 		C_M_AXI_BUSER_WIDTH	=> C_M_AXI_BUSER_WIDTH
 	)
 	port map (
-		INIT_AXI_TXN	=> m_axi_init_axi_txn,
-		TXN_DONE	=> m_axi_txn_done,
-		ERROR	=> m_axi_error,
+        S_RW_VALID => S_RW_valid,
+        S_RW_READY => S_RW_ready,
+        S_RW_ADDR => S_RW_addr,
+        S_RW_WRDATA => S_RW_wrDataSignal,
+        S_RW_RDDATA => S_RW_rdDataSignal,
+        S_RW_WRITE => S_RW_write,
+		S_RW_ERROR	=> S_RW_error,
 		M_AXI_ACLK	=> m_axi_aclk,
 		M_AXI_ARESETN	=> m_axi_aresetn,
 		M_AXI_AWID	=> m_axi_awid,
@@ -415,21 +430,35 @@ AES_Interface_M_v1_0_M_AXI_inst : AES_Interface_M_v1_0_M_AXI
 	);
 
 	-- Add user logic here
+	-- TODO Same for Master Data!
 	-- Depending on the configuration, set up the data forwarding to convert the byte order from little endian to big endian
     DataForwardingBigEndian:
         -- Big Endian case
         if not LittleEndian generate
+            -- ReadWritePort
             WrData <= WrDataSignal;
             RdDataSignal <= RdData;
             WrStrb <= S_AXI_WSTRB;
+            -- ReadyValid_RW_Port
+            S_RW_wrDataSignal <= S_RW_wrData;
+            S_RW_rdData <= S_RW_rdDataSignal;
         end generate;
     DataForwardingLittleEndian:
         if LittleEndian generate
-            loopGen: 
+            GenReadWritePort: 
             for i in 3 downto 0 generate
                 WrData(i*8+7 downto i*8) <= WrDataSignal((3-i)*8+7 downto (3-i)*8);
                 RdDataSignal(i*8+7 downto i*8) <= RdData((3-i)*8+7 downto (3-i)*8);
                 WrStrb(i) <= s_axi_wstrb(3 - i);
+            end generate;
+           GenReadyValid_RW_Port: 
+            for j in 3 downto 0 generate
+                -- for each of the 32 bit words, swap the byte positions
+                InnerLoop: 
+                for i in 3 downto 0 generate
+                    S_RW_wrDataSignal((4*j + i)*8+7 downto (4*j + i)*8) <= S_RW_wrData((4*j + 7-i)*8+7 downto (4*j + 7-i)*8);
+                    S_RW_rdData((4*j + i)*8+7 downto (4*j + i)*8) <= S_RW_rdDataSignal((4*j + 7-i)*8+7 downto (4*j + 7-i)*8);
+                end generate ;
             end generate;
         end generate;
 	-- User logic ends

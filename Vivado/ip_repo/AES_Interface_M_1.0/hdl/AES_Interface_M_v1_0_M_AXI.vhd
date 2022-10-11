@@ -32,16 +32,16 @@ entity AES_Interface_M_v1_0_M_AXI is
 	);
 	port (
 		-- Users to add ports here
-
+        S_RW_VALID : out std_logic;
+        S_RW_READY : in std_logic;
+        S_RW_ADDR : in std_logic_vector(31 downto 0);
+        S_RW_WRDATA : in std_logic_vector(127 downto 0);
+        S_RW_RDDATA : out std_logic_vector(127 downto 0);
+        S_RW_WRITE : in std_logic; 
+		S_RW_ERROR	: out std_logic;
 		-- User ports ends
 		-- Do not modify the ports beyond this line
 
-		-- Initiate AXI transactions
-		INIT_AXI_TXN	: in std_logic;
-		-- Asserts when transaction is complete
-		TXN_DONE	: out std_logic;
-		-- Asserts when ERROR is detected
-		ERROR	: out std_logic;
 		-- Global Clock Signal.
 		M_AXI_ACLK	: in std_logic;
 		-- Global Reset Singal. This Signal is Active Low
