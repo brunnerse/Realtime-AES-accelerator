@@ -45,11 +45,12 @@ signal Resetn : std_logic := '0';
 
 signal testPlaintext, testIV, testKey, testCiphertext, Susp, H, keyOut, din : std_logic_vector(KEY_SIZE-1 downto 0);
 signal EnICore, EnOCore, RdEnAHB, WrEnAHB, WrEnCore : std_logic;
-signal WrDataAHB, RdDataAHB, WrAddrAHB, RdAddrAHB, WrAddrCore : std_logic_vector(DATA_WIDTH-1 downto 0);
+signal WrDataAHB, RdDataAHB : std_logic_vector(DATA_WIDTH-1 downto 0);
+signal WrAddrAHB, RdAddrAHB, WrAddrCore : std_logic_vector(ADDR_WIDTH-1 downto 0);
 signal WrDataCore : std_logic_vector(KEY_SIZE-1 downto 0);
 
 
-
+signal CL_ready, CL_valid : std_logic;
 
 signal mode : std_logic_vector(MODE_LEN-1 downto 0) := MODE_KEYEXPANSION_AND_DECRYPTION;
 signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0) := CHAINING_MODE_CBC;
@@ -64,10 +65,20 @@ testKey <= x"000102030405060708090a0b0c0d0e0f";
 
 i_ControlLogic : entity work.ControlLogic(Behavioral)
     port map(
-        Clock, Resetn, RdEnAHB, RdAddrAHB, RdDataAHB, 
-        WrEnAHB, WrAddrAHB, WrDataAHB, "1111", WrEnCore, WrAddrCore, WrDataCore,
-        keyOut, testIV, H, Susp, din, testCiphertext, EnICore, EnOCore, mode, chaining_mode, GCMPhase
+        RW_ready => CL_ready,
+        RW_valid => CL_valid,
+        RW_rdData => (others => '0'),
+        RW_error => '0',
+        
+        Clock => Clock,
+        Resetn => Resetn,
+        RdEn => RdEnAHB, RdAddr => RdAddrAHB, RdData => RdDataAHB,
+        WrEn1 => WrEnAHB, WrAddr1 => WrAddrAHB, WrData1 => WrDataAHB, WrStrb1 => "1111",
+        WrEn2 => WrEnCore, WrAddr2 => WrAddrCore, WrData2 => WrDataCore,
+        key => keyOut, IV => testIV, H => H, Susp => Susp, DIN => din, DOUT => testCiphertext, 
+        EnICore => EnICore, EnOCore => EnOCore, mode => mode, chaining_mode => chaining_mode, GCMPhase => GCMPhase
     );
+   
 
 core: entity work.AES_Core (Behavioral) 
 generic map(ADDR_IV => ADDR_IVR0, ADDR_SUSP => ADDR_SUSPR0, ADDR_H => ADDR_SUSPR4)
@@ -78,10 +89,20 @@ port map (testKey, testIV, H, Susp, WrEnCore, WrAddrCore, WrDataCore, din, testC
 -- processes for Clock and reset signal
 Clock <= not Clock after 5ns;
 process begin
-wait for 10 ns;
+wait for 20 ns;
 Resetn <= '1'; wait;
 end process;
 
+
+-- process that sets ready signal after valid was asserted
+process begin
+CL_ready <= '0';
+wait until rising_edge(Clock);
+wait until CL_valid = '1';
+wait for 50ns;
+CL_ready <= '1';
+wait until rising_edge(Clock);
+end process;
 
 process begin
 -- write to ControlLogic
@@ -93,12 +114,7 @@ WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
 wait for 10 ns;
 WrEnAHB <= '0';
 wait for 10ns;
-for i in 3 downto 0 loop
-    WrEnAHB <= '1';
-    WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DINR, ADDR_WIDTH));
-    WrDataAHB <= testPlaintext((i+1)*32-1 downto i*32);
-    wait for 10ns;
-end loop;
+
 WrEnAHB <= '0';
 RdEnAHB <= '1';
 RdAddrAHB <= std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH));
@@ -108,14 +124,11 @@ WrEnAHB <= '1';
 WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
 WrDataAHB <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1';
 WrDataAHB(7) <= '1';
---wait for 10ns;
-for i in 7 downto 0 loop -- 3!
-    RdAddrAHB <= std_logic_vector(to_unsigned(ADDR_DOUTR, ADDR_WIDTH));
-    wait for 10ns;
-end loop;
+
 RdEnAHB <= '0';
 WrEnAHB <= '0'; -- TODO stop write process earlier?
--- disable
+
+-- reset the enable bit
 WrEnAHB <= '1';
 WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
 WrDataAHB <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1';
