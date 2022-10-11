@@ -38,12 +38,13 @@ entity ControlLogic is
     RdAddr : in std_logic_vector(ADDR_WIDTH-1 downto 0);
     RdData : out std_logic_vector(DATA_WIDTH-1 downto 0);
 -- ReadyValid port for memory data transfer
-    RW_valid : in std_logic;
-    RW_ready : out std_logic;
+    RW_valid : out std_logic;
+    RW_ready : in std_logic;
     RW_addr : out std_logic_vector(31 downto 0);
     RW_wrData : out std_logic_vector(KEY_SIZE-1 downto 0);
     RW_rdData : in std_logic_vector(KEY_SIZE-1 downto 0);
     RW_write : out std_logic; 
+    RW_error : in std_logic;
     --  write port
     WrEn1 : in std_logic;
     WrAddr1 : in std_logic_vector(ADDR_WIDTH-1 downto 0);
@@ -107,6 +108,8 @@ ATTRIBUTE X_INTERFACE_INFO of RW_valid: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort valid";
 ATTRIBUTE X_INTERFACE_INFO of RW_write: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort write";
+ATTRIBUTE X_INTERFACE_INFO of RW_error: SIGNAL is
+"xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort error";
 
 
 signal En, prevEn : std_logic;
@@ -120,19 +123,14 @@ signal DMAOUTEN, DMAINEN, ERRIE, CCFIE, ERRC, CCFC : std_logic;
 type addr_range is array (0 to ADDR_SUSPR7/4) of std_logic_vector(DATA_WIDTH-1 downto 0);
 signal mem : addr_range;
 
--- Define 128-bit signals for data in and data out
-signal dataIn, dataOut : std_logic_vector(KEY_SIZE-1 downto 0);
+type state_type is (Idle, Fetch, Computing, Writeback);
+signal state : state_type;
 
-signal readCounter, writeCounter : unsigned(1 downto 0);
 signal modeSignal : std_logic_vector(MODE_LEN-1 downto 0);
 signal chainingModeSignal : std_logic_vector(CHMODE_LEN-1 downto 0);
 signal GCMPhaseSignal : std_logic_vector(1 downto 0);
 
 begin
-
--- connect memory addresses
-DIN <= dataIn;
-dataOut <= DOUT;
 
 key <= mem(ADDR_KEYR0/4) & mem(ADDR_KEYR1/4) & mem(ADDR_KEYR2/4) & mem(ADDR_KEYR3/4);
 IV <= mem(ADDR_IVR0/4) & mem(ADDR_IVR1/4) & mem(ADDR_IVR2/4) & mem(ADDR_IVR3/4);
@@ -158,52 +156,88 @@ CCFC <= mem(ADDR_CR/4)(7);
 
 -- set unused status flags to 0 for now 
 BUSY <= '0';
-WRERR <= '0';
-RDERR <= '0';
 
 
--- driver process for CCF status signal
-process (Clock)
-begin
-if rising_edge(Clock) then
-    if Resetn = '0' then 
+ -- process that handles the data fetching, computing and writing back
+ process(Clock)
+ begin
+ if rising_edge(Clock) then
+    EnICore <= '0';
+    interrupt <= '0';
+    
+    -- synchronous reset
+    if Resetn = '0' then
+        state <= Idle;
+        RW_valid <= '0';
+        WRERR <= '0';
+        RDERR <= '0';
         CCF <= '0';
-        interrupt <= '0';
     else
-        interrupt <= '0';
-        if EnOCore = '1' then
-            CCF <= '1'; -- Set CCF flag whenever the Core finished a calculation
-            interrupt <= '1';
-        -- Clear flag when CCFC is set or module is disabled
-        elsif En = '0' or CCFC = '1' then -- TODO or EnICore = '1'
+        -- Check if CCF should be cleared
+        if CCFC = '1' then
             CCF <= '0';
         end if;
-    end if;
-end if;
-end process;
-
--- read process;
-process (Clock)
-begin
-if rising_edge(Clock) then
-    if Resetn = '0' then -- reset counter when unit is disabled
-        readCounter <= "00";
-    else
-        if RdEn = '1' then
-            -- For registers DOUTR and SR, don't actually read from memory. This way the registers appear read-only
-            if RdAddr(ADDR_WIDTH-1 downto 2) =  std_logic_vector(to_unsigned(ADDR_DOUTR, ADDR_WIDTH)(ADDR_WIDTH-1 downto 2) ) then
-                RdData <= dataOut(127-to_integer(readCounter)*32 downto 96-to_integer(readCounter)*32);
-                readCounter <= readCounter + to_unsigned(1, 2);
-            elsif RdAddr =  std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)) then
-                RdData <= x"0000000" & BUSY & WRERR & RDERR & CCF;
-            else
-                RdData <= mem(to_integer(unsigned(RdAddr(ADDR_WIDTH-1 downto 2)))); -- divide address by four, as array is indexed word-wise
-            end if;
-        end if;
-        -- Reset counter when unit is disabled  TODO Always reset for En = '0'?
-        if En = '0' and prevEn = '1' then
-            readCounter <= "00";
-        end if;
+        
+        case state is
+            when Idle =>
+                if En = '1' and prevEn = '0' then
+                    -- reset CCF
+                    CCf <= '0';
+                    -- If mode is keyexpansion or the GCM init mode, start the AES Core immediately, no data reading required
+                    if modeSignal = MODE_KEYEXPANSION or (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT) then
+                        EnICore <= '1';
+                        state <= Computing;
+                    else
+                        -- start read data transaction
+                        RW_addr <= mem(ADDR_DINADDR/4);
+                        RW_write <= '0';
+                        RW_valid <= '1';
+                        state <= Fetch;
+                    end if;
+                end if;
+            when Fetch =>
+                -- wait until data were received
+                if RW_ready = '1' then
+                    -- reset valid signal
+                    RW_valid <= '0';
+                    RDERR <= RDERR or RW_error;
+                    DIN <= RW_rdData;
+                    -- start core
+                    EnICore <= '1';
+                    state <= Computing;
+                end if;
+            when Computing =>
+                -- write back once the core has finished
+                -- TODO if not at the end and not interrupted, fetch next data while core is computing
+                if EnOCore = '1' then
+                    -- In KeyExpansion mode or in GCM Phase Init or Header, no writeback is required
+                    if modeSignal = MODE_KEYEXPANSION or 
+                        (chainingModeSignal = CHAINING_MODE_GCM and (GCMPhaseSignal = GCM_PHASE_INIT or GCMPhaseSignal = GCM_PHASE_HEADER)) then
+                        -- set signals that computation has finished
+                        -- TODO in Header phase, check if at the end before setting CCF
+                        CCF <= '1';
+                        interrupt <= '1';
+                        state <= Idle;
+                    else
+                        RW_addr <= mem(ADDR_DOUTADDR/4);
+                        RW_write <= '1';
+                        RW_wrData <= DOUT;
+                        RW_valid <= '1';
+                        state <= Writeback;
+                   end if;
+                end if;
+            when Writeback =>
+                 if RW_ready = '1' then
+                    -- reset valid signal
+                    RW_valid <= '0';  
+                    WRERR <= WRERR or RW_error;
+                    -- set signals that computation has finished TODO only if at the end! If not at the end, return to computation
+                    CCF <= '1';
+                    interrupt <= '1';
+                    state <= Idle;
+                end if;
+            when others =>
+       end case;
     end if;
 end if;
 end process;
@@ -216,6 +250,21 @@ begin
     end if;
 end process;
 
+-- read process
+process (Clock)
+begin
+if rising_edge(Clock) then
+    if RdEn = '1' then
+        -- For register SR, don't actually read from memory. This way the register appears read-only
+        if RdAddr = std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)) then
+            RdData <= x"0000000" & BUSY & WRERR & RDERR & CCF;
+        else
+            RdData <= mem(to_integer(unsigned(RdAddr(ADDR_WIDTH-1 downto 2)))); -- divide address by four, as array is indexed word-wise
+        end if;
+    end if;
+end if;
+end process;
+
 -- write process
 process (Clock)
 begin
@@ -224,27 +273,22 @@ if rising_edge(Clock) then
         for i in 0 to ADDR_SUSPR7/4 loop
             mem(i) <= (others => '0');
         end loop;
-        writeCounter <= "00";
         EnICore <= '0';
     else
         EnICore <= '0';
+        -- TODO reset the enable bit once CCF bit is set
+        --if CCF = '1' then
+        --    mem(ADDR_CR/4)(0) <= '0';
+        --end if;
+        -- TODO reset CCFC automatically?
+        
         -- Write port 1 (from the Interface)
         if WrEn1 = '1' then
             for i in 3 downto 0 loop
                 if WrStrb1(i) = '1' then
                     mem(to_integer(unsigned(WrAddr1(ADDR_WIDTH-1 downto 2))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
                 end if;
-            end loop;
-            -- Remember write accesses to DINR when enabled, start the AES Core after four write accesses
-            -- (downto 2) to ignore the last two bits, as the address is divisible by four
-            if En = '1' and WrAddr1(ADDR_WIDTH-1 downto 2) = std_logic_vector(to_unsigned(ADDR_DINR, ADDR_WIDTH)(ADDR_WIDTH-1 downto 2)) then
-                writeCounter <= writeCounter + to_unsigned(1,2);
-                dataIn(127-to_integer(writeCounter)*32 downto 96-to_integer(writeCounter)*32) <= WrData1;
-                if writeCounter = to_unsigned(3,2) then
-                    -- All four bytes have been written, enable the AES Core
-                    EnICore <= '1';
-                end if;
-            end if;
+            end loop; 
         end if;
         -- Write port 2 (from the AES Core)
         if WrEn2 = '1' then
@@ -253,17 +297,11 @@ if rising_edge(Clock) then
                 mem(to_integer(unsigned(WrAddr2(ADDR_WIDTH-1 downto 2))+i)) <= WrData2(127-i*32 downto 96-i*32);
             end loop;
         end if;
-        -- Reset counter and clear susp register when unit is disabled  TODO always during En = 0?
+        -- Clear susp register when unit is disabled TODO necessary?
         if En = '0' and prevEn = '1' then
-            writeCounter <= "00";
             for i in ADDR_SUSPR0/4 to ADDR_SUSPR3/4 loop
                 mem(i) <= (others => '0');
             end loop;
-        end if;
-        -- If mode is keyexpansion or the GCM init mode, start the AES Core without waiting for the four write accesses
-        if (modeSignal = MODE_KEYEXPANSION or (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT)) and 
-                En = '1' and prevEn = '0' then
-            EnICore <= '1';
         end if;
     end if;
 end if;
