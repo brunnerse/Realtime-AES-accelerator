@@ -32,19 +32,29 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity ControlLogic is
   Port (    
--- Ports to the AES interface: Classic register ports
+-- Ports to the AES interface: 
+-- Classic ReadWritePort with Enable signals
     RdEn : in std_logic;  -- signal to indicate a read access
     RdAddr : in std_logic_vector(ADDR_WIDTH-1 downto 0);
     RdData : out std_logic_vector(DATA_WIDTH-1 downto 0);
-    -- define two write ports
+-- ReadyValid port for memory data transfer
+    RW_valid : in std_logic;
+    RW_ready : out std_logic;
+    RW_addr : out std_logic_vector(31 downto 0);
+    RW_wrData : out std_logic_vector(KEY_SIZE-1 downto 0);
+    RW_rdData : in std_logic_vector(KEY_SIZE-1 downto 0);
+    RW_write : out std_logic; 
+    --  write port
     WrEn1 : in std_logic;
     WrAddr1 : in std_logic_vector(ADDR_WIDTH-1 downto 0);
     WrData1: in std_logic_vector(DATA_WIDTH-1 downto 0);
     WrStrb1 : in std_logic_vector(DATA_WIDTH/8-1 downto 0);
+ 
+-- Ports to the AES Core
+    -- second write port
     WrEn2 : in std_logic;
     WrAddr2 : in std_logic_vector(ADDR_WIDTH-1 downto 0);
     WrData2 : in std_logic_vector(KEY_SIZE-1 downto 0);
--- Ports to the AES Core
     key : out std_logic_vector (KEY_SIZE-1 downto 0);
     IV : out std_logic_vector (KEY_SIZE-1 downto 0);
     H : out std_logic_vector (KEY_SIZE-1 downto 0);
@@ -66,6 +76,7 @@ end ControlLogic;
 
 architecture Behavioral of ControlLogic is
 
+-- Give the interface ports attributes so Vivado recognizes them as interfaces
 ATTRIBUTE X_INTERFACE_INFO : STRING;
 ATTRIBUTE X_INTERFACE_INFO of WrEn1: SIGNAL is
     "xilinx.com:user:ReadWritePort:1.0 S_ReadWritePort WrEn";
@@ -83,6 +94,20 @@ ATTRIBUTE X_INTERFACE_INFO of RdData: SIGNAL is
 "xilinx.com:user:ReadWritePort:1.0 S_ReadWritePort RdData";
 ATTRIBUTE X_INTERFACE_INFO of RdAddr: SIGNAL is
 "xilinx.com:user:ReadWritePort:1.0 S_ReadWritePort RdAddr";
+
+ATTRIBUTE X_INTERFACE_INFO of RW_addr: SIGNAL is
+"xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort Addr";
+ATTRIBUTE X_INTERFACE_INFO of RW_wrData: SIGNAL is
+"xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort WrData";
+ATTRIBUTE X_INTERFACE_INFO of RW_rdData: SIGNAL is
+"xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort RdData";
+ATTRIBUTE X_INTERFACE_INFO of RW_ready: SIGNAL is
+"xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort ready";
+ATTRIBUTE X_INTERFACE_INFO of RW_valid: SIGNAL is
+"xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort valid";
+ATTRIBUTE X_INTERFACE_INFO of RW_write: SIGNAL is
+"xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort write";
+
 
 signal En, prevEn : std_logic;
 
