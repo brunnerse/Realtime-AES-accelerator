@@ -43,8 +43,8 @@ entity AES_Interface_M_v1_0 is
         WrData : out std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
         WrStrb : out std_logic_vector(C_S_AXI_DATA_WIDTH/8-1 downto 0);
         -- ReadyValid_RW_Port to ControlLogic
-        S_RW_valid : out std_logic;
-        S_RW_ready : in std_logic;
+        S_RW_valid : in std_logic;
+        S_RW_ready : out std_logic;
         S_RW_addr : in std_logic_vector(31 downto 0);
         S_RW_wrData : in std_logic_vector(127 downto 0);
         S_RW_rdData : out std_logic_vector(127 downto 0);

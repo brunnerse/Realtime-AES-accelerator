@@ -32,8 +32,8 @@ entity AES_Interface_M_v1_0_M_AXI is
 	);
 	port (
 		-- Users to add ports here
-        S_RW_VALID : out std_logic;
-        S_RW_READY : in std_logic;
+        S_RW_VALID : in std_logic;
+        S_RW_READY : out std_logic;
         S_RW_ADDR : in std_logic_vector(31 downto 0);
         S_RW_WRDATA : in std_logic_vector(127 downto 0);
         S_RW_RDDATA : out std_logic_vector(127 downto 0);
