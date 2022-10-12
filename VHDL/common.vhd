@@ -48,8 +48,8 @@ constant ADDR_BASE : integer := 16#00#; -- TODO specify correct address
 
 constant ADDR_CR : integer := 16#00#;
 constant ADDR_SR : integer := 16#04#;
-constant ADDR_DINR : integer := 16#08#;
-constant ADDR_DOUTR : integer := 16#0c#;
+constant ADDR_DINADDR : integer := 16#08#;
+constant ADDR_DOUTADDR : integer := 16#0c#;
 constant ADDR_KEYR0 : integer := 16#10#;
 constant ADDR_KEYR1 : integer := 16#14#;
 constant ADDR_KEYR2 : integer := 16#18#;
@@ -58,7 +58,9 @@ constant ADDR_IVR0 : integer := 16#20#;
 constant ADDR_IVR1 : integer := 16#24#;
 constant ADDR_IVR2 : integer := 16#28#;
 constant ADDR_IVR3 : integer := 16#2c#;
--- 0x30 are additional key registers which are only used for 256-bit, which isn't done here
+
+constant ADDR_DATASIZE : integer := 16#30#;
+-- TODO Luecke aufschlieﬂen?
 constant ADDR_SUSPR0 : integer := 16#40#;
 constant ADDR_SUSPR1 : integer := 16#44#;
 constant ADDR_SUSPR2 : integer := 16#48#;
