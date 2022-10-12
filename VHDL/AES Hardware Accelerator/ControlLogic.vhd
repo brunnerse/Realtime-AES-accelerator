@@ -273,9 +273,7 @@ if rising_edge(Clock) then
         for i in 0 to ADDR_SUSPR7/4 loop
             mem(i) <= (others => '0');
         end loop;
-        EnICore <= '0';
     else
-        EnICore <= '0';
         -- TODO reset the enable bit once CCF bit is set
         --if CCF = '1' then
         --    mem(ADDR_CR/4)(0) <= '0';
