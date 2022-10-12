@@ -234,8 +234,8 @@ architecture arch_imp of AES_Interface_M_v1_0 is
 		);
 		port (
 		        -- ReadyValid_RW_Port to ControlLogic
-        S_RW_VALID : out std_logic;
-        S_RW_READY : in std_logic;
+        S_RW_VALID : in std_logic;
+        S_RW_READY : out std_logic;
         S_RW_ADDR : in std_logic_vector(31 downto 0);
         S_RW_WRDATA : in std_logic_vector(127 downto 0);
         S_RW_RDDATA : out std_logic_vector(127 downto 0);
@@ -456,8 +456,8 @@ AES_Interface_M_v1_0_M_AXI_inst : AES_Interface_M_v1_0_M_AXI
                 -- for each of the 32 bit words, swap the byte positions
                 InnerLoop: 
                 for i in 3 downto 0 generate
-                    S_RW_wrDataSignal((4*j + i)*8+7 downto (4*j + i)*8) <= S_RW_wrData((4*j + 7-i)*8+7 downto (4*j + 7-i)*8);
-                    S_RW_rdData((4*j + i)*8+7 downto (4*j + i)*8) <= S_RW_rdDataSignal((4*j + 7-i)*8+7 downto (4*j + 7-i)*8);
+                    S_RW_wrDataSignal((4*j + i)*8+7 downto (4*j + i)*8) <= S_RW_wrData((4*j + 3-i)*8+7 downto (4*j + 3-i)*8);
+                    S_RW_rdData((4*j + i)*8+7 downto (4*j + i)*8) <= S_RW_rdDataSignal((4*j + 3-i)*8+7 downto (4*j + 3-i)*8);
                 end generate ;
             end generate;
         end generate;
