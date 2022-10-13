@@ -55,6 +55,16 @@ end AES_Core;
 
 architecture Behavioral of AES_Core is
 
+-- Give the interface ports attributes so Vivado recognizes them as interface
+ATTRIBUTE X_INTERFACE_INFO : STRING;
+ATTRIBUTE X_INTERFACE_INFO of WrEn: SIGNAL is
+    "xilinx.com:user:ReadWritePort:1.0 M_WritePort_127 WrEn";
+ATTRIBUTE X_INTERFACE_INFO of WrData: SIGNAL is
+"xilinx.com:user:ReadWritePort:1.0 M_WritePort_127 WrData";
+ATTRIBUTE X_INTERFACE_INFO of WrAddr: SIGNAL is
+"xilinx.com:user:ReadWritePort:1.0 M_WritePort_127 WrAddr";
+
+
 component AddRoundKey is
     Port ( din : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dout : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);

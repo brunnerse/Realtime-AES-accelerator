@@ -33,11 +33,11 @@ use IEEE.NUMERIC_STD.ALL;
 --library UNISIM;
 --use UNISIM.VComponents.all;
 
-entity TestCL is
+entity TestControlLogic is
 --  Port ( );
-end TestCL;
+end TestControlLogic;
 
-architecture Behavioral of TestCL is
+architecture Behavioral of TestControlLogic is
 
 
 signal Clock : std_logic := '1';
@@ -65,10 +65,10 @@ testKey <= x"000102030405060708090a0b0c0d0e0f";
 
 i_ControlLogic : entity work.ControlLogic(Behavioral)
     port map(
-        RW_ready => CL_ready,
-        RW_valid => CL_valid,
-        RW_rdData => (others => '0'),
-        RW_error => '0',
+        M_RW_ready => CL_ready,
+        M_RW_valid => CL_valid,
+        M_RW_rdData => (others => '0'),
+        M_RW_error => '0',
         
         Clock => Clock,
         Resetn => Resetn,

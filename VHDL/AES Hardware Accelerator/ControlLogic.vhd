@@ -38,13 +38,13 @@ entity ControlLogic is
     RdAddr : in std_logic_vector(ADDR_WIDTH-1 downto 0);
     RdData : out std_logic_vector(DATA_WIDTH-1 downto 0);
 -- ReadyValid port for memory data transfer
-    RW_valid : out std_logic;
-    RW_ready : in std_logic;
-    RW_addr : out std_logic_vector(31 downto 0);
-    RW_wrData : out std_logic_vector(KEY_SIZE-1 downto 0);
-    RW_rdData : in std_logic_vector(KEY_SIZE-1 downto 0);
-    RW_write : out std_logic; 
-    RW_error : in std_logic;
+    M_RW_valid : out std_logic;
+    M_RW_ready : in std_logic;
+    M_RW_addr : out std_logic_vector(31 downto 0);
+    M_RW_wrData : out std_logic_vector(KEY_SIZE-1 downto 0);
+    M_RW_rdData : in std_logic_vector(KEY_SIZE-1 downto 0);
+    M_RW_write : out std_logic; 
+    M_RW_error : in std_logic;
     --  write port
     WrEn1 : in std_logic;
     WrAddr1 : in std_logic_vector(ADDR_WIDTH-1 downto 0);
@@ -89,35 +89,51 @@ ATTRIBUTE X_INTERFACE_INFO of WrAddr1: SIGNAL is
 "xilinx.com:user:ReadWritePort:1.0 S_ReadWritePort WrAddr";
 ATTRIBUTE X_INTERFACE_INFO of WrStrb1: SIGNAL is
 "xilinx.com:user:ReadWritePort:1.0 S_ReadWritePort WrStrb";
-ATTRIBUTE X_INTERFACE_INFO of WrAddr1: SIGNAL is
-"xilinx.com:user:ReadWritePort:1.0 S_ReadWritePort WrAddr";
 ATTRIBUTE X_INTERFACE_INFO of RdData: SIGNAL is
 "xilinx.com:user:ReadWritePort:1.0 S_ReadWritePort RdData";
 ATTRIBUTE X_INTERFACE_INFO of RdAddr: SIGNAL is
 "xilinx.com:user:ReadWritePort:1.0 S_ReadWritePort RdAddr";
 
-ATTRIBUTE X_INTERFACE_INFO of RW_addr: SIGNAL is
+ATTRIBUTE X_INTERFACE_INFO of WrEn2: SIGNAL is
+    "xilinx.com:user:ReadWritePort:1.0 S_WritePort_127 WrEn";
+ATTRIBUTE X_INTERFACE_INFO of WrData2: SIGNAL is
+"xilinx.com:user:ReadWritePort:1.0 S_WritePort_127 WrData";
+ATTRIBUTE X_INTERFACE_INFO of WrAddr2: SIGNAL is
+"xilinx.com:user:ReadWritePort:1.0 S_WritePort_127 WrAddr";
+
+
+ATTRIBUTE X_INTERFACE_INFO of M_RW_addr: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort Addr";
-ATTRIBUTE X_INTERFACE_INFO of RW_wrData: SIGNAL is
+ATTRIBUTE X_INTERFACE_INFO of M_RW_wrData: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort WrData";
-ATTRIBUTE X_INTERFACE_INFO of RW_rdData: SIGNAL is
+ATTRIBUTE X_INTERFACE_INFO of M_RW_rdData: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort RdData";
-ATTRIBUTE X_INTERFACE_INFO of RW_ready: SIGNAL is
+ATTRIBUTE X_INTERFACE_INFO of M_RW_ready: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort ready";
-ATTRIBUTE X_INTERFACE_INFO of RW_valid: SIGNAL is
+ATTRIBUTE X_INTERFACE_INFO of M_RW_valid: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort valid";
-ATTRIBUTE X_INTERFACE_INFO of RW_write: SIGNAL is
+ATTRIBUTE X_INTERFACE_INFO of M_RW_write: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort write";
-ATTRIBUTE X_INTERFACE_INFO of RW_error: SIGNAL is
+ATTRIBUTE X_INTERFACE_INFO of M_RW_error: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort error";
+
+-- internal signals for RW port output
+signal RW_addr : std_logic_vector(M_RW_addr'RANGE);
+signal RW_valid : std_logic;
+signal RW_wrData : std_logic_vector(KEY_SIZE-1 downto 0);
+signal RW_write : std_logic;
 
 
 signal En, prevEn : std_logic;
 
+
+signal dataCounter : std_logic_vector(DATA_WIDTH-1 downto 0);
+
 -- status signals TODO anything other than CCF needed?
 signal BUSY, WRERR, RDERR, CCF : std_logic;
+signal prevCCF : std_logic;
 -- control signals
-signal DMAOUTEN, DMAINEN, ERRIE, CCFIE, ERRC, CCFC : std_logic;
+signal ERRIE, CCFIE, ERRC, CCFC : std_logic;
 
 -- Define registers as array
 type addr_range is array (0 to ADDR_SUSPR7/4) of std_logic_vector(DATA_WIDTH-1 downto 0);
@@ -131,6 +147,12 @@ signal chainingModeSignal : std_logic_vector(CHMODE_LEN-1 downto 0);
 signal GCMPhaseSignal : std_logic_vector(1 downto 0);
 
 begin
+
+-- forward internal RW port output signals
+M_RW_addr <= RW_addr;
+M_RW_valid <= RW_valid;
+M_RW_wrData <= RW_wrData;
+M_RW_write <= RW_write;
 
 key <= mem(ADDR_KEYR0/4) & mem(ADDR_KEYR1/4) & mem(ADDR_KEYR2/4) & mem(ADDR_KEYR3/4);
 IV <= mem(ADDR_IVR0/4) & mem(ADDR_IVR1/4) & mem(ADDR_IVR2/4) & mem(ADDR_IVR3/4);
