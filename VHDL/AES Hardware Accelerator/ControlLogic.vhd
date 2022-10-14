@@ -31,6 +31,9 @@ use IEEE.NUMERIC_STD.ALL;
 
 
 entity ControlLogic is
+  Generic (
+    LittleEndian : boolean := true
+  );
   Port (    
 -- Ports to the AES interface: 
 -- Classic ReadWritePort with Enable signals
@@ -162,22 +165,23 @@ H <=  mem(ADDR_SUSPR4/4) & mem(ADDR_SUSPR5/4) & mem(ADDR_SUSPR6/4) & mem(ADDR_SU
 -- set AES control signals
 -- copy mode, chaining_mode and GCMPhase to internal signals first, so we can check them in internal processes
 En <= mem(ADDR_CR/4)(0);
+-- stores the En and CCF signal of the last cycle, so processes can check if it changed
+prevEn <= En when rising_edge(Clock);
+prevCCF <= CCF when rising_edge(Clock);
+
 modeSignal <= mem(ADDR_CR/4)(4 downto 3);
 mode <= modeSignal;
 chainingModeSignal <= mem(ADDR_CR/4)(6 downto 5);
 chaining_mode <= chainingModeSignal;
 GCMPhaseSignal <= mem(ADDR_CR/4)(14 downto 13);
 GCMPhase <= GCMPhaseSignal;
-DMAOUTEN <= mem(ADDR_CR/4)(12);
-DMAINEN <= mem(ADDR_CR/4)(11);
 ERRIE <= mem(ADDR_CR/4)(10);
 CCFIE <= mem(ADDR_CR/4)(9);
-ERRC <= mem(ADDR_CR/4)(8);
+ERRC <= mem(ADDR_CR/4)(8); 
 CCFC <= mem(ADDR_CR/4)(7);
 
-
--- set unused status flags to 0 for now 
-BUSY <= '0';
+-- status register flag
+BUSY <= '0' when state = Idle else '1';
 
 
  -- process that handles the data fetching, computing and writing back
@@ -190,6 +194,7 @@ BUSY <= '0';
     -- synchronous reset
     if Resetn = '0' then
         state <= Idle;
+        dataCounter <= (others => '0');
         RW_valid <= '0';
         WRERR <= '0';
         RDERR <= '0';
@@ -204,14 +209,24 @@ BUSY <= '0';
             when Idle =>
                 if En = '1' and prevEn = '0' then
                     -- reset CCF
-                    CCf <= '0';
+                    CCF <= '0';
                     -- If mode is keyexpansion or the GCM init mode, start the AES Core immediately, no data reading required
                     if modeSignal = MODE_KEYEXPANSION or (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT) then
                         EnICore <= '1';
                         state <= Computing;
                     else
-                        -- start read data transaction
-                        RW_addr <= mem(ADDR_DINADDR/4);
+                        -- start read data transaction;  Read RW_addr and dataCounter from memory register depending on Endianness
+                        if not LittleEndian then
+                            dataCounter <= mem(ADDR_DATASIZE/4)(31 downto 4) & "0000"; -- Make sure dataCounter is divisible by 16
+                            RW_addr <= mem(ADDR_DINADDR/4);
+                        else
+                            for i in 3 downto 0 loop
+                                RW_addr(i*8+7 downto i*8) <= mem(ADDR_DINADDR/4)((3-i)*8+7 downto (3-i)*8);
+                                dataCounter(i*8+7 downto i*8) <= mem(ADDR_DATASIZE/4)((3-i)*8+7 downto (3-i)*8);
+                            end loop;
+                            -- Make sure dataCounter is divisible by 16
+                            dataCounter(3 downto 0) <= (others => '0');
+                        end if;
                         RW_write <= '0';
                         RW_valid <= '1';
                         state <= Fetch;
@@ -219,11 +234,11 @@ BUSY <= '0';
                 end if;
             when Fetch =>
                 -- wait until data were received
-                if RW_ready = '1' then
+                if M_RW_ready = '1' then
                     -- reset valid signal
                     RW_valid <= '0';
-                    RDERR <= RDERR or RW_error;
-                    DIN <= RW_rdData;
+                    RDERR <= RDERR or M_RW_error; -- TODO remove or
+                    DIN <= M_RW_rdData;
                     -- start core
                     EnICore <= '1';
                     state <= Computing;
@@ -234,14 +249,23 @@ BUSY <= '0';
                 if EnOCore = '1' then
                     -- In KeyExpansion mode or in GCM Phase Init or Header, no writeback is required
                     if modeSignal = MODE_KEYEXPANSION or 
-                        (chainingModeSignal = CHAINING_MODE_GCM and (GCMPhaseSignal = GCM_PHASE_INIT or GCMPhaseSignal = GCM_PHASE_HEADER)) then
+                        (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT ) then
                         -- set signals that computation has finished
-                        -- TODO in Header phase, check if at the end before setting CCF
                         CCF <= '1';
                         interrupt <= '1';
                         state <= Idle;
+                    elsif chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_HEADER then
+                         -- change to writeback so it checks in the next cycle whether there are more data to process
+                         state <= Writeback;
                     else
-                        RW_addr <= mem(ADDR_DOUTADDR/4);
+                        -- Read DOUT address from memory register depending on Endianness
+                        if not LittleEndian then
+                            RW_addr <= mem(ADDR_DOUTADDR/4);
+                        else
+                            for i in 3 downto 0 loop
+                                RW_addr(i*8+7 downto i*8) <= mem(ADDR_DOUTADDR/4)((3-i)*8+7 downto (3-i)*8);
+                            end loop;
+                        end if;
                         RW_write <= '1';
                         RW_wrData <= DOUT;
                         RW_valid <= '1';
@@ -249,27 +273,29 @@ BUSY <= '0';
                    end if;
                 end if;
             when Writeback =>
-                 if RW_ready = '1' then
-                    -- reset valid signal
-                    RW_valid <= '0';  
-                    WRERR <= WRERR or RW_error;
-                    -- set signals that computation has finished TODO only if at the end! If not at the end, return to computation
-                    CCF <= '1';
-                    interrupt <= '1';
-                    state <= Idle;
+                -- in GCM Header phase, nothing is written back, so we can continue immediately
+                 if M_RW_ready = '1' or
+                         (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_HEADER) then
+                    WRERR <= WRERR or M_RW_error; -- TODO remove OR
+                    -- check if computation is complete
+                    if unsigned(dataCounter) > to_unsigned(16, dataCounter'LENGTH) then
+                        -- Not complete; Fetch next data block
+                        RW_addr <= std_logic_vector(unsigned(RW_addr) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
+                        RW_valid <= '1'; -- RW_valid stays high
+                        state <= Fetch;
+                    else 
+                        -- Computation complete;  set interrupt and CCF, return to Idle state
+                        RW_valid <= '0';  
+                        state <= Idle;
+                        CCF <= '1';
+                        interrupt <= CCFIE;  -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0
+                    end if;    
+                    dataCounter <= std_logic_vector(unsigned(dataCounter) - to_unsigned(KEY_SIZE/8, dataCounter'LENGTH));
                 end if;
             when others =>
        end case;
     end if;
 end if;
-end process;
-
--- process to store the previous enable signal, so other processes can check if it changed
-process(Clock)
-begin
-    if rising_edge(Clock) then
-        prevEn <= En;
-    end if;
 end process;
 
 -- read process
@@ -296,11 +322,10 @@ if rising_edge(Clock) then
             mem(i) <= (others => '0');
         end loop;
     else
-        -- TODO reset the enable bit once CCF bit is set
-        --if CCF = '1' then
-        --    mem(ADDR_CR/4)(0) <= '0';
-        --end if;
-        -- TODO reset CCFC automatically?
+        -- Reset the enable bit once CCF switches to 1
+        if CCF = '1' and prevCCF = '0' then
+            mem(ADDR_CR/4)(0) <= '0';
+        end if;
         
         -- Write port 1 (from the Interface)
         if WrEn1 = '1' then
