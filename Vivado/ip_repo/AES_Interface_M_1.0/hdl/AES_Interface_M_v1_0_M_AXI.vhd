@@ -319,13 +319,11 @@ begin
 	    if (rising_edge (M_AXI_ACLK)) then                                              
 	      if (M_AXI_ARESETN = '0') then  -- TODO also when S_RW_VALID is deasserted?                                                
 	        axi_wvalid <= '0';                                                          
-	      else                                                                          
-	        if (axi_wvalid = '0' and S_RW_VALID= '1') then      -- TODO warten, bis Adresse akzeptiert?         
-                  -- If previously not valid, start next transaction                        
-                  axi_wvalid <= '1';                                                        
-                  --     /* If WREADY and too many writes, throttle WVALID                  
-                  --      Once asserted, VALIDs cannot be deasserted, so WVALID             
-                  --      must wait until burst is complete with WLAST */                   
+	      else 
+		  	-- set wvalid to 1 at the start of the transfer                                                                        
+	        if (RW_valid_pulse =  '1' and S_RW_WRITE = '1') then      -- TODO warten, bis Adresse akzeptiert?                                 
+                  axi_wvalid <= '1'; 
+			-- deassert wvalid after the last write handshake                                                                     
 	        elsif (M_AXI_WREADY = '1' and axi_wvalid = '1' and axi_wlast = '1') then                                
 	               axi_wvalid <= '0';                                                                                                   
 	        end if;                                                                     
@@ -402,7 +400,8 @@ begin
 	--slave for the entire write burst. This example will capture the error 
 	--into the ERROR output. 
 
-      axi_bready <= S_RW_VALID;                                             
+	-- set bready to 1 during the entire transfer (if it is a write transfer)
+      axi_bready <= S_RW_VALID and S_RW_WRITE;                                             
 
 	------------------------------
 	--Read Address Channel
@@ -468,10 +467,7 @@ begin
       end process;                                                          
 	                                                                        
 	--/*                                                                    
-	-- The Read Data channel returns the results of the read request        
-	--                                                                      
-	-- In this example the data checker is always able to accept            
-	-- more data, so no need to throttle the RREADY signal                  
+	-- The Read Data channel returns the results of the read request                      
 	-- */                                                                   
 	  process(M_AXI_ACLK)                                                   
 	  begin                                                                 
@@ -482,7 +478,7 @@ begin
 	      -- when M_AXI_RVALID is asserted by slave                         
 	      else
 	        -- assert rready at the start of the transfer
-	        if RW_valid_pulse = '1' then
+	        if RW_valid_pulse = '1' and S_RW_WRITE = '0' then
 	           axi_rready <= '1';
 	        -- deassert rready after the last transfer                                                  
 	        elsif(axi_rready = '1' and M_AXI_RVALID = '1' and M_AXI_RLAST = '1') then
@@ -499,7 +495,7 @@ begin
 	    if (rising_edge (M_AXI_ACLK)) then                                                                       
            S_RW_ready <= '0';
            if S_RW_VALID = '1' then                                                                                                   
-               if S_RW_WRITE = '1' and M_AXI_BVALID = '1' and axi_bready = '1' and axi_wlast = '1' then   
+               if S_RW_WRITE = '1' and M_AXI_BVALID = '1' and axi_bready = '1' then   -- one response for the entire burst, so wlast doesn't matter
                   S_RW_ready <= '1';                                                                               
                elsif S_RW_WRITE = '0' and M_AXI_RVALID = '1' and axi_rready = '1'and M_AXI_RLAST = '1' then
                   S_RW_ready <= '1';

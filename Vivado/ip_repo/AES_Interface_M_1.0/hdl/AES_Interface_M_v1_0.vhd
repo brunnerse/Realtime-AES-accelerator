@@ -236,7 +236,7 @@ architecture arch_imp of AES_Interface_M_v1_0 is
 		        -- ReadyValid_RW_Port to ControlLogic
         S_RW_VALID : in std_logic;
         S_RW_READY : out std_logic;
-        S_RW_ADDR : in std_logic_vector(31 downto 0);
+        S_RW_ADDR : in std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
         S_RW_WRDATA : in std_logic_vector(127 downto 0);
         S_RW_RDDATA : out std_logic_vector(127 downto 0);
         S_RW_WRITE : in std_logic; 
@@ -376,6 +376,7 @@ AES_Interface_M_v1_0_M_AXI_inst : AES_Interface_M_v1_0_M_AXI
 		C_M_AXI_BUSER_WIDTH	=> C_M_AXI_BUSER_WIDTH
 	)
 	port map (
+	    -- RW Port signals
         S_RW_VALID => S_RW_valid,
         S_RW_READY => S_RW_ready,
         S_RW_ADDR => S_RW_addr,
@@ -383,6 +384,7 @@ AES_Interface_M_v1_0_M_AXI_inst : AES_Interface_M_v1_0_M_AXI
         S_RW_RDDATA => S_RW_rdDataSignal,
         S_RW_WRITE => S_RW_write,
 		S_RW_ERROR	=> S_RW_error,
+		-- AXI signals
 		M_AXI_ACLK	=> m_axi_aclk,
 		M_AXI_ARESETN	=> m_axi_aresetn,
 		M_AXI_AWID	=> m_axi_awid,
@@ -445,13 +447,16 @@ AES_Interface_M_v1_0_M_AXI_inst : AES_Interface_M_v1_0_M_AXI
         end generate;
     DataForwardingLittleEndian:
         if LittleEndian generate
+            -- ReadWritePort
             GenReadWritePort: 
             for i in 3 downto 0 generate
                 WrData(i*8+7 downto i*8) <= WrDataSignal((3-i)*8+7 downto (3-i)*8);
                 RdDataSignal(i*8+7 downto i*8) <= RdData((3-i)*8+7 downto (3-i)*8);
                 WrStrb(i) <= s_axi_wstrb(3 - i);
             end generate;
-           GenReadyValid_RW_Port: 
+            -- ReadyValid_RW_Port
+           GenReadyValid_RW_Port_Data:
+           -- data signals 
             for j in 3 downto 0 generate
                 -- for each of the 32 bit words, swap the byte positions
                 InnerLoop: 
