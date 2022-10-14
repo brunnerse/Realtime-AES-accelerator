@@ -95,19 +95,25 @@ end process;
 
 
 -- process that sets ready signal after valid was asserted
-process begin
+process
+begin
 CL_ready <= '0';
-wait until rising_edge(Clock);
-wait until CL_valid = '1';
-wait for 50ns;
-CL_ready <= '1';
-wait until rising_edge(Clock);
+wait for 10ns;
+if CL_valid = '1' then
+    wait for 50ns;
+    CL_ready <= '1';
+    wait for 10ns;
+end if;
 end process;
 
 process begin
 -- write to ControlLogic
 wait until Resetn = '1';
+-- set control
 WrEnAHB <= '1';
+WrDataAHB <= x"20000000"; 
+WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DATASIZE, ADDR_WIDTH));
+wait for 10ns;
 -- set control
 WrDataAHB <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1'; -- TODO Chaining mode definition needs downto?
 WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
@@ -124,11 +130,13 @@ WrEnAHB <= '1';
 WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
 WrDataAHB <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1';
 WrDataAHB(7) <= '1';
-
+wait for 10ns;
 RdEnAHB <= '0';
 WrEnAHB <= '0'; -- TODO stop write process earlier?
 
--- reset the enable bit
+wait for 50ns;
+
+-- set the enable bit again
 WrEnAHB <= '1';
 WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
 WrDataAHB <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1';
