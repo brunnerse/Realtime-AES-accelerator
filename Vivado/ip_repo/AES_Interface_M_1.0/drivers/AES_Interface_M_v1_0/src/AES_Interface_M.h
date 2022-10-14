@@ -7,6 +7,7 @@
 #include "xil_types.h"
 #include "xstatus.h"
 #include "xil_io.h"
+#include "xscugic.h"
 
 
 /**************************** Type Definitions *****************************/
@@ -54,16 +55,17 @@ s32 AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr);
 s32 AES_SetupInterrupt(AES* InstancePtr, XScuGic* InterruptCtrlPtr, AES_InterruptHandler interruptHandler);
 
 void AES_SetKey(AES *InstancePtr, u8 key[BLOCK_SIZE]);
-
+void AES_SetDataParameters(AES* InstancePtr, u8* source, u8* dest, u32 size);
 void AES_Setup(AES* InstancePtr, Mode mode, ChainingMode chMode, u32 enabled, GCMPhase gcmPhase);
 void AES_SetMode(AES *InstancePtr, Mode mode);
 void AES_SetChainingMode(AES* InstancePtr, ChainingMode chainMode);
 void AES_SetGCMPhase(AES* InstancePtr, GCMPhase gcmPhase);
 void AES_SetEnabled(AES* InstancePtr, u32 en);
+void AES_SetInterruptEnabled(AES* InstancePtr, u32 en);
 void AES_SetIV(AES* InstancePtr, u8 *IV, u32 IVLen);
-void AES_SetSusp(AES* InstancePtr, u8 Susp[BLOCK_SIZE]);
+void AES_SetSusp(AES* InstancePtr, u8 Susp[BLOCK_SIZE*2]);
 
-
+void AES_GetSusp(AES* InstancePtr, u8 outSusp[BLOCK_SIZE*2]);
 void AES_GetKey(AES *InstancePtr, u8 outKey[BLOCK_SIZE]);
 Mode AES_GetMode(AES *InstancePtr);
 ChainingMode AES_GetChainingMode(AES* InstancePtr);
@@ -72,9 +74,20 @@ GCMPhase AES_GetGCMPhase(AES* InstancePtr);
 u32 AES_GetEnabled(AES* InstancePtr);
 
 
+
 void AES_PerformKeyExpansion(AES *InstancePtr);
 
+
+
 // Process an entire data chunk at once instead of processing Blocks one by one
+void AES_startNewComputationECB(AES* InstancePtr, int encrypt, u8* data, u8* outData, u32 size);
+void AES_startNewComputationCBC(AES* InstancePtr, int encrypt, u8* data, u8* outData, u32 size, u8 IV[16]);
+// encrypt is indifferent, as decryption and encryption is the same process
+void AES_startNewComputationCTR(AES* InstancePtr, u8* data, u8* outData, u32 size, u8 IV[12]);
+void AES_startNewComputationGCM(AES* InstancePtr, int encrypt, u8* header, u32 headerLen, u8* payload, u8* outProcessedPayload, u32 payloadLen, u8 IV[12]);
+void AES_calculateTagGCM(AES* InstancePtr, u32 headerLen, u32 payloadLen, u8 IV[12], u8 outTag[BLOCK_SIZE]);
+
+// Functions block until computation has completed
 void AES_processDataECB(AES* InstancePtr, int encrypt, u8* data, u8* outData, u32 size);
 void AES_processDataCBC(AES* InstancePtr, int encrypt, u8* data, u8* outData, u32 size, u8 IV[16]);
 // encrypt is indifferent, as decryption and encryption is the same process
@@ -83,11 +96,16 @@ void AES_processDataGCM(AES* InstancePtr, int encrypt, u8* header, u32 headerLen
 
 // Compares two tags. Returns 0 if identical, otherwise -1
 int AES_compareTags(u8 tag1[BLOCK_SIZE], u8 tag2[BLOCK_SIZE]);
-// Runs dataBlock through the AES unit and writes the output to outDataBlock.
-// Arrays must have size BLOCK_SIZE (16 bytes)
-void AES_processBlock(AES* InstancePtr, u8 *dataBlock, u8 *outDataBlock);
 
+
+// returns 1 if most recent computation has completed, otherwise 0
+int AES_isComputationCompleted(AES* InstancePtr);
+// blocks until computation is completed
 void AES_waitUntilCompleted(AES* InstancePtr);
+
+// clears the flag indicating that the computation has completed.
+// This should be unnecessary, as the flag is cleared automatically when a new computation starts
+void AES_clearCompletedStatus(AES* InstancePtr);
 
 /**
  *
