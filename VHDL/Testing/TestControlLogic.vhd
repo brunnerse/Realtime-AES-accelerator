@@ -111,7 +111,7 @@ process begin
 wait until Resetn = '1';
 -- set control
 WrEnAHB <= '1';
-WrDataAHB <= x"20000000"; 
+WrDataAHB <= x"50000000"; 
 WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DATASIZE, ADDR_WIDTH));
 wait for 10ns;
 -- set control
@@ -125,6 +125,7 @@ WrEnAHB <= '0';
 RdEnAHB <= '1';
 RdAddrAHB <= std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH));
 wait until RdDataAHB(0) = '1'; -- wait until CCF is set
+wait;
 -- clear CCF
 WrEnAHB <= '1';
 WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));

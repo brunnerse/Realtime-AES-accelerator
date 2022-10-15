@@ -131,6 +131,7 @@ signal En, prevEn : std_logic;
 
 
 signal dataCounter : std_logic_vector(DATA_WIDTH-1 downto 0);
+signal sourceAddress, destAddress : std_logic_vector(M_RW_addr'LENGTH-1 downto 0);
 
 -- status signals TODO anything other than CCF needed?
 signal BUSY, WRERR, RDERR, CCF : std_logic;
@@ -214,13 +215,19 @@ BUSY <= '0' when state = Idle else '1';
                     if modeSignal = MODE_KEYEXPANSION or (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT) then
                         EnICore <= '1';
                         state <= Computing;
+                        dataCounter <= (others => '0'); -- TODO necessary?
                     else
-                        -- start read data transaction;  Read RW_addr and dataCounter from memory register depending on Endianness
+                        -- start read data transaction;  
+                        -- Read addresses and datasize from memory register depending on Endianness
                         if not LittleEndian then
+                            destAddress <= mem(ADDR_DOUTADDR/4);
+                            sourceAddress <= mem(ADDR_DINADDR/4);
+                            RW_addr <= mem(ADDR_DINADDR/4); -- set RW_addr to sourceAddress
                             dataCounter <= mem(ADDR_DATASIZE/4)(31 downto 4) & "0000"; -- Make sure dataCounter is divisible by 16
-                            RW_addr <= mem(ADDR_DINADDR/4);
                         else
                             for i in 3 downto 0 loop
+                                destAddress(i*8+7 downto i*8) <= mem(ADDR_DOUTADDR/4)((3-i)*8+7 downto (3-i)*8);
+                                sourceAddress(i*8+7 downto i*8) <= mem(ADDR_DINADDR/4)((3-i)*8+7 downto (3-i)*8);
                                 RW_addr(i*8+7 downto i*8) <= mem(ADDR_DINADDR/4)((3-i)*8+7 downto (3-i)*8);
                                 dataCounter(i*8+7 downto i*8) <= mem(ADDR_DATASIZE/4)((3-i)*8+7 downto (3-i)*8);
                             end loop;
@@ -252,20 +259,13 @@ BUSY <= '0' when state = Idle else '1';
                         (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT ) then
                         -- set signals that computation has finished
                         CCF <= '1';
-                        interrupt <= '1';
+                        interrupt <= CCFIE; -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0;
                         state <= Idle;
                     elsif chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_HEADER then
                          -- change to writeback so it checks in the next cycle whether there are more data to process
                          state <= Writeback;
                     else
-                        -- Read DOUT address from memory register depending on Endianness
-                        if not LittleEndian then
-                            RW_addr <= mem(ADDR_DOUTADDR/4);
-                        else
-                            for i in 3 downto 0 loop
-                                RW_addr(i*8+7 downto i*8) <= mem(ADDR_DOUTADDR/4)((3-i)*8+7 downto (3-i)*8);
-                            end loop;
-                        end if;
+                        RW_addr <= destAddress;
                         RW_write <= '1';
                         RW_wrData <= DOUT;
                         RW_valid <= '1';
@@ -277,11 +277,19 @@ BUSY <= '0' when state = Idle else '1';
                  if M_RW_ready = '1' or
                          (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_HEADER) then
                     WRERR <= WRERR or M_RW_error; -- TODO remove OR
+                    
+                    dataCounter <= std_logic_vector(unsigned(dataCounter) - to_unsigned(KEY_SIZE/8, dataCounter'LENGTH));
                     -- check if computation is complete
                     if unsigned(dataCounter) > to_unsigned(16, dataCounter'LENGTH) then
                         -- Not complete; Fetch next data block
-                        RW_addr <= std_logic_vector(unsigned(RW_addr) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
+                        -- increment dest and source address
+                        destAddress <= std_logic_vector(unsigned(destAddress) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
+                        sourceAddress <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
+                        -- set RW_addr to new source address
+                        RW_addr <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
+                        
                         RW_valid <= '1'; -- RW_valid stays high
+                        RW_write <= '0';
                         state <= Fetch;
                     else 
                         -- Computation complete;  set interrupt and CCF, return to Idle state
@@ -290,7 +298,7 @@ BUSY <= '0' when state = Idle else '1';
                         CCF <= '1';
                         interrupt <= CCFIE;  -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0
                     end if;    
-                    dataCounter <= std_logic_vector(unsigned(dataCounter) - to_unsigned(KEY_SIZE/8, dataCounter'LENGTH));
+
                 end if;
             when others =>
        end case;
