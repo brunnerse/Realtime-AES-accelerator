@@ -4,13 +4,6 @@ use ieee.numeric_std.all;
 
 entity AES_Interface_M_v1_0_M_AXI is
 	generic (
-		-- Users to add parameters here
-
-		-- User parameters ends
-		-- Do not modify the parameters beyond this line
-
-		-- Base address of targeted slave
-		C_M_TARGET_SLAVE_BASE_ADDR	: std_logic_vector	:= x"40000000";
 		-- Burst Length. Supports 1, 2, 4, 8, 16, 32, 64, 128, 256 burst lengths
 		C_M_AXI_BURST_LEN	: integer	:= 16;
 		-- Thread ID Width
@@ -194,8 +187,10 @@ architecture implementation of AES_Interface_M_v1_0_M_AXI is
 	signal wnext	: std_logic;
 	signal rnext	: std_logic;
 	
+	signal RW_ready : std_logic;
     signal RW_valid_prev : std_logic;
 	signal RW_valid_pulse	: std_logic;
+	signal RW_ready_prev : std_logic;
 
 
 begin
@@ -246,17 +241,13 @@ begin
 	--Read and Read Response (R)
 	M_AXI_RREADY	<= axi_rready;
 	
-	-- pulse from RW_valid signal
-	RW_valid_pulse	<= ( not RW_valid_prev)  and  S_RW_VALID;
-    RW_valid_prev <= S_RW_VALID when rising_edge(M_AXI_ACLK);  -- TODO passt so?
-    
-	-- Process to store the previous RW_valid signal
-	--process(M_AXI_ACLK)                                                          
-	--begin                                                                             
-	--  if rising_edge (M_AXI_ACLK) then                                                 
-    --        RW_valid_prev <= S_RW_VALID;                                                                                                              
-	--  end if;                                                                         
-	--end process; 
+	S_RW_READY <= RW_ready;
+	-- store handshake signals from previous cycle
+    RW_valid_prev <= S_RW_VALID when rising_edge(M_AXI_ACLK);
+	RW_ready_prev <= RW_ready when rising_edge(M_AXI_ACLK);
+	-- pulse from RW_valid signal (i.e. when to start a new transfer):
+	-- either RW_valid was 0 before and is now 1,  or the previous transaction completed but S_RW_valid is still high
+	RW_valid_pulse	<= S_RW_VALID and (not RW_valid_prev or RW_ready_prev);
 
 
 	----------------------
@@ -288,21 +279,22 @@ begin
 	      end if;                                                          
 	    end if;                                                            
 	  end process;                                                         
-	                                                                       
+	     
+	axi_awaddr <= S_RW_ADDR;
 	-- Next address after AWREADY indicates previous address acceptance    
-	  process(M_AXI_ACLK)                                                  
-	  begin                                                                
-	    if (rising_edge (M_AXI_ACLK)) then                                 
-	      if (M_AXI_ARESETN = '0' or RW_valid_pulse = '1') then                                   
-	           axi_awaddr <= S_RW_addr;                                 
-	      else                            
-	           -- increment awaddr after every write  TODO necessary/effective?                                 
-	        if (M_AXI_AWREADY= '1' and axi_awvalid = '1') then             
-	           axi_awaddr <= std_logic_vector(unsigned(axi_awaddr) + to_unsigned(C_M_AXI_DATA_WIDTH/8, C_M_AXI_ADDR_WIDTH));                 
-	        end if;                                                        
-	      end if;                                                          
-	    end if;                                                            
-	  end process;                                                         
+	--  process(M_AXI_ACLK)                                                  
+	 -- begin                                                                
+	 --   if (rising_edge (M_AXI_ACLK)) then                                 
+	 --     if (M_AXI_ARESETN = '0' or RW_valid_pulse = '1') then     	                              
+	 --          axi_awaddr <= S_RW_addr;                                 
+	 --     else                            
+	 --          -- increment awaddr after every write  TODO necessary/effective?                                 
+	 --       if (M_AXI_AWREADY= '1' and axi_awvalid = '1') then             
+	 --          axi_awaddr <= std_logic_vector(unsigned(axi_awaddr) + to_unsigned(C_M_AXI_DATA_WIDTH/8, C_M_AXI_ADDR_WIDTH));                 
+	 --       end if;                                                        
+	 --     end if;                                                          
+	 --  end if;                                                            
+	 -- end process;                                                         
 
 
 	----------------------
@@ -427,20 +419,21 @@ begin
 	    end if;                                                          
 	  end process;              
                    
-	                                                                     
+	                                                      
+	  axi_araddr <= S_RW_addr;
 	-- Next address after ARREADY indicates previous address acceptance  
-	  process(M_AXI_ACLK)                                                
-	  begin                                                              
-	    if (rising_edge (M_AXI_ACLK)) then                               
-	      if (M_AXI_ARESETN = '0' or RW_valid_pulse = '1' ) then                                 
-	           axi_araddr <= S_RW_addr;                               
-	      else                                                           
-	        if (M_AXI_ARREADY = '1' and axi_arvalid = '1') then
-	          axi_araddr <= std_logic_vector(unsigned(axi_araddr) + to_unsigned(C_M_AXI_DATA_WIDTH/8, C_M_AXI_ADDR_WIDTH));              
-	        end if;                                                      
-	      end if;                                                        
-	    end if;                                                          
-	  end process;                                                       
+	--  process(M_AXI_ACLK)                                                
+	--  begin                                                              
+	--    if (rising_edge (M_AXI_ACLK)) then                               
+	--      if (M_AXI_ARESETN = '0' or RW_valid_pulse = '1' ) then                                 
+	--           axi_araddr <= S_RW_addr;                               
+	--      else                                                           
+	--        if (M_AXI_ARREADY = '1' and axi_arvalid = '1') then
+	--          axi_araddr <= std_logic_vector(unsigned(axi_araddr) + to_unsigned(C_M_AXI_DATA_WIDTH/8, C_M_AXI_ADDR_WIDTH));              
+	--        end if;                                                      
+	--      end if;                                                        
+	 --   end if;                                                          
+	 -- end process;                                                       
 
 
 	----------------------------------
@@ -493,12 +486,12 @@ begin
 	  process(M_AXI_ACLK)                                                                                        
 	  begin                                                                                                      
 	    if (rising_edge (M_AXI_ACLK)) then                                                                       
-           S_RW_ready <= '0';
+           RW_ready <= '0';
            if S_RW_VALID = '1' then                                                                                                   
                if S_RW_WRITE = '1' and M_AXI_BVALID = '1' and axi_bready = '1' then   -- one response for the entire burst, so wlast doesn't matter
-                  S_RW_ready <= '1';                                                                               
+                  RW_ready <= '1';                                                                               
                elsif S_RW_WRITE = '0' and M_AXI_RVALID = '1' and axi_rready = '1'and M_AXI_RLAST = '1' then
-                  S_RW_ready <= '1';
+                  RW_ready <= '1';
                end if;        
            end if;                                                                                                                                                                                           
 	    end if;                                                                                                  
