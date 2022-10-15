@@ -100,7 +100,7 @@ begin
 CL_ready <= '0';
 wait for 10ns;
 if CL_valid = '1' then
-    wait for 50ns;
+    wait for 150ns;
     CL_ready <= '1';
     wait for 10ns;
 end if;
@@ -109,18 +109,25 @@ end process;
 process begin
 -- write to ControlLogic
 wait until Resetn = '1';
--- set control
+-- set data size
 WrEnAHB <= '1';
-WrDataAHB <= x"50000000"; 
+WrDataAHB <= x"20000000"; 
 WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DATASIZE, ADDR_WIDTH));
 wait for 10ns;
+-- set start addr
+WrDataAHB <= x"00000010"; 
+WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DINADDR, ADDR_WIDTH));
+wait for 10ns;
+-- set dest addr
+WrDataAHB <= x"00000020"; 
+WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DOUTADDR, ADDR_WIDTH));
+wait for 10ns;
 -- set control
-WrDataAHB <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1'; -- TODO Chaining mode definition needs downto?
+WrDataAHB <= x"0000" & '0' & GCM_PHASE_PAYLOAD & "00" & "11" & "00" & CHAINING_MODE_CBC & MODE_ENCRYPTION & "00" & '1';
 WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
 wait for 10 ns;
 WrEnAHB <= '0';
 wait for 10ns;
-
 WrEnAHB <= '0';
 RdEnAHB <= '1';
 RdAddrAHB <= std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH));

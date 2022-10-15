@@ -4,8 +4,6 @@ use ieee.numeric_std.all;
 
 entity AES_Interface_M_v1_0_M_AXI is
 	generic (
-		-- Burst Length. Supports 1, 2, 4, 8, 16, 32, 64, 128, 256 burst lengths
-		C_M_AXI_BURST_LEN	: integer	:= 16;
 		-- Thread ID Width
 		C_M_AXI_ID_WIDTH	: integer	:= 1;
 		-- Width of Address Bus

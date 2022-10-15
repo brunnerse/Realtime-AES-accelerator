@@ -21,8 +21,6 @@ entity AES_Interface_M_v1_0 is
 		C_S_AXI_BUSER_WIDTH	: integer	:= 0;
 
 		-- Parameters of Axi Master Bus Interface M_AXI
-		C_M_AXI_TARGET_SLAVE_BASE_ADDR	: std_logic_vector	:= x"40000000";
-		C_M_AXI_BURST_LEN	: integer	:= 16;
 		C_M_AXI_ID_WIDTH	: integer	:= 1;
 		C_M_AXI_ADDR_WIDTH	: integer	:= 32;
 		C_M_AXI_DATA_WIDTH	: integer	:= 32;
@@ -221,8 +219,6 @@ architecture arch_imp of AES_Interface_M_v1_0 is
 
 	component AES_Interface_M_v1_0_M_AXI is
 		generic (
-		C_M_TARGET_SLAVE_BASE_ADDR	: std_logic_vector	:= x"40000000";
-		C_M_AXI_BURST_LEN	: integer	:= 16;
 		C_M_AXI_ID_WIDTH	: integer	:= 1;
 		C_M_AXI_ADDR_WIDTH	: integer	:= 32;
 		C_M_AXI_DATA_WIDTH	: integer	:= 32;
@@ -364,8 +360,6 @@ AES_Interface_M_v1_0_S_AXI_inst : AES_Interface_M_v1_0_S_AXI
 -- Instantiation of Axi Bus Interface M_AXI
 AES_Interface_M_v1_0_M_AXI_inst : AES_Interface_M_v1_0_M_AXI
 	generic map (
-		C_M_TARGET_SLAVE_BASE_ADDR	=> C_M_AXI_TARGET_SLAVE_BASE_ADDR,
-		C_M_AXI_BURST_LEN	=> C_M_AXI_BURST_LEN,
 		C_M_AXI_ID_WIDTH	=> C_M_AXI_ID_WIDTH,
 		C_M_AXI_ADDR_WIDTH	=> C_M_AXI_ADDR_WIDTH,
 		C_M_AXI_DATA_WIDTH	=> C_M_AXI_DATA_WIDTH,

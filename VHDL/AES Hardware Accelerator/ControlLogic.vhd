@@ -195,7 +195,6 @@ BUSY <= '0' when state = Idle else '1';
     -- synchronous reset
     if Resetn = '0' then
         state <= Idle;
-        dataCounter <= (others => '0');
         RW_valid <= '0';
         WRERR <= '0';
         RDERR <= '0';
@@ -311,8 +310,8 @@ process (Clock)
 begin
 if rising_edge(Clock) then
     if RdEn = '1' then
-        -- For register SR, don't actually read from memory. This way the register appears read-only
-        if RdAddr = std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)) then
+        -- If address is in register SR, don't actually read from memory. This way the register appears read-only
+        if RdAddr(ADDR_WIDTH-1 downto 2) = std_logic_vector(to_unsigned(ADDR_SR/4, ADDR_WIDTH)) then
             RdData <= x"0000000" & BUSY & WRERR & RDERR & CCF;
         else
             RdData <= mem(to_integer(unsigned(RdAddr(ADDR_WIDTH-1 downto 2)))); -- divide address by four, as array is indexed word-wise
