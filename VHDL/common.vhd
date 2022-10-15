@@ -38,6 +38,11 @@ constant GCM_PHASE_FINAL : std_logic_vector := "11";
 constant DATA_WIDTH : integer := 32;
 constant ADDR_WIDTH : integer := 10;
 
+subtype ChannelBitRange is integer range 0 to 3;
+constant MAX_CHANNELS : integer := 8;
+
+constant NUM_PRIORITY_BITS : integer := 3;
+subtype priority is integer range 0 to 2**NUM_PRIORITY_BITS-1;
 
 end package;
 
@@ -70,5 +75,20 @@ constant ADDR_SUSPR5 : integer := 16#54#;
 constant ADDR_SUSPR6 : integer := 16#58#;
 constant ADDR_SUSPR7 : integer := 16#5c#;
 
+
+end package;
+
+package control_register_positions is
+use work.common.NUM_PRIORITY_BITS;
+
+subtype CR_POS_PRIORITY is integer range (16+NUM_PRIORITY_BITS-1) downto 16;
+subtype CR_POS_GCMPHASE is integer range 14 downto 13;
+constant CR_POS_ERRIE : integer := 10;
+constant CR_POS_CCFIE : integer := 9;
+constant CR_POS_ERRC : integer := 8;
+constant CR_POS_CCFC : integer := 7;
+subtype CR_POS_CHMODE is integer range 6 downto 5;
+subtype CR_POS_MODE is integer range 4 downto 3;
+constant CR_POS_EN : integer := 0;
 
 end package;
