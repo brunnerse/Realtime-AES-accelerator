@@ -23,16 +23,17 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use work.common.ALL;
 use work.addresses.ALL;
+use work.control_register_positions.ALL;
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
 use IEEE.NUMERIC_STD.ALL;
 
 
-
 entity ControlLogic is
   Generic (
-    LittleEndian : boolean := true
+    LITTLE_ENDIAN : boolean := true;
+    NUM_CHANNELS : integer range 1 to 8 := 4 -- upper bound must be MAX_CHANNELS, but Vivado doesn't synthesize then
   );
   Port (    
 -- Ports to the AES interface: 
@@ -79,6 +80,41 @@ entity ControlLogic is
 end ControlLogic;
 
 architecture Behavioral of ControlLogic is
+-- helper function, must be at the beginning because it is used in the constants
+function log2( i : natural) return integer is
+    variable temp    : integer := i;
+    variable ret_val : integer := 0; 
+  begin					
+    while temp > 1 loop
+      ret_val := ret_val + 1;
+      temp    := temp / 2;     
+    end loop;
+    
+    return ret_val;
+  end function;
+  
+  
+  -- define constants
+constant DATA_WIDTH_BYTES : integer := DATA_WIDTH/8;
+-- range of the index for the channel
+subtype channel_range is integer range NUM_CHANNELS-1 downto 0;
+
+-- definition of the address dimensions and which part of the address is the channel and which part the register
+subtype addr_range is integer range ADDR_WIDTH-1 downto log2(DATA_WIDTH_BYTES);
+subtype addr_channel_range is integer range ADDR_WIDTH-1 downto ADDR_REGISTER_BITS;
+subtype addr_register_range is integer range ADDR_REGISTER_BITS-1 downto log2(DATA_WIDTH_BYTES);
+
+ 
+ function GetChannelAddr(channel : channel_range; addr : integer) return integer is
+    variable totalAddr : unsigned(addr_range);
+    variable addrInt : integer;
+    begin
+        --report "Called with channel " & integer'image(channel) & " and addr " & integer'image(addr);
+        totalAddr := (others => '0');
+        totalAddr(addr_channel_range) := to_unsigned(channel, totalAddr(addr_channel_range)'LENGTH);
+        totalAddr(addr_register_range) := to_unsigned(addr, ADDR_WIDTH)(addr_register_range);
+        return to_integer(totalAddr);
+end function;
 
 -- Give the interface ports attributes so Vivado recognizes them as interfaces
 ATTRIBUTE X_INTERFACE_INFO : STRING;
@@ -120,6 +156,27 @@ ATTRIBUTE X_INTERFACE_INFO of M_RW_write: SIGNAL is
 ATTRIBUTE X_INTERFACE_INFO of M_RW_error: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort error";
 
+-- Define registers as array out of words with DATA_WIDTH bits
+-- For each register, there is 2**ADDR_REGISTER_BITS ( = 2**7 = 128) bytes of memory, i.e. 128/4 words per channel
+type mem_type is array (0 to (2**ADDR_REGISTER_BITS) * NUM_CHANNELS / DATA_WIDTH_BYTES - 1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+signal mem : mem_type;
+
+-- The current channel
+signal channel : channel_range;
+-- the priorities of each channel
+type priority_arr_type is array (channel_range) of std_logic_vector(NUM_PRIORITY_BITS-1 downto 0);
+signal Priority : priority_arr_type;
+-- the enable signals of each channel
+signal En, prevEn : std_logic_vector(channel_range);
+
+-- status signals for each channel
+-- TODO erase BUSY signal?
+signal BUSY, WRERR, RDERR, CCF : std_logic_vector(channel_range);
+signal prevCCF : std_logic_vector(channel_range);
+
+type state_type is (Idle, Fetch, Computing, Writeback);
+signal state : state_type;
+
 -- internal signals for RW port output
 signal RW_addr : std_logic_vector(M_RW_addr'RANGE);
 signal RW_valid : std_logic;
@@ -127,30 +184,16 @@ signal RW_wrData : std_logic_vector(KEY_SIZE-1 downto 0);
 signal RW_write : std_logic;
 
 
-signal En, prevEn : std_logic;
-
-
 signal dataCounter : std_logic_vector(DATA_WIDTH-1 downto 0);
 signal sourceAddress, destAddress : std_logic_vector(M_RW_addr'LENGTH-1 downto 0);
-
--- status signals TODO anything other than CCF needed?
-signal BUSY, WRERR, RDERR, CCF : std_logic;
-signal prevCCF : std_logic;
 -- control signals
 signal ERRIE, CCFIE, ERRC, CCFC : std_logic;
-
--- Define registers as array
-type addr_range is array (0 to ADDR_SUSPR7/4) of std_logic_vector(DATA_WIDTH-1 downto 0);
-signal mem : addr_range;
-
-type state_type is (Idle, Fetch, Computing, Writeback);
-signal state : state_type;
-
 signal modeSignal : std_logic_vector(MODE_LEN-1 downto 0);
 signal chainingModeSignal : std_logic_vector(CHMODE_LEN-1 downto 0);
 signal GCMPhaseSignal : std_logic_vector(1 downto 0);
 
 begin
+
 
 -- forward internal RW port output signals
 M_RW_addr <= RW_addr;
@@ -158,35 +201,44 @@ M_RW_valid <= RW_valid;
 M_RW_wrData <= RW_wrData;
 M_RW_write <= RW_write;
 
-key <= mem(ADDR_KEYR0/4) & mem(ADDR_KEYR1/4) & mem(ADDR_KEYR2/4) & mem(ADDR_KEYR3/4);
-IV <= mem(ADDR_IVR0/4) & mem(ADDR_IVR1/4) & mem(ADDR_IVR2/4) & mem(ADDR_IVR3/4);
-Susp <=  mem(ADDR_SUSPR0/4) & mem(ADDR_SUSPR1/4) & mem(ADDR_SUSPR2/4) & mem(ADDR_SUSPR3/4);
-H <=  mem(ADDR_SUSPR4/4) & mem(ADDR_SUSPR5/4) & mem(ADDR_SUSPR6/4) & mem(ADDR_SUSPR7/4);
-
 -- set AES control signals
--- copy mode, chaining_mode and GCMPhase to internal signals first, so we can check them in internal processes
-En <= mem(ADDR_CR/4)(0);
--- stores the En and CCF signal of the last cycle, so processes can check if it changed
+mode <= modeSignal;
+GCMPhase <= GCMPhaseSignal;
+chaining_mode <= chainingModeSignal;
+    
+-- store the En and CCF signal of the last cycle for each channel, so processes can check if it changed
 prevEn <= En when rising_edge(Clock);
 prevCCF <= CCF when rising_edge(Clock);
-
-modeSignal <= mem(ADDR_CR/4)(4 downto 3);
-mode <= modeSignal;
-chainingModeSignal <= mem(ADDR_CR/4)(6 downto 5);
-chaining_mode <= chainingModeSignal;
-GCMPhaseSignal <= mem(ADDR_CR/4)(14 downto 13);
-GCMPhase <= GCMPhaseSignal;
-ERRIE <= mem(ADDR_CR/4)(10);
-CCFIE <= mem(ADDR_CR/4)(9);
-ERRC <= mem(ADDR_CR/4)(8); 
-CCFC <= mem(ADDR_CR/4)(7);
-
 -- status register flag
-BUSY <= '0' when state = Idle else '1';
+--BUSY(channel) <= '0' when state = Idle else '1';
 
+-- Read key, IV, Susp and H from memory
+GenSignals:
+for i in 0 to 3 generate
+key(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_KEYR0 + i*4));
+IV (127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_IVR0 + i*4));
+Susp(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_SUSPR0 + i*4)); -- TODO funktioniert noch nicht ganz!
+H(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_SUSPR4 + i*4));
+end generate;
+
+
+-- driver process for channel
+process(Clock)
+begin
+if rising_edge(Clock) then
+    if Resetn = '0' then
+        channel <= 3;
+    end if;
+    -- TODO
+end if;
+end process;
 
  -- process that handles the data fetching, computing and writing back
+ -- this process also drives mode, so it can switch from KEYEXPANSION_AND_DECRYPTION to DECRYPTION
  process(Clock)
+ 
+ variable configReg : std_logic_vector(DATA_WIDTH-1 downto 0);
+ 
  begin
  if rising_edge(Clock) then
     EnICore <= '0';
@@ -196,20 +248,32 @@ BUSY <= '0' when state = Idle else '1';
     if Resetn = '0' then
         state <= Idle;
         RW_valid <= '0';
-        WRERR <= '0';
-        RDERR <= '0';
-        CCF <= '0';
+        for i in channel_range loop
+            WRERR(i) <= '0';
+            RDERR(i) <= '0';
+            CCF(i) <= '0';
+        end loop;
     else
+        -- Read CR register of current channel
+        configReg := mem(GetChannelAddr(channel, ADDR_CR));
+        modeSignal <= configReg(CR_POS_MODE);
+        chainingModeSignal <= configReg(CR_POS_CHMODE);
+        GCMPhaseSignal <= configReg(CR_POS_GCMPHASE);
+
+        ERRIE <= configReg(CR_POS_ERRIE);
+        CCFIE <= configReg(CR_POS_CCFIE);
+        ERRC <= configReg(CR_POS_ERRC); 
+
         -- Check if CCF should be cleared
-        if CCFC = '1' then
-            CCF <= '0';
+        if configReg(CR_POS_CCFC) = '1' then
+            CCF(channel) <= '0';
         end if;
         
         case state is
             when Idle =>
-                if En = '1' and prevEn = '0' then
+                if En(channel) = '1' and prevEn(channel) = '0' then
                     -- reset CCF
-                    CCF <= '0';
+                    CCF(channel) <= '0';
                     -- If mode is keyexpansion or the GCM init mode, start the AES Core immediately, no data reading required
                     if modeSignal = MODE_KEYEXPANSION or (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT) then
                         EnICore <= '1';
@@ -218,21 +282,21 @@ BUSY <= '0' when state = Idle else '1';
                     else
                         -- start read data transaction;  
                         -- Read addresses and datasize from memory register depending on Endianness
-                        if not LittleEndian then
-                            destAddress <= mem(ADDR_DOUTADDR/4);
-                            sourceAddress <= mem(ADDR_DINADDR/4);
-                            RW_addr <= mem(ADDR_DINADDR/4); -- set RW_addr to sourceAddress
-                            dataCounter <= mem(ADDR_DATASIZE/4)(31 downto 4) & "0000"; -- Make sure dataCounter is divisible by 16
+                        if not LITTLE_ENDIAN then 
+                            destAddress <= mem(GetChannelAddr(channel, ADDR_DOUTADDR));
+                            sourceAddress <= mem(GetChannelAddr(channel, ADDR_DINADDR));
+                            RW_addr <= mem(GetChannelAddr(channel, ADDR_DINADDR)); -- set RW_addr to sourceAddress
+                            dataCounter <= mem(GetChannelAddr(channel, ADDR_DATASIZE));
                         else
                             for i in 3 downto 0 loop
-                                destAddress(i*8+7 downto i*8) <= mem(ADDR_DOUTADDR/4)((3-i)*8+7 downto (3-i)*8);
-                                sourceAddress(i*8+7 downto i*8) <= mem(ADDR_DINADDR/4)((3-i)*8+7 downto (3-i)*8);
-                                RW_addr(i*8+7 downto i*8) <= mem(ADDR_DINADDR/4)((3-i)*8+7 downto (3-i)*8);
-                                dataCounter(i*8+7 downto i*8) <= mem(ADDR_DATASIZE/4)((3-i)*8+7 downto (3-i)*8);
+                                destAddress(i*8+7 downto i*8) <= mem(GetChannelAddr(channel, ADDR_DOUTADDR))((3-i)*8+7 downto (3-i)*8);
+                                sourceAddress(i*8+7 downto i*8) <= mem(GetChannelAddr(channel, ADDR_DINADDR))((3-i)*8+7 downto (3-i)*8);
+                                RW_addr(i*8+7 downto i*8) <= mem(GetChannelAddr(channel, ADDR_DINADDR))((3-i)*8+7 downto (3-i)*8);
+                                dataCounter(i*8+7 downto i*8) <= mem(GetChannelAddr(channel, ADDR_DATASIZE))((3-i)*8+7 downto (3-i)*8);
                             end loop;
-                            -- Make sure dataCounter is divisible by 16
-                            dataCounter(3 downto 0) <= (others => '0');
                         end if;
+                        -- Make sure dataCounter is divisible by 16
+                        dataCounter(3 downto 0) <= (others => '0');
                         RW_write <= '0';
                         RW_valid <= '1';
                         state <= Fetch;
@@ -243,7 +307,7 @@ BUSY <= '0' when state = Idle else '1';
                 if M_RW_ready = '1' then
                     -- reset valid signal
                     RW_valid <= '0';
-                    RDERR <= RDERR or M_RW_error; -- TODO remove or
+                    RDERR(channel) <= RDERR(channel) or M_RW_error; -- TODO remove or
                     DIN <= M_RW_rdData;
                     -- start core
                     EnICore <= '1';
@@ -253,11 +317,15 @@ BUSY <= '0' when state = Idle else '1';
                 -- write back once the core has finished
                 -- TODO if not at the end and not interrupted, fetch next data while core is computing
                 if EnOCore = '1' then
+                    -- TODO Von KEYEXPANSION_AND_DECRYPTION umschalten auf DECRYPTION Aufpassen bei Kontextwechsel!
+                    if modeSignal = MODE_KEYEXPANSION_AND_DECRYPTION and (chainingModeSignal = CHAINING_MODE_ECB or chainingModeSignal = CHAINING_MODE_CBC) then
+                        modeSignal <= MODE_DECRYPTION;
+                    end if;
                     -- In KeyExpansion mode or in GCM Phase Init or Header, no writeback is required
                     if modeSignal = MODE_KEYEXPANSION or 
                         (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT ) then
                         -- set signals that computation has finished
-                        CCF <= '1';
+                        CCF(channel) <= '1';
                         interrupt <= CCFIE; -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0;
                         state <= Idle;
                     elsif chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_HEADER then
@@ -275,7 +343,7 @@ BUSY <= '0' when state = Idle else '1';
                 -- in GCM Header phase, nothing is written back, so we can continue immediately
                  if M_RW_ready = '1' or
                          (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_HEADER) then
-                    WRERR <= WRERR or M_RW_error; -- TODO remove OR
+                    WRERR(channel) <= WRERR(channel) or M_RW_error; -- TODO remove OR
                     
                     dataCounter <= std_logic_vector(unsigned(dataCounter) - to_unsigned(KEY_SIZE/8, dataCounter'LENGTH));
                     -- check if computation is complete
@@ -294,7 +362,7 @@ BUSY <= '0' when state = Idle else '1';
                         -- Computation complete;  set interrupt and CCF, return to Idle state
                         RW_valid <= '0';  
                         state <= Idle;
-                        CCF <= '1';
+                        CCF(channel) <= '1';
                         interrupt <= CCFIE;  -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0
                     end if;    
 
@@ -307,52 +375,72 @@ end process;
 
 -- read process
 process (Clock)
+variable channelIdx : integer;
 begin
 if rising_edge(Clock) then
     if RdEn = '1' then
         -- If address is in register SR, don't actually read from memory. This way the register appears read-only
-        if RdAddr(ADDR_WIDTH-1 downto 2) = std_logic_vector(to_unsigned(ADDR_SR/4, ADDR_WIDTH)) then
-            RdData <= x"0000000" & BUSY & WRERR & RDERR & CCF;
+        if RdAddr(addr_register_range) = std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)(addr_register_range)) then
+            channelIdx := to_integer(unsigned(RdAddr(addr_channel_range)));
+            RdData <= (others => '0');
+            RdData(3 downto 0) <= BUSY(channelIdx) & WRERR(channelIdx) & RDERR(channelIdx) & CCF(channelIdx);
         else
-            RdData <= mem(to_integer(unsigned(RdAddr(ADDR_WIDTH-1 downto 2)))); -- divide address by four, as array is indexed word-wise
+            RdData <= mem(to_integer(unsigned(RdAddr(addr_range))));
         end if;
     end if;
 end if;
 end process;
 
--- write process
+-- write process; also drives Priority and En signals
 process (Clock)
+variable channelIdx : integer;
 begin
 if rising_edge(Clock) then
     if Resetn = '0' then
-        for i in 0 to ADDR_SUSPR7/4 loop
+        for i in mem'RANGE loop 
             mem(i) <= (others => '0');
         end loop;
+        for i in channel_range loop
+            En(i) <= '0';
+            Priority(i) <= (others => '0');
+        end loop;
     else
-        -- Reset the enable bit once CCF switches to 1
-        if CCF = '1' and prevCCF = '0' then
-            mem(ADDR_CR/4)(0) <= '0';
+        -- Reset the enable bit and reset the susp register once CCF switches to 1 (i.e. channel is finished)
+        if CCF(channel) = '1' and prevCCF(channel) = '0' then
+            En(channel) <= '0';
+            -- das Rückschreiben nach mem könnte entfallen und es wäre trotzdem noch korrekt, nur mit dem Speicher inkonsistent
+            mem(GetChannelAddr(channel, ADDR_CR))(CR_POS_EN) <= '0';
+
+            -- Clear susp register, so it is 0 for the next run. 
+            -- SUSPR4 - SUSPR7 are not necessary, as they are overwritten in the GCM init phase.
+            for i in ADDR_SUSPR0/4 to ADDR_SUSPR3/4 loop
+                mem(GetChannelAddr(channel, i*4)) <= (others => '0');
+            end loop;
         end if;
         
         -- Write port 1 (from the Interface)
         if WrEn1 = '1' then
-            for i in 3 downto 0 loop
-                if WrStrb1(i) = '1' then
-                    mem(to_integer(unsigned(WrAddr1(ADDR_WIDTH-1 downto 2))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
-                end if;
-            end loop; 
+            -- ignore WrStrb
+            --for i in 3 downto 0 loop
+                --if WrStrb1(i) = '1' then
+                --    mem(to_integer(unsigned(WrAddr1(addr_register_bits))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
+                --end if;
+           --end loop; 
+           mem(to_integer(unsigned(WrAddr1(addr_range)))) <= WrData1;
+            -- if the write was to a control register, copy the written data to priority and En
+            -- TODO This only works with Write Strobe off!
+           if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH)(addr_register_range)) then
+                channelIdx := to_integer(unsigned(WrAddr1(addr_channel_range)));
+                En(channelIdx) <= WrData1(CR_POS_EN);
+                Priority(channelIdx) <= WrData1(CR_POS_PRIORITY);
+           end if;
         end if;
         -- Write port 2 (from the AES Core)
         if WrEn2 = '1' then
             -- write four words, i.e. 128 bit
             for i in 0 to 3 loop
-                mem(to_integer(unsigned(WrAddr2(ADDR_WIDTH-1 downto 2))+i)) <= WrData2(127-i*32 downto 96-i*32);
-            end loop;
-        end if;
-        -- Clear susp register when unit is disabled TODO necessary?
-        if En = '0' and prevEn = '1' then
-            for i in ADDR_SUSPR0/4 to ADDR_SUSPR3/4 loop
-                mem(i) <= (others => '0');
+                -- append to current channel to WrAddr2
+                mem(GetChannelAddr(channel, to_integer(unsigned(WrAddr2)))+i) <= WrData2(127-i*32 downto 96-i*32);
             end loop;
         end if;
     end if;
