@@ -4,6 +4,7 @@
 #include "xscugic.h"
 
 
+#include "xil_assert.h"
 #include "xil_printf.h"
 #include <stdio.h>
 #include <string.h>
@@ -12,7 +13,24 @@
 #include "AES_Interface_M.h"
 
 
-int interruptCount = 0;
+volatile u32 interruptEvent = 0;
+
+
+void onInterrupt(AES* aes)
+{
+	xil_printf("\nInterrupt called!\n\r");
+	interruptEvent += 1;
+}
+
+void waitForInterrupt()
+{
+	while (interruptEvent == 0)
+		;
+	// Reset interruptCount
+	interruptEvent = 0;
+	xil_printf("\n Returning after interrupt...");
+}
+
 
 void hexToString(u8 *array, int len, char* outStr)
 {
@@ -32,61 +50,21 @@ void hexToStdOut(u8* array, int len)
     xil_printf("\n\r");
 }
 
-void onInterrupt(AES* aes)
-{
-	xil_printf("\nInterrupt called!\n\r");
-	interruptCount += 1;
-}
-
-s32 AES_SetupInterruptI()
-{
-	s32 status = XST_SUCCESS;
-	XScuGic_Config *IntcConfig;
-	XScuGic IntcInstance;
-	IntcConfig = XScuGic_LookupConfig(XPAR_SCUGIC_0_DEVICE_ID);
-	status |= XScuGic_CfgInitialize(&IntcInstance, IntcConfig, IntcConfig->CpuBaseAddress);
-
-	// Set up the interrupt controller
-	// Connect a device driver handler that will be called when an interrupt for the device occurs
-	// the device driver handler performs the specific interrupt processing for the device
-	XScuGic_SetPriorityTriggerType(&IntcInstance, XPAR_FABRIC_CONTROLLOGIC_0_INTERRUPT_INTR, 0xA0, 0x3);
-	status |= XScuGic_Connect(&IntcInstance, XPAR_FABRIC_CONTROLLOGIC_0_INTERRUPT_INTR, (Xil_ExceptionHandler)onInterrupt, NULL);
-	// Enable the interrupt for the ControlLogic peripheral
-	XScuGic_Enable(&IntcInstance, XPAR_FABRIC_CONTROLLOGIC_0_INTERRUPT_INTR);
-
-	return status;
-}
-
-
 
 #define AES_BASEADDR XPAR_AES_INTERFACE_M_0_S_AXI_BASEADDR
 #define DDR_BASEADDR XPAR_PS7_DDR_0_S_AXI_BASEADDR
 
 int main()
 {
+    xil_printf("Starting main\n\r");
     s32 status;
-    // Define aes here so I can use it in the interrupt call TODO move back later
-    AES aes;
 
-
-    xil_printf("Starting main\n");
-	// Do a test write to the DDR memory
-    u32 val = Xil_In32(DDR_BASEADDR);
-	Xil_Out32(DDR_BASEADDR, 0xdeadbeef);
-	val = Xil_In32(DDR_BASEADDR);
-
-
-
+    xil_printf("Enabling exceptions..\n\r");
+	// Initialize exceptions and the Interrupt Controller on the ARM processor
 	XScuGic_Config *IntcConfig;
 	XScuGic IntcInstance;
-
-	// Initialise the Interrupt controller so that it is ready to use.
 	IntcConfig = XScuGic_LookupConfig(XPAR_SCUGIC_0_DEVICE_ID);
 	status = XScuGic_CfgInitialize(&IntcInstance, IntcConfig, IntcConfig->CpuBaseAddress);
-
-	AES_SetupInterruptI();
-
-	// Initialise exceptions on the ARM processor
 	Xil_ExceptionInit();
 	// Connect the interrupt controller interrupt handler to the hardware interrupt handling logic in the processor.
 	Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_IRQ_INT, (Xil_ExceptionHandler)XScuGic_InterruptHandler, &IntcInstance);
@@ -94,33 +72,57 @@ int main()
 	Xil_ExceptionEnable();
 
 
+	// Do a test write to the DDR memory
+    /*u32 val = Xil_In32(DDR_BASEADDR);
+	Xil_Out32(DDR_BASEADDR, 0xdeadbeef);
+	val = Xil_In32(DDR_BASEADDR);
+	Xil_AssertNonvoid(val == 0xdeadbeef);
+     */
 
 	// Set up the AES unit
-
+	AES aes;
     AES_Config *aesConfigPtr = AES_LookupConfig(XPAR_AES_INTERFACE_M_0_DEVICE_ID);
     status = AES_CfgInitialize(&aes, aesConfigPtr);
 
-
+    u32 channel = 0;
 
     status = AES_Mem_SelfTest((void*)(aes.BaseAddress));
+
+	AES_SetInterruptRoutine(&aes, channel, &IntcInstance, onInterrupt);
+
+
 
     u8 plaintext[BLOCK_SIZE] = {0x00, 0x10, 0x20, 0x30, 0x01, 0x11, 0x21, 0x31, 0x02, 0x12, 0x22, 0x32, 0x03, 0x13, 0x23, 0x33 };
     u8 key[BLOCK_SIZE] =  {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
 
-    u8 readKey[BLOCK_SIZE];
-    AES_SetKey(&aes, key);
-    AES_GetKey(&aes, readKey);
 
-    //AES_PerformKeyExpansion(&aes);
+
+    u8 readKey[BLOCK_SIZE];
+    AES_SetKey(&aes, channel, key);
+    AES_GetKey(&aes, channel, readKey);
+    /*
+	xil_printf("Status register: %x\n\r", AES_Read(&aes, channel, 4));
+    AES_PerformKeyExpansion(&aes, channel);
+	AES_SetInterruptEnabled(&aes, channel, 0);
+	xil_printf("Interrupt disabled\n\r");
+	xil_printf("Status register: %x\n\r", AES_Read(&aes, channel, 4));
+	AES_PerformKeyExpansion(&aes, channel);
+
+	xil_printf("Status register in main: %x\n\r", AES_Read(&aes, channel, 4));
+
+	AES_SetInterruptEnabled(&aes, channel, 1);
+	xil_printf("Interrupt enabled again\n\r");
+	AES_PerformKeyExpansion(&aes, channel);
+
 
     u8 ciphertext[BLOCK_SIZE];
 
-    AES_SetEnabled(&aes, 1);
-    AES_SetChainingMode(&aes, CHAINING_MODE_ECB);
-    AES_processBlock(&aes, plaintext, ciphertext);
-    AES_SetEnabled(&aes, 0);
-
     // One quick ECB test
+    AES_SetChainingMode(&aes, channel, CHAINING_MODE_ECB);
+    AES_SetDataParameters(&aes, channel, plaintext, ciphertext, BLOCK_SIZE);
+    AES_startComputation(&aes, channel);
+    AES_waitUntilCompleted(&aes, channel);
+
     char debugText[500];
     xil_printf("===== ECB ======\n\r");
     hexToString(plaintext, 16, debugText);
@@ -128,15 +130,52 @@ int main()
     hexToString(ciphertext, 16, debugText);
     xil_printf("Ciphertext:\n\r\t%s\n\r", debugText);
 
-    memcpy(plaintext, ciphertext, 16);
+    // Decrypt the ciphertext
+    AES_SetDataParameters(&aes, channel, ciphertext, plaintext, BLOCK_SIZE);
 
-    AES_SetMode(&aes, MODE_DECRYPTION);
-	AES_SetEnabled(&aes, 1);
-	AES_processBlock(&aes, plaintext, ciphertext);
-	AES_SetEnabled(&aes, 0);
+    AES_SetMode(&aes, channel, MODE_DECRYPTION);
+	AES_startComputation(&aes, channel);
+    AES_waitUntilCompleted(&aes, channel);
+	AES_startComputation(&aes, channel);
 
 	xil_printf("Ciphertext after decryption:\n\r");
 	hexToStdOut(ciphertext, 16);
+	*/
+
+	AES_SetDataParameters(&aes, channel, (u8*)0x7aa00010, (u8*)0x7aa00020, 16);
+	AES_startComputation(&aes, channel);
+    AES_waitUntilCompleted(&aes, channel);
+
+	AES_SetDataParameters(&aes, channel, (u8*)0x7aa00000, (u8*)0x7aa00030, 32);
+	AES_startComputation(&aes, channel);
+    AES_waitUntilCompleted(&aes, channel);
+
+    // Try it with fresh addresses
+    volatile u8* plaintext_custom =  (u8*)0x100000;
+    volatile u8* ciphertext_custom = (u8*)0x110000;
+
+    for (volatile u8* addr = plaintext_custom; addr < plaintext_custom + BLOCK_SIZE*10; addr += BLOCK_SIZE)
+    	memcpy(addr, plaintext, BLOCK_SIZE);
+
+
+    AES_SetDataParameters(&aes, channel, plaintext_custom, ciphertext_custom, BLOCK_SIZE);
+    AES_startComputation(&aes, channel);
+    AES_waitUntilCompleted(&aes, channel);
+
+    AES_SetDataParameters(&aes, channel, plaintext_custom, ciphertext_custom, BLOCK_SIZE*3);
+	AES_startComputation(&aes, channel);
+	AES_waitUntilCompleted(&aes, channel);
+
+	u32 size = (u32)(ciphertext_custom - plaintext_custom);
+    AES_SetDataParameters(&aes, channel, plaintext_custom, ciphertext_custom, size);
+    AES_startComputation(&aes, channel);
+    AES_waitUntilCompleted(&aes, channel);
+
+    memcpy(plaintext_custom, ciphertext_custom, size);
+    AES_startComputation(&aes, channel);
+    waitForInterrupt();
+
+
 
 
 	// Test the different modi
@@ -161,20 +200,20 @@ int main()
 		if (i == 0)
 		{
 			xil_printf("\n==== ECB ====\n\r");
-			AES_processDataECB(&aes, 1, data, cipherdata, 16*3);
-			AES_processDataECB(&aes, 0, cipherdata, deciphered_cipherdata, 16*3);
+			AES_processDataECB(&aes, channel, 1, data, cipherdata, 16*3);
+			AES_processDataECB(&aes, channel, 0, cipherdata, deciphered_cipherdata, 16*3);
 		}
 		else if (i == 1)
 		{
 			xil_printf("\n==== CBC ====\n\r");
-			AES_processDataCBC(&aes, 1, data, cipherdata, 16*3, IV);
-			AES_processDataCBC(&aes, 0, cipherdata, deciphered_cipherdata, 16*3, IV);
+			AES_processDataCBC(&aes, channel, 1, data, cipherdata, 16*3, IV);
+			AES_processDataCBC(&aes, channel, 0, cipherdata, deciphered_cipherdata, 16*3, IV);
 		}
 		else
 		{
 			xil_printf("\n==== CTR ====\n\r");
-			AES_processDataCTR(&aes, data, cipherdata, 16*3, IV);
-			AES_processDataCTR(&aes, cipherdata, deciphered_cipherdata, 16*3, IV);
+			AES_processDataCTR(&aes, channel, data, cipherdata, 16*3, IV);
+			AES_processDataCTR(&aes, channel, cipherdata, deciphered_cipherdata, 16*3, IV);
 		}
 		xil_printf("Plaintext:\n\r");
 		hexToStdOut(data, 16*3);
@@ -198,11 +237,11 @@ int main()
 	memcpy(data+BLOCK_SIZE, block1, BLOCK_SIZE);
 	memcpy(data+2*BLOCK_SIZE, block2, BLOCK_SIZE);
 
-	AES_processDataGCM(&aes, 1, header, 2*BLOCK_SIZE, data, cipherdata, 3*BLOCK_SIZE, IV, tag);
+	AES_processDataGCM(&aes, channel, 1, header, 2*BLOCK_SIZE, data, cipherdata, 3*BLOCK_SIZE, IV, tag);
 	xil_printf("Tag after encryption:\n\r\t");
 	hexToStdOut(tag, 16);
 	// decryption
-	AES_processDataGCM(&aes, 0, header, 2*BLOCK_SIZE, cipherdata, deciphered_cipherdata, 3*BLOCK_SIZE, IV, decryptTag);
+	AES_processDataGCM(&aes, channel, 0, header, 2*BLOCK_SIZE, cipherdata, deciphered_cipherdata, 3*BLOCK_SIZE, IV, decryptTag);
 	xil_printf("\r\nTag after decryption:\n\r\t");
 	hexToStdOut(decryptTag, 16);
 
