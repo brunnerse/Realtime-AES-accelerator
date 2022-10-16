@@ -39,6 +39,8 @@ end TestControlLogic;
 
 architecture Behavioral of TestControlLogic is
 
+constant channel : unsigned(2 downto 0) := "011";
+constant CHANNEL_OFFSET : unsigned(ADDR_WIDTH-1 downto 0) := channel & "0000000";
 
 signal Clock : std_logic := '1';
 signal Resetn : std_logic := '0';
@@ -55,6 +57,8 @@ signal CL_ready, CL_valid : std_logic;
 signal mode : std_logic_vector(MODE_LEN-1 downto 0) := MODE_KEYEXPANSION_AND_DECRYPTION;
 signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0) := CHAINING_MODE_CBC;
 signal GCMPhase : std_logic_vector(1 downto 0) := GCM_PHASE_INIT;
+
+
 
 begin
 
@@ -112,30 +116,35 @@ wait until Resetn = '1';
 -- set data size
 WrEnAHB <= '1';
 WrDataAHB <= x"20000000"; 
-WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DATASIZE, ADDR_WIDTH));
+WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DATASIZE, ADDR_WIDTH) + CHANNEL_OFFSET);
 wait for 10ns;
 -- set start addr
 WrDataAHB <= x"00000010"; 
-WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DINADDR, ADDR_WIDTH));
+WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DINADDR, ADDR_WIDTH) + CHANNEL_OFFSET);
 wait for 10ns;
 -- set dest addr
 WrDataAHB <= x"00000020"; 
-WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DOUTADDR, ADDR_WIDTH));
+WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DOUTADDR, ADDR_WIDTH) + CHANNEL_OFFSET);
+wait for 10ns;
+
+-- set IV reg
+WrAddrAHB <=  std_logic_vector(to_unsigned(ADDR_IVR1, ADDR_WIDTH) + CHANNEL_OFFSET);
+WrDataAHB <= x"deadbeef";
 wait for 10ns;
 -- set control
-WrDataAHB <= x"0000" & '0' & GCM_PHASE_PAYLOAD & "00" & "11" & "00" & CHAINING_MODE_CBC & MODE_ENCRYPTION & "00" & '1';
-WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
+WrDataAHB <= x"0000" & '0' & GCM_PHASE_PAYLOAD & "00" & "11" & "00" & CHAINING_MODE_GCM & MODE_ENCRYPTION & "00" & '1';
+WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_OFFSET);
 wait for 10 ns;
 WrEnAHB <= '0';
 wait for 10ns;
 WrEnAHB <= '0';
 RdEnAHB <= '1';
-RdAddrAHB <= std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH));
+RdAddrAHB <= std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH) + CHANNEL_OFFSET);
 wait until RdDataAHB(0) = '1'; -- wait until CCF is set
 wait;
 -- clear CCF
 WrEnAHB <= '1';
-WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
+WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_OFFSET);
 WrDataAHB <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1';
 WrDataAHB(7) <= '1';
 wait for 10ns;
@@ -146,7 +155,7 @@ wait for 50ns;
 
 -- set the enable bit again
 WrEnAHB <= '1';
-WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
+WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_OFFSET);
 WrDataAHB <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1';
 wait;
 end process;
