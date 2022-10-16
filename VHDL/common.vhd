@@ -34,15 +34,19 @@ constant GCM_PHASE_HEADER : std_logic_vector := "01";
 constant GCM_PHASE_PAYLOAD : std_logic_vector := "10";
 constant GCM_PHASE_FINAL : std_logic_vector := "11";
 
--- Control Logic definitions
+-- Control Logic write port definitions
 constant DATA_WIDTH : integer := 32;
 constant ADDR_WIDTH : integer := 10;
 
-subtype ChannelBitRange is integer range 0 to 3;
-constant MAX_CHANNELS : integer := 8;
+-- the 7 lowest bits of the address give the register
+constant ADDR_REGISTER_BITS : integer := 7;
+-- the higher bits of the address give the channel
+constant ADDR_CHANNEL_BITS : integer := ADDR_WIDTH - ADDR_REGISTER_BITS;
+
+constant MAX_CHANNELS : integer := 2**ADDR_CHANNEL_BITS; 
+subtype num_channels_range is integer range 1 to MAX_CHANNELS;
 
 constant NUM_PRIORITY_BITS : integer := 3;
-subtype priority is integer range 0 to 2**NUM_PRIORITY_BITS-1;
 
 end package;
 
