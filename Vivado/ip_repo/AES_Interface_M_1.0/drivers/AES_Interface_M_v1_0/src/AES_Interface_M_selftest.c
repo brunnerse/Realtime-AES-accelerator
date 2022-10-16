@@ -8,7 +8,6 @@
 /************************** Constant Definitions ***************************/
 #define READ_WRITE_MUL_FACTOR 0x10
 #define AES_SR_OFFSET 0x04
-#define AES_DOUTR_OFFSET 0x0c
 #define AES_SUSPR0_OFFSET 0x40
 /************************** Function Definitions ***************************/
 /**
@@ -48,19 +47,23 @@ XStatus AES_Mem_SelfTest(void * baseaddr_p)
 	xil_printf("User logic memory test...\n\r");
 	xil_printf("   - local memory address is 0x%08x\n\r", baseaddr);
 	xil_printf("   - write pattern to local BRAM and read back\n\r");
+	
 
-	for (offset = 0; offset < AES_SUSPR0_OFFSET+9; offset += 4)
+	for (offset = 0; offset < (1 << ADDR_REGISTER_BITS) * AES_NUM_CHANNELS; offset += 4)
 	{
-		if (offset == AES_SR_OFFSET || offset == AES_DOUTR_OFFSET)
+		// ignore status register addresses
+		if ((offset & ((1<<ADDR_REGISTER_BITS)-1))  == AES_SR_OFFSET)
 		{
 			continue;
 		}
 		AES_mWriteMemory(baseaddr+offset, (0xDEADBEEF % offset));
 	}
 
-	for ( offset = 0; offset < AES_SUSPR0_OFFSET+9; offset += 4)
+
+	for ( offset = 0; offset < (1 << ADDR_REGISTER_BITS) * AES_NUM_CHANNELS; offset += 4)
 	{
-		if (offset == AES_SR_OFFSET || offset == AES_DOUTR_OFFSET)
+		// ignore status register addresses
+		if ((offset & ((1<<ADDR_REGISTER_BITS)-1))  == AES_SR_OFFSET)
 		{
 			continue;
 		}
