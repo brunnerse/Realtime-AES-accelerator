@@ -163,6 +163,8 @@ signal mem : mem_type;
 
 -- The current channel
 signal channel : channel_range;
+-- The channel with the highest priority that is active
+signal highestChannel : channel_range;
 -- the priorities of each channel
 type priority_arr_type is array (channel_range) of std_logic_vector(NUM_PRIORITY_BITS-1 downto 0);
 signal Priority : priority_arr_type;
@@ -214,7 +216,7 @@ prevCCF <= CCF when rising_edge(Clock);
 
 -- Read key, IV, Susp and H from memory
 GenSignals:
-for i in 0 to 3 generate
+for i in 0 to 3 generate -- TODO get channel and IV from highestChannel instead of channel? This could help making a smaller delay
 key(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_KEYR0 + i*4));
 IV (127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_IVR0 + i*4));
 Susp(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_SUSPR0 + i*4)); -- TODO funktioniert noch nicht ganz!
@@ -222,19 +224,40 @@ H(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_SUSPR4 + i*4));
 end generate;
 
 
--- driver process for channel
-process(Clock)
-begin
-if rising_edge(Clock) then
-    if Resetn = '0' then
-        channel <= 3;
-    end if;
-    -- TODO
-end if;
-end process;
+-- driver process for highestChannel
+-- In each cycle, this process finds the enabled channel with the highest priority
+-- if no channel is enabled, channel 0 is selected
+-- if multiple channels share the highest priority, the one already running is selected
+--process(Clock)
+
+--variable bestChannel : channel_range;
+--variable bestPriority : std_logic_vector(NUM_PRIORITY_BITS-1 downto 0);
+--begin
+--if rising_edge(Clock) then
+--    if Resetn = '0' then
+--        highestChannel <= 0;
+--    else
+        -- do linear search for the channel with the highest priority
+        
+        -- This will ensure that for two channels with the same priority, the one already running will be selected
+        --  TODO rather choose the channel with the lower index? In that case, I set bestChannel to 0 and can skip 0 in the for loop 
+--        bestChannel := channel; 
+--        bestPriority := Priority(channel); 
+
+--        for i in 0 to NUM_CHANNELS-1 loop
+            -- Change bestChannel if the new channel is enabled and has a higher priority, or if bestChannel is disabled
+--            if En(i) = '1' and (Priority(i) > bestPriority or En(bestChannel) = '0') then
+--                bestChannel := i;
+--                bestPriority := Priority(i);
+--            end if;
+--        end loop;
+--        highestChannel <= bestChannel;
+--    end if;
+--end if;
+--end process;
 
  -- process that handles the data fetching, computing and writing back
- -- this process also drives mode, so it can switch from KEYEXPANSION_AND_DECRYPTION to DECRYPTION
+ -- this process drives the Control signals and channel
  process(Clock)
  
  variable configReg : std_logic_vector(DATA_WIDTH-1 downto 0);
@@ -248,34 +271,39 @@ end process;
     if Resetn = '0' then
         state <= Idle;
         RW_valid <= '0';
+        channel <= 0;
         for i in channel_range loop
             WRERR(i) <= '0';
             RDERR(i) <= '0';
             CCF(i) <= '0';
         end loop;
-    else
-        -- Read CR register of current channel
-        configReg := mem(GetChannelAddr(channel, ADDR_CR));
-        modeSignal <= configReg(CR_POS_MODE);
-        chainingModeSignal <= configReg(CR_POS_CHMODE);
-        GCMPhaseSignal <= configReg(CR_POS_GCMPHASE);
-
-        ERRIE <= configReg(CR_POS_ERRIE);
-        CCFIE <= configReg(CR_POS_CCFIE);
-        ERRC <= configReg(CR_POS_ERRC); 
-
-        -- Check if CCF should be cleared
-        if configReg(CR_POS_CCFC) = '1' then
-            CCF(channel) <= '0';
-        end if;
-        
+    else        
         case state is
             when Idle =>
-                if En(channel) = '1' and prevEn(channel) = '0' then
-                    -- reset CCF
+                -- Read CR register of highest channel
+                configReg := mem(GetChannelAddr(highestChannel, ADDR_CR));
+                
+                -- Check if CCF should be cleared  TODO is it ok if this check only happens in Idle?
+                if configReg(CR_POS_CCFC) = '1' then
                     CCF(channel) <= '0';
+                end if;
+                -- switch channel to highestChannel
+                channel <= highestChannel;
+                -- start if the Enable signal switched to high or the channel changed
+                if En(highestChannel) = '1' and (prevEn(highestChannel) = '0' or channel /= highestChannel) then
+                    -- copy configuration signals
+                    modeSignal <= configReg(CR_POS_MODE);
+                    chainingModeSignal <= configReg(CR_POS_CHMODE);
+                    GCMPhaseSignal <= configReg(CR_POS_GCMPHASE);
+                    ERRIE <= configReg(CR_POS_ERRIE);
+                    CCFIE <= configReg(CR_POS_CCFIE);
+                    ERRC <= configReg(CR_POS_ERRC); 
+
+                    -- reset CCF
+                    CCF(highestChannel) <= '0';
                     -- If mode is keyexpansion or the GCM init mode, start the AES Core immediately, no data reading required
-                    if modeSignal = MODE_KEYEXPANSION or (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT) then
+                    -- need to read from configReg instead of the signals, as the signals only update after the process
+                    if configReg(CR_POS_MODE) = MODE_KEYEXPANSION or (configReg(CR_POS_CHMODE) = CHAINING_MODE_GCM and configReg(CR_POS_GCMPHASE) = GCM_PHASE_INIT) then
                         EnICore <= '1';
                         state <= Computing;
                         dataCounter <= (others => '0'); -- TODO necessary?
@@ -283,16 +311,16 @@ end process;
                         -- start read data transaction;  
                         -- Read addresses and datasize from memory register depending on Endianness
                         if not LITTLE_ENDIAN then 
-                            destAddress <= mem(GetChannelAddr(channel, ADDR_DOUTADDR));
-                            sourceAddress <= mem(GetChannelAddr(channel, ADDR_DINADDR));
-                            RW_addr <= mem(GetChannelAddr(channel, ADDR_DINADDR)); -- set RW_addr to sourceAddress
-                            dataCounter <= mem(GetChannelAddr(channel, ADDR_DATASIZE));
+                            destAddress     <= mem(GetChannelAddr(highestChannel, ADDR_DOUTADDR));
+                            sourceAddress   <= mem(GetChannelAddr(highestChannel, ADDR_DINADDR));
+                            RW_addr         <= mem(GetChannelAddr(highestChannel, ADDR_DINADDR)); -- set RW_addr to sourceAddress
+                            dataCounter     <= mem(GetChannelAddr(highestChannel, ADDR_DATASIZE));
                         else
                             for i in 3 downto 0 loop
-                                destAddress(i*8+7 downto i*8) <= mem(GetChannelAddr(channel, ADDR_DOUTADDR))((3-i)*8+7 downto (3-i)*8);
-                                sourceAddress(i*8+7 downto i*8) <= mem(GetChannelAddr(channel, ADDR_DINADDR))((3-i)*8+7 downto (3-i)*8);
-                                RW_addr(i*8+7 downto i*8) <= mem(GetChannelAddr(channel, ADDR_DINADDR))((3-i)*8+7 downto (3-i)*8);
-                                dataCounter(i*8+7 downto i*8) <= mem(GetChannelAddr(channel, ADDR_DATASIZE))((3-i)*8+7 downto (3-i)*8);
+                                destAddress(i*8+7 downto i*8)   <= mem(GetChannelAddr(highestChannel, ADDR_DOUTADDR))((3-i)*8+7 downto (3-i)*8);
+                                sourceAddress(i*8+7 downto i*8) <= mem(GetChannelAddr(highestChannel, ADDR_DINADDR))((3-i)*8+7 downto (3-i)*8);
+                                RW_addr(i*8+7 downto i*8)       <= mem(GetChannelAddr(highestChannel, ADDR_DINADDR))((3-i)*8+7 downto (3-i)*8); -- set RW_addr to sourceAddress
+                                dataCounter(i*8+7 downto i*8)   <= mem(GetChannelAddr(highestChannel, ADDR_DATASIZE))((3-i)*8+7 downto (3-i)*8);
                             end loop;
                         end if;
                         -- Make sure dataCounter is divisible by 16
@@ -308,10 +336,16 @@ end process;
                     -- reset valid signal
                     RW_valid <= '0';
                     RDERR(channel) <= RDERR(channel) or M_RW_error; -- TODO remove or
-                    DIN <= M_RW_rdData;
-                    -- start core
-                    EnICore <= '1';
-                    state <= Computing;
+                    -- check if channel changed, if yes return to Idle state
+                    if channel /= highestChannel then
+                        state <= Idle;
+                    else
+                        -- of channel still has the highest priority, start the core
+                        DIN <= M_RW_rdData;
+                        -- start core
+                        EnICore <= '1';
+                        state <= Computing;
+                    end if;
                 end if;
             when Computing =>
                 -- write back once the core has finished
@@ -391,9 +425,14 @@ if rising_edge(Clock) then
 end if;
 end process;
 
--- write process; also drives Priority and En signals
+-- write process; also drives Priority, En and highestChannel signals
 process (Clock)
 variable channelIdx : integer;
+
+-- variables for linear search for channel with highest priority
+variable bestChannel : channel_range;
+variable bestPriority : std_logic_vector(Priority(0)'RANGE);
+
 begin
 if rising_edge(Clock) then
     if Resetn = '0' then
@@ -404,11 +443,24 @@ if rising_edge(Clock) then
             En(i) <= '0';
             Priority(i) <= (others => '0');
         end loop;
+        highestChannel <= highestChannel'LOW;
     else
         -- Reset the enable bit and reset the susp register once CCF switches to 1 (i.e. channel is finished)
-        if CCF(channel) = '1' and prevCCF(channel) = '0' then
+        if CCF(channel) = '1' and prevCCF(channel) = '0' then -- TODO check if this works even with context switch
             En(channel) <= '0';
-            -- das Rückschreiben nach mem könnte entfallen und es wäre trotzdem noch korrekt, nur mit dem Speicher inkonsistent
+            -- select new highestChannel with highest priority
+            bestChannel := 0; 
+            bestPriority := Priority(0);  
+            for i in 1 to NUM_CHANNELS-1 loop
+                -- Change bestChannel if the new channel is enabled and has a higher priority, or if bestChannel is disabled
+                if En(i) = '1' and (unsigned(Priority(i)) > unsigned(bestPriority) or En(bestChannel) = '0') then
+                    bestChannel := i;
+                    bestPriority := Priority(i);
+                end if;
+            end loop;
+            highestChannel <= bestChannel;
+
+            -- We could skip the write back to mem and the ControlLogic unit would still work, only the memory would be inconsistent
             mem(GetChannelAddr(channel, ADDR_CR))(CR_POS_EN) <= '0';
 
             -- Clear susp register, so it is 0 for the next run. 
@@ -433,13 +485,17 @@ if rising_edge(Clock) then
                 channelIdx := to_integer(unsigned(WrAddr1(addr_channel_range)));
                 En(channelIdx) <= WrData1(CR_POS_EN);
                 Priority(channelIdx) <= WrData1(CR_POS_PRIORITY);
+                -- If channel is enabled and priority is higher than the one with the highest priority (or highestChannel is disabled), change highestChannel
+                if WrData1(CR_POS_EN) = '1' and (unsigned(WrData1(CR_POS_PRIORITY)) > unsigned(Priority(highestChannel)) or En(highestChannel) = '0') then
+                    highestChannel <= channelIdx;
+                end if;
            end if;
         end if;
         -- Write port 2 (from the AES Core)
         if WrEn2 = '1' then
             -- write four words, i.e. 128 bit
             for i in 0 to 3 loop
-                -- append to current channel to WrAddr2
+                -- append to current channel to WrAddr2 -- TODO check if it is written to the correct channel during a context switch
                 mem(GetChannelAddr(channel, to_integer(unsigned(WrAddr2)))+i) <= WrData2(127-i*32 downto 96-i*32);
             end loop;
         end if;
