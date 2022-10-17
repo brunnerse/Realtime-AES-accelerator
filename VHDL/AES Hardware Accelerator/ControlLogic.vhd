@@ -73,7 +73,7 @@ entity ControlLogic is
     chaining_mode : out std_logic_vector (CHMODE_LEN-1 downto 0);
     GCMPhase : out std_logic_vector(1 downto 0);
 -- global signals
-    interrupt : out std_logic;
+    interrupt : out std_logic_vector(NUM_CHANNELS-1 downto 0);
     Clock    : in std_logic;
     Resetn   : in std_logic
   );
@@ -265,7 +265,7 @@ end generate;
  begin
  if rising_edge(Clock) then
     EnICore <= '0';
-    interrupt <= '0';
+    interrupt <= (others => '0');
     
     -- synchronous reset
     if Resetn = '0' then
@@ -360,7 +360,7 @@ end generate;
                         (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT ) then
                         -- set signals that computation has finished
                         CCF(channel) <= '1';
-                        interrupt <= CCFIE; -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0;
+                        interrupt(channel) <= CCFIE; -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0;
                         state <= Idle;
                     elsif chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_HEADER then
                          -- change to writeback so it checks in the next cycle whether there are more data to process
@@ -397,7 +397,7 @@ end generate;
                         RW_valid <= '0';  
                         state <= Idle;
                         CCF(channel) <= '1';
-                        interrupt <= CCFIE;  -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0
+                        interrupt(channel) <= CCFIE;  -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0
                     end if;    
 
                 end if;
