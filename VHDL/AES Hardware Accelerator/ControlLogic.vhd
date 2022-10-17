@@ -472,17 +472,15 @@ if rising_edge(Clock) then
         
         -- Write port 1 (from the Interface)
         if WrEn1 = '1' then
-            -- ignore WrStrb
-            --for i in 3 downto 0 loop
-                --if WrStrb1(i) = '1' then
-                --    mem(to_integer(unsigned(WrAddr1(addr_register_bits))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
-                --end if;
-           --end loop; 
-           mem(to_integer(unsigned(WrAddr1(addr_range)))) <= WrData1;
+            for i in 3 downto 0 loop
+                if WrStrb1(i) = '1' then
+                    mem(to_integer(unsigned(WrAddr1(addr_register_bits))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
+                end if;
+           end loop;
             -- if the write was to a control register, copy the written data to priority and En
-            -- TODO This only works with Write Strobe off!
            if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH)(addr_register_range)) then
                 channelIdx := to_integer(unsigned(WrAddr1(addr_channel_range)));
+                -- TODO in driver, make sure that the CR register is always accessed only with 32 bit, i.e. WrStrb = 1111
                 En(channelIdx) <= WrData1(CR_POS_EN);
                 Priority(channelIdx) <= WrData1(CR_POS_PRIORITY);
                 -- If channel is enabled and priority is higher than the one with the highest priority (or highestChannel is disabled), change highestChannel
