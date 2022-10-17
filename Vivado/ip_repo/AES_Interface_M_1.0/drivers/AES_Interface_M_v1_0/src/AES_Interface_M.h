@@ -16,6 +16,8 @@
 #define AES_NUM_CHANNELS 4
 #define ADDR_REGISTER_BITS 7
 
+#define AES_MAX_PRIORITY (AES_NUM_CHANNELS-1) // TODO
+
 typedef enum {
     MODE_ENCRYPTION = 0,
     MODE_KEYEXPANSION = 1,
@@ -64,6 +66,7 @@ void AES_Setup(AES* InstancePtr, u32 channel, Mode mode, ChainingMode chMode, u3
 void AES_SetMode(AES *InstancePtr, u32 channel, Mode mode);
 void AES_SetChainingMode(AES* InstancePtr, u32 channel, ChainingMode chainMode);
 void AES_SetGCMPhase(AES* InstancePtr, u32 channel, GCMPhase gcmPhase);
+void AES_SetPriority(AES* InstancePtr, u32 channel, u32 priority);
 void AES_startComputation(AES* InstancePtr, u32 channel);
 void AES_SetInterruptEnabled(AES* InstancePtr, u32 channel, u32 en);
 void AES_SetIV(AES* InstancePtr, u32 channel, u8 *IV, u32 IVLen);
@@ -73,7 +76,7 @@ void AES_GetSusp(AES* InstancePtr, u32 channel, u8 outSusp[BLOCK_SIZE*2]);
 void AES_GetKey(AES *InstancePtr, u32 channel, u8 outKey[BLOCK_SIZE]);
 Mode AES_GetMode(AES *InstancePtr, u32 channel);
 ChainingMode AES_GetChainingMode(AES* InstancePtr, u32 channel);
-void AES_SetGCMPhase(AES* InstancePtr, u32 channel, GCMPhase gcmPhase);
+void AES_GetPriority(AES* InstancePtr, u32 channel);
 GCMPhase AES_GetGCMPhase(AES* InstancePtr, u32 channel);
 u32 AES_isActive(AES* InstancePtr, u32 channel);
 

@@ -4,6 +4,7 @@
 #include "AES_Interface_M.h"
 #include "xparameters.h"
 #include "xscugic.h"
+#include "xil_assert.h"
 /************************** Function Definitions ***************************/
 
 // Comment this line on Big Endian systems
@@ -29,6 +30,7 @@
 #define ERRIE_POS 18
 #define GCM_PHASE_POS 21
 #define CCFC_POS 31
+#define PRIORITY_POS 16
 #define SR_CCF_POS 24
 #define MODE_GCM_IV_INIT 0x02000000
 #define MODE_GCM_IV_FINAL 0x01000000
@@ -56,7 +58,9 @@
 #define ERRIE_LEN 1
 #define GCM_PHASE_LEN 2
 #define CCFC_LEN 1
+#define PRIORITY_LEN 3 // TODO!
 #define SR_CCF_LEN 1
+
 
 /**************************   Private variables **********************/
 AES_Config config =
@@ -83,7 +87,6 @@ AES_Config *AES_LookupConfig(u16 DeviceId)
 s32 AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr)
 {
     InstancePtr->BaseAddress = ConfigPtr->BaseAddress;
-
     return (s32)(XST_SUCCESS);
 }
 
@@ -116,8 +119,8 @@ void AES_SetSusp(AES* InstancePtr, u32 channel, u8 Susp[BLOCK_SIZE*2])
  * @param gcmPhase 
  */
 void AES_Setup(AES* InstancePtr, u32 channel, Mode mode, ChainingMode chainMode, u32 enabled, GCMPhase gcmPhase)
-{
-	// TODO Kann ich lesen hier vermeiden und gleich mit cr = 0 anfangen?
+{  // TODO priority in setup?
+	// TODO can I disregard the old cr and just start with cr=0?
     u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
 
     // Set mode
@@ -158,6 +161,14 @@ void AES_SetGCMPhase(AES* InstancePtr, u32 channel, GCMPhase gcmPhase)
     u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
     setBits(&cr, (u32)gcmPhase, GCM_PHASE_POS, GCM_PHASE_LEN);
 
+    AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
+}
+
+void AES_SetPriority(AES* InstancePtr, u32 channel, u32 priority)
+{
+	Xil_AssertVoid(priority <= AES_MAX_PRIORITY);
+	u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
+    setBits(&cr, priority, PRIORITY_POS, PRIORITY_LEN);
     AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
 }
 
@@ -224,6 +235,12 @@ GCMPhase AES_GetGCMPhase(AES* InstancePtr, u32 channel)
 {
     u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
     return (GCMPhase)getBits(cr, GCM_PHASE_POS, GCM_PHASE_LEN);
+}
+
+void AES_GetPriority(AES* InstancePtr, u32 channel)
+{
+    u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
+    return getBits(cr, PRIORITY_POS, PRIORITY_LEN);
 }
 
 /**
