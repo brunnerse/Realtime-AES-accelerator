@@ -33,7 +33,7 @@ use IEEE.NUMERIC_STD.ALL;
 entity ControlLogic is
   Generic (
     LITTLE_ENDIAN : boolean := true;
-    NUM_CHANNELS : integer range 1 to 8 := 4 -- upper bound must be MAX_CHANNELS, but Vivado doesn't synthesize then
+    NUM_CHANNELS : integer range 1 to 8 := 8 -- upper bound must be MAX_CHANNELS, but Vivado doesn't synthesize then
   );
   Port (    
 -- Ports to the AES interface: 
@@ -292,7 +292,14 @@ end generate;
                 -- start if the Enable signal switched to high or the channel changed
                 if En(highestChannel) = '1' and (prevEn(highestChannel) = '0' or channel /= highestChannel) then
                     -- copy configuration signals
-                    modeSignal <= configReg(CR_POS_MODE);
+                    
+                    -- if mode is decryption but the channel has changed, the keyexpansion data aren't valid anymore 
+                    --     therefore start in keyexpansion_and_decryption mode to regenerate the keyexpansion data
+                    if configReg(CR_POS_MODE) = MODE_DECRYPTION and channel /= highestChannel then
+                        modeSignal <= MODE_KEYEXPANSION_AND_DECRYPTION;
+                    else
+                        modeSignal <= configReg(CR_POS_MODE);
+                    end if;
                     chainingModeSignal <= configReg(CR_POS_CHMODE);
                     GCMPhaseSignal <= configReg(CR_POS_GCMPHASE);
                     ERRIE <= configReg(CR_POS_ERRIE);
@@ -351,7 +358,7 @@ end generate;
                 -- write back once the core has finished
                 -- TODO if not at the end and not interrupted, fetch next data while core is computing
                 if EnOCore = '1' then
-                    -- TODO Von KEYEXPANSION_AND_DECRYPTION umschalten auf DECRYPTION Aufpassen bei Kontextwechsel!
+                    -- if mode was KEYEXPANSION_AND_DECRYPTION, we can switch to DECRYPTION to save time in the next computation
                     if modeSignal = MODE_KEYEXPANSION_AND_DECRYPTION and (chainingModeSignal = CHAINING_MODE_ECB or chainingModeSignal = CHAINING_MODE_CBC) then
                         modeSignal <= MODE_DECRYPTION;
                     end if;
@@ -443,14 +450,14 @@ if rising_edge(Clock) then
             En(i) <= '0';
             Priority(i) <= (others => '0');
         end loop;
-        highestChannel <= highestChannel'LOW;
+        highestChannel <= channel_range'LOW;
     else
         -- Reset the enable bit and reset the susp register once CCF switches to 1 (i.e. channel is finished)
         if CCF(channel) = '1' and prevCCF(channel) = '0' then -- TODO check if this works even with context switch
             En(channel) <= '0';
             -- select new highestChannel with highest priority
             bestChannel := 0; 
-            bestPriority := Priority(0);  
+            bestPriority := Priority(0);  -- TODO Idee: Separater Prozess, der immer den zweitbesten Prozess auswählt. Das kann auch mehrere Takte dauern
             for i in 1 to NUM_CHANNELS-1 loop
                 -- Change bestChannel if the new channel is enabled and has a higher priority, or if bestChannel is disabled
                 if En(i) = '1' and (unsigned(Priority(i)) > unsigned(bestPriority) or En(bestChannel) = '0') then
@@ -474,7 +481,7 @@ if rising_edge(Clock) then
         if WrEn1 = '1' then
             for i in 3 downto 0 loop
                 if WrStrb1(i) = '1' then
-                    mem(to_integer(unsigned(WrAddr1(addr_register_bits))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
+                    mem(to_integer(unsigned(WrAddr1(addr_register_range))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
                 end if;
            end loop;
             -- if the write was to a control register, copy the written data to priority and En
