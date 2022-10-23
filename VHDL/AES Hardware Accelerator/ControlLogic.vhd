@@ -277,16 +277,18 @@ end generate;
             RDERR(i) <= '0';
             CCF(i) <= '0';
         end loop;
-    else        
+    else
+        -- Check all channels if CCF  should be cleared
+        for i in channel_range loop
+            if mem(GetChannelAddr(i, ADDR_CR))(CR_POS_CCFC) = '1' then
+                CCF(i) <= '0';
+            end if;
+        end loop;
+             
         case state is
             when Idle =>
                 -- Read CR register of highest channel
-                configReg := mem(GetChannelAddr(highestChannel, ADDR_CR));
-                
-                -- Check if CCF should be cleared  TODO is it ok if this check only happens in Idle?
-                if configReg(CR_POS_CCFC) = '1' then
-                    CCF(channel) <= '0';
-                end if;
+                configReg := mem(GetChannelAddr(highestChannel, ADDR_CR)); 
                 -- switch channel to highestChannel
                 channel <= highestChannel;
                 -- start if the Enable signal switched to high or the channel changed
@@ -344,7 +346,7 @@ end generate;
                     RW_valid <= '0';
                     RDERR(channel) <= RDERR(channel) or M_RW_error; -- TODO remove or
                     -- check if channel changed, if yes return to Idle state
-                    if channel /= highestChannel then
+                    if channel /= highestChannel then -- TODO should I be able to stop after fetch?
                         state <= Idle;
                     else
                         -- of channel still has the highest priority, start the core
@@ -381,32 +383,33 @@ end generate;
                    end if;
                 end if;
             when Writeback =>
-                -- in GCM Header phase, nothing is written back, so we can continue immediately
+                -- either memory request as completed or we are in GCM Header phase, so nothing is written back and we can continue immediately
                  if M_RW_ready = '1' or
                          (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_HEADER) then
+                         
+                    RW_valid <= '0';
+                    state <= Idle; 
                     WRERR(channel) <= WRERR(channel) or M_RW_error; -- TODO remove OR
                     
-                    dataCounter <= std_logic_vector(unsigned(dataCounter) - to_unsigned(KEY_SIZE/8, dataCounter'LENGTH));
-                    -- check if computation is complete
-                    if unsigned(dataCounter) > to_unsigned(16, dataCounter'LENGTH) then
+                    if unsigned(dataCounter) <= to_unsigned(16, dataCounter'LENGTH) then
+                        -- Computation complete;  set interrupt and CCF
+                        CCF(channel) <= '1';
+                        interrupt(channel) <= CCFIE;  -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0
+                        
+                    -- if there are more datablocks to process and the channel still has the highest priority, continue with fetch
+                    elsif channel = highestChannel then
                         -- Not complete; Fetch next data block
                         -- increment dest and source address
                         destAddress <= std_logic_vector(unsigned(destAddress) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
                         sourceAddress <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
+                        dataCounter <= std_logic_vector(unsigned(dataCounter) - to_unsigned(KEY_SIZE/8, dataCounter'LENGTH));
                         -- set RW_addr to new source address
                         RW_addr <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
                         
-                        RW_valid <= '1'; -- RW_valid stays high
+                        RW_valid <= '1'; -- new memory request
                         RW_write <= '0';
                         state <= Fetch;
-                    else 
-                        -- Computation complete;  set interrupt and CCF, return to Idle state
-                        RW_valid <= '0';  
-                        state <= Idle;
-                        CCF(channel) <= '1';
-                        interrupt(channel) <= CCFIE;  -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0
                     end if;    
-
                 end if;
             when others =>
        end case;
@@ -460,7 +463,7 @@ if rising_edge(Clock) then
             bestPriority := Priority(0);  -- TODO Idee: Separater Prozess, der immer den zweitbesten Prozess auswählt. Das kann auch mehrere Takte dauern
             for i in 1 to NUM_CHANNELS-1 loop
                 -- Change bestChannel if the new channel is enabled and has a higher priority, or if bestChannel is disabled
-                if En(i) = '1' and (unsigned(Priority(i)) > unsigned(bestPriority) or En(bestChannel) = '0') then
+                if i /= channel and En(i) = '1' and (unsigned(Priority(i)) > unsigned(bestPriority) or En(bestChannel) = '0') then
                     bestChannel := i;
                     bestPriority := Priority(i);
                 end if;
@@ -481,7 +484,7 @@ if rising_edge(Clock) then
         if WrEn1 = '1' then
             for i in 3 downto 0 loop
                 if WrStrb1(i) = '1' then
-                    mem(to_integer(unsigned(WrAddr1(addr_register_range))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
+                    mem(to_integer(unsigned(WrAddr1(addr_range))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
                 end if;
            end loop;
             -- if the write was to a control register, copy the written data to priority and En
@@ -491,7 +494,7 @@ if rising_edge(Clock) then
                 En(channelIdx) <= WrData1(CR_POS_EN);
                 Priority(channelIdx) <= WrData1(CR_POS_PRIORITY);
                 -- If channel is enabled and priority is higher than the one with the highest priority (or highestChannel is disabled), change highestChannel
-                if WrData1(CR_POS_EN) = '1' and (unsigned(WrData1(CR_POS_PRIORITY)) > unsigned(Priority(highestChannel)) or En(highestChannel) = '0') then
+                if WrData1(CR_POS_EN) = '1' and (unsigned(WrData1(CR_POS_PRIORITY)) > unsigned(Priority(highestChannel)) or En(highestChannel) = '0') then -- TODO also check CCF(highestChannel) for that one cycle?
                     highestChannel <= channelIdx;
                 end if;
            end if;
