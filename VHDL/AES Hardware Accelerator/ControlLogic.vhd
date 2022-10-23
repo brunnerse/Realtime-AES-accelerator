@@ -186,7 +186,9 @@ signal RW_wrData : std_logic_vector(KEY_SIZE-1 downto 0);
 signal RW_write : std_logic;
 
 
-signal dataCounter : std_logic_vector(DATA_WIDTH-1 downto 0);
+type dataCountArray is array (channel_range) of std_logic_vector(DATA_WIDTH-1 downto 0);
+signal dataCount : dataCountArray;
+signal dataSize : std_logic_vector(DATA_WIDTH-1 downto 0);
 signal sourceAddress, destAddress : std_logic_vector(M_RW_addr'LENGTH-1 downto 0);
 -- control signals
 signal ERRIE, CCFIE, ERRC, CCFC : std_logic;
@@ -261,6 +263,7 @@ end generate;
  process(Clock)
  
  variable configReg : std_logic_vector(DATA_WIDTH-1 downto 0);
+ variable destAddrVar, sourceAddrVar : std_logic_vector(DATA_WIDTH-1 downto 0);
  
  begin
  if rising_edge(Clock) then
@@ -276,6 +279,7 @@ end generate;
             WRERR(i) <= '0';
             RDERR(i) <= '0';
             CCF(i) <= '0';
+            dataCount(i) <= (others => '0');
         end loop;
     else
         -- Check all channels if CCF  should be cleared
@@ -315,28 +319,36 @@ end generate;
                     if configReg(CR_POS_MODE) = MODE_KEYEXPANSION or (configReg(CR_POS_CHMODE) = CHAINING_MODE_GCM and configReg(CR_POS_GCMPHASE) = GCM_PHASE_INIT) then
                         EnICore <= '1';
                         state <= Computing;
-                        dataCounter <= (others => '0'); -- TODO necessary?
+                        dataSize <= (others => '0'); -- TODO necessary?
                     else
                         -- start read data transaction;  
                         -- Read addresses and datasize from memory register depending on Endianness
                         if not LITTLE_ENDIAN then 
-                            destAddress     <= mem(GetChannelAddr(highestChannel, ADDR_DOUTADDR));
-                            sourceAddress   <= mem(GetChannelAddr(highestChannel, ADDR_DINADDR));
-                            RW_addr         <= mem(GetChannelAddr(highestChannel, ADDR_DINADDR)); -- set RW_addr to sourceAddress
-                            dataCounter     <= mem(GetChannelAddr(highestChannel, ADDR_DATASIZE));
+                            destAddrVar     := mem(GetChannelAddr(highestChannel, ADDR_DOUTADDR));
+                            sourceAddrVar   := mem(GetChannelAddr(highestChannel, ADDR_DINADDR));
+                            dataSize        <= mem(GetChannelAddr(highestChannel, ADDR_DATASIZE));
                         else
                             for i in 3 downto 0 loop
-                                destAddress(i*8+7 downto i*8)   <= mem(GetChannelAddr(highestChannel, ADDR_DOUTADDR))((3-i)*8+7 downto (3-i)*8);
-                                sourceAddress(i*8+7 downto i*8) <= mem(GetChannelAddr(highestChannel, ADDR_DINADDR))((3-i)*8+7 downto (3-i)*8);
-                                RW_addr(i*8+7 downto i*8)       <= mem(GetChannelAddr(highestChannel, ADDR_DINADDR))((3-i)*8+7 downto (3-i)*8); -- set RW_addr to sourceAddress
-                                dataCounter(i*8+7 downto i*8)   <= mem(GetChannelAddr(highestChannel, ADDR_DATASIZE))((3-i)*8+7 downto (3-i)*8);
+                                destAddrVar(i*8+7 downto i*8)   := mem(GetChannelAddr(highestChannel, ADDR_DOUTADDR))((3-i)*8+7 downto (3-i)*8);
+                                sourceAddrVar(i*8+7 downto i*8) := mem(GetChannelAddr(highestChannel, ADDR_DINADDR))((3-i)*8+7 downto (3-i)*8);
+                                dataSize(i*8+7 downto i*8)      <= mem(GetChannelAddr(highestChannel, ADDR_DATASIZE))((3-i)*8+7 downto (3-i)*8);
                             end loop;
                         end if;
-                        -- Make sure dataCounter is divisible by 16
-                        dataCounter(3 downto 0) <= (others => '0');
-                        RW_write <= '0';
-                        RW_valid <= '1';
-                        state <= Fetch;
+                         -- Make sure dataCounter is divisible by 16
+                        dataSize(3 downto 0) <= (others => '0');
+                        
+                        -- add dataCount to addresses
+                        destAddrVar := std_logic_vector(unsigned(destAddrVar) + unsigned(dataCount(highestChannel)));
+                        sourceAddrVar := std_logic_vector(unsigned(sourceAddrVar) + unsigned(dataCount(highestChannel)));
+                        destAddress <= destAddrVar;
+                        sourceAddress <= sourceAddrVar;
+                        
+                        -- perform the read request
+                        -- set RW addr to source address
+                        RW_addr         <= sourceAddrVar; -- set RW_addr to sourceAddress
+                        RW_write        <= '0';
+                        RW_valid        <= '1';
+                        state           <= Fetch;
                     end if;
                 end if;
             when Fetch =>
@@ -391,21 +403,24 @@ end generate;
                     state <= Idle; 
                     WRERR(channel) <= WRERR(channel) or M_RW_error; -- TODO remove OR
                     
-                    if unsigned(dataCounter) <= to_unsigned(16, dataCounter'LENGTH) then
-                        -- Computation complete;  set interrupt and CCF
+                    -- increment dataCount of this channel
+                    dataCount(channel) <= std_logic_vector(unsigned(dataCount(channel)) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
+                    
+                    -- check if computation is complete
+                    if (unsigned(dataSize) - unsigned(dataCount(channel))) <= to_unsigned(16, dataSize'LENGTH) then
+                        -- Computation complete;  set interrupt and CCF, reset dataCount
+                        dataCount(channel) <= (others => '0');
                         CCF(channel) <= '1';
                         interrupt(channel) <= CCFIE;  -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0
-                        
+                                  
                     -- if there are more datablocks to process and the channel still has the highest priority, continue with fetch
                     elsif channel = highestChannel then
                         -- Not complete; Fetch next data block
-                        -- increment dest and source address
+                        -- increment addresses
                         destAddress <= std_logic_vector(unsigned(destAddress) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
                         sourceAddress <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
-                        dataCounter <= std_logic_vector(unsigned(dataCounter) - to_unsigned(KEY_SIZE/8, dataCounter'LENGTH));
                         -- set RW_addr to new source address
-                        RW_addr <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
-                        
+                        RW_addr <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));           
                         RW_valid <= '1'; -- new memory request
                         RW_write <= '0';
                         state <= Fetch;
