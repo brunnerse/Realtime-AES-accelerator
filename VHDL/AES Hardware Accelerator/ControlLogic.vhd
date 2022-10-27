@@ -164,7 +164,7 @@ signal mem : mem_type;
 -- The current channel
 signal channel : channel_range;
 -- The channel with the highest priority that is active
-signal highestChannel : channel_range;
+signal highestChannel, nextHighestChannel: channel_range;
 -- the priorities of each channel
 type priority_arr_type is array (channel_range) of std_logic_vector(NUM_PRIORITY_BITS-1 downto 0);
 signal Priority : priority_arr_type;
@@ -217,6 +217,7 @@ prevCCF <= CCF when rising_edge(Clock);
 --BUSY(channel) <= '0' when state = Idle else '1';
 
 -- Read key, IV, Susp and H from memory
+-- TODO in Idle-Zustand des Prozesses laden? Vermeidet concurrent statement
 GenSignals:
 for i in 0 to 3 generate -- TODO get channel and IV from highestChannel instead of channel? This could help making a smaller delay
 key(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_KEYR0 + i*4));
@@ -226,37 +227,41 @@ H(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_SUSPR4 + i*4));
 end generate;
 
 
--- driver process for highestChannel
--- In each cycle, this process finds the enabled channel with the highest priority
+-- driver process for nextHighestChannel
+-- In each cycle, this process finds the enabled channel with the highest priority that is not currently active
 -- if no channel is enabled, channel 0 is selected
--- if multiple channels share the highest priority, the one already running is selected
---process(Clock)
+process(Clock)
 
---variable bestChannel : channel_range;
---variable bestPriority : std_logic_vector(NUM_PRIORITY_BITS-1 downto 0);
---begin
---if rising_edge(Clock) then
---    if Resetn = '0' then
---        highestChannel <= 0;
---    else
-        -- do linear search for the channel with the highest priority
+variable bestChannel : channel_range;
+variable bestPriority : std_logic_vector(NUM_PRIORITY_BITS-1 downto 0);
+
+begin
+if rising_edge(Clock) then
+    if Resetn = '0' then
+        nextHighestChannel <= 0;
+    else
+       -- do linear search for the channel with the highest priority
         
-        -- This will ensure that for two channels with the same priority, the one already running will be selected
-        --  TODO rather choose the channel with the lower index? In that case, I set bestChannel to 0 and can skip 0 in the for loop 
---        bestChannel := channel; 
---        bestPriority := Priority(channel); 
-
---        for i in 0 to NUM_CHANNELS-1 loop
+        --  TODO for two channels with the same priority, prefer the one already running or the one with the lower index? Currently lower index 
+        if channel /= 0 or NUM_CHANNELS = 1 then
+            bestChannel := 0; 
+            bestPriority := Priority(0); 
+        else
+            bestChannel := 1;
+            bestPriority := Priority(1);
+        end if;
+        for i in 0 to NUM_CHANNELS-1 loop
             -- Change bestChannel if the new channel is enabled and has a higher priority, or if bestChannel is disabled
---            if En(i) = '1' and (Priority(i) > bestPriority or En(bestChannel) = '0') then
---                bestChannel := i;
---                bestPriority := Priority(i);
---            end if;
---        end loop;
---        highestChannel <= bestChannel;
---    end if;
---end if;
---end process;
+            if i /= channel and En(i) = '1' and ( unsigned(Priority(i)) > unsigned(bestPriority) or En(bestChannel) = '0') then
+                bestChannel := i;
+                bestPriority := Priority(i);
+            end if;
+        end loop;
+        
+        nextHighestChannel <= bestChannel;
+    end if;
+end if;
+end process;
 
  -- process that handles the data fetching, computing and writing back
  -- this process drives the Control signals and channel
@@ -450,13 +455,9 @@ if rising_edge(Clock) then
 end if;
 end process;
 
--- write process; also drives Priority, En and highestChannel signals
+-- write process;
 process (Clock)
 variable channelIdx : integer;
-
--- variables for linear search for channel with highest priority
-variable bestChannel : channel_range;
-variable bestPriority : std_logic_vector(Priority(0)'RANGE);
 
 begin
 if rising_edge(Clock) then
@@ -470,24 +471,14 @@ if rising_edge(Clock) then
         end loop;
         highestChannel <= channel_range'LOW;
     else
-        -- Reset the enable bit and reset the susp register once CCF switches to 1 (i.e. channel is finished)
+        -- Check if channel is finished: Reset the enable bit and reset the susp register
         if CCF(channel) = '1' and prevCCF(channel) = '0' then -- TODO check if this works even with context switch
-            En(channel) <= '0';
-            -- select new highestChannel with highest priority
-            bestChannel := 0; 
-            bestPriority := Priority(0);  -- TODO Idee: Separater Prozess, der immer den zweitbesten Prozess auswählt. Das kann auch mehrere Takte dauern
-            for i in 1 to NUM_CHANNELS-1 loop
-                -- Change bestChannel if the new channel is enabled and has a higher priority, or if bestChannel is disabled
-                if i /= channel and En(i) = '1' and (unsigned(Priority(i)) > unsigned(bestPriority) or En(bestChannel) = '0') then
-                    bestChannel := i;
-                    bestPriority := Priority(i);
-                end if;
-            end loop;
-            highestChannel <= bestChannel;
-
-            -- We could skip the write back to mem and the ControlLogic unit would still work, only the memory would be inconsistent
+            -- Set En to 0 and write back to memory
             mem(GetChannelAddr(channel, ADDR_CR))(CR_POS_EN) <= '0';
-
+            En(channel) <= '0';
+            -- TODO test if I can do the search directly here; maybe separate driver process for highestChannel?
+            -- set highest channel
+            highestChannel <= nextHighestChannel;
             -- Clear susp register, so it is 0 for the next run. 
             -- SUSPR4 - SUSPR7 are not necessary, as they are overwritten in the GCM init phase.
             for i in ADDR_SUSPR0/4 to ADDR_SUSPR3/4 loop
@@ -502,15 +493,20 @@ if rising_edge(Clock) then
                     mem(to_integer(unsigned(WrAddr1(addr_range))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
                 end if;
            end loop;
-            -- if the write was to a control register, copy the written data to priority and En
+           -- Set enable and priority signals if it was a write to the CR register
            if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH)(addr_register_range)) then
-                channelIdx := to_integer(unsigned(WrAddr1(addr_channel_range)));
-                -- TODO in driver, make sure that the CR register is always accessed only with 32 bit, i.e. WrStrb = 1111
-                En(channelIdx) <= WrData1(CR_POS_EN);
-                Priority(channelIdx) <= WrData1(CR_POS_PRIORITY);
-                -- If channel is enabled and priority is higher than the one with the highest priority (or highestChannel is disabled), change highestChannel
-                if WrData1(CR_POS_EN) = '1' and (unsigned(WrData1(CR_POS_PRIORITY)) > unsigned(Priority(highestChannel)) or En(highestChannel) = '0') then -- TODO also check CCF(highestChannel) for that one cycle?
-                    highestChannel <= channelIdx;
+                channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
+                if WrStrb1(0) = '1' then
+                    En(channelIdx) <= WrData1(CR_POS_EN);
+                end if;
+                if WrStrb1(2) = '1' then
+                    Priority(channelIdx) <= WrData1(CR_POS_PRIORITY);
+                end if;
+                -- Update highest Channel if the update channel has a higher priority than the current one 
+                if WrData1(CR_POS_EN) = '1' and
+                 ( unsigned(WrData1(CR_POS_PRIORITY)) > unsigned(Priority(highestChannel)) 
+                    or En(highestChannel) = '0' or CCF(highestChannel) = '1' )then -- highestChannel has completed or completed this cycle
+                       highestChannel <= channelIdx;
                 end if;
            end if;
         end if;
