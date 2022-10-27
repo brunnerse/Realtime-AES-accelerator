@@ -54,9 +54,10 @@ signal WrDataCore : std_logic_vector(KEY_SIZE-1 downto 0);
 
 
 signal CL_ready, CL_valid : std_logic;
+signal CL_rdData : std_logic_vector(DATA_WIDTH-1 downto 0);
 
-signal mode : std_logic_vector(MODE_LEN-1 downto 0) := MODE_KEYEXPANSION_AND_DECRYPTION;
-signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0) := CHAINING_MODE_CBC;
+signal mode : std_logic_vector(MODE_LEN-1 downto 0) := MODE_ENCRYPTION;
+signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0) := CHAINING_MODE_ECB;
 signal GCMPhase : std_logic_vector(1 downto 0) := GCM_PHASE_INIT;
 
 
@@ -72,7 +73,7 @@ i_ControlLogic : entity work.ControlLogic(Behavioral)
     port map(
         M_RW_ready => CL_ready,
         M_RW_valid => CL_valid,
-        M_RW_rdData => (others => '0'),
+        M_RW_rdData => testPlaintext,
         M_RW_error => '0',
         
         Clock => Clock,
@@ -114,6 +115,14 @@ end process;
 process begin
 -- write to ControlLogic
 wait until Resetn = '1';
+-- set key
+WrEnAHB <= '1';
+for i in 0 to 3 loop
+    WrDataAHB <= testKey(127-(3-i)*32 downto 96 - (3-i)*32);
+    WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_KEYR0, ADDR_WIDTH) + CHANNEL_3_OFFSET + i*4);
+    wait for 10ns;
+end loop;
+WrEnAHB <= '0';
 -- set data size
 WrEnAHB <= '1';
 WrDataAHB <= x"30000000"; 
