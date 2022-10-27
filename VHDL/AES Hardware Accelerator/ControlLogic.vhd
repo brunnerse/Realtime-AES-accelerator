@@ -218,57 +218,33 @@ prevCCF <= CCF when rising_edge(Clock);
 
 -- Read key, IV, Susp and H from memory
 -- TODO in Idle-Zustand des Prozesses laden? Vermeidet concurrent statement
-GenSignals:
-for i in 0 to 3 generate -- TODO get channel and IV from highestChannel instead of channel? This could help making a smaller delay
-key(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_KEYR0 + i*4));
-IV (127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_IVR0 + i*4));
-Susp(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_SUSPR0 + i*4)); -- TODO funktioniert noch nicht ganz!
-H(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_SUSPR4 + i*4));
-end generate;
+--GenSignals:
+--for i in 0 to 3 generate -- TODO get channel and IV from highestChannel instead of channel? This could help making a smaller delay
+--key(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_KEYR0 + i*4));
+--IV (127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_IVR0 + i*4));
+--Susp(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_SUSPR0 + i*4)); -- TODO funktioniert noch nicht ganz!
+--H(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_SUSPR4 + i*4));
+--end generate;
 
 
--- driver process for nextHighestChannel
--- In each cycle, this process finds the enabled channel with the highest priority that is not currently active
--- if no channel is enabled, channel 0 is selected
-process(Clock)
 
-variable bestChannel : channel_range;
-variable bestPriority : std_logic_vector(NUM_PRIORITY_BITS-1 downto 0);
-
-begin
-if rising_edge(Clock) then
-    if Resetn = '0' then
-        nextHighestChannel <= 0;
-    else
-       -- do linear search for the channel with the highest priority
-        
-        --  TODO for two channels with the same priority, prefer the one already running or the one with the lower index? Currently lower index 
-        if channel /= 0 or NUM_CHANNELS = 1 then
-            bestChannel := 0; 
-            bestPriority := Priority(0); 
-        else
-            bestChannel := 1;
-            bestPriority := Priority(1);
-        end if;
-        for i in 0 to NUM_CHANNELS-1 loop
-            -- Change bestChannel if the new channel is enabled and has a higher priority, or if bestChannel is disabled
-            if i /= channel and En(i) = '1' and ( unsigned(Priority(i)) > unsigned(bestPriority) or En(bestChannel) = '0') then
-                bestChannel := i;
-                bestPriority := Priority(i);
-            end if;
-        end loop;
-        
-        nextHighestChannel <= bestChannel;
-    end if;
-end if;
-end process;
 
  -- process that handles the data fetching, computing and writing back
  -- this process drives the Control signals and channel
- process(Clock)
- 
- variable configReg : std_logic_vector(DATA_WIDTH-1 downto 0);
- variable destAddrVar, sourceAddrVar : std_logic_vector(DATA_WIDTH-1 downto 0);
+process(Clock)
+
+variable configReg : std_logic_vector(DATA_WIDTH-1 downto 0);
+variable destAddrVar, sourceAddrVar : std_logic_vector(DATA_WIDTH-1 downto 0);
+
+procedure UpdateCoreSignals(ch : channel_range) is 
+begin
+for i in 3 downto 0 loop
+    key(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(ch, ADDR_KEYR0 + i*4));
+    IV (127-i*32 downto 96-i*32) <= mem(GetChannelAddr(ch, ADDR_IVR0 + i*4));
+    Susp(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(ch, ADDR_SUSPR0 + i*4));
+    H(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(ch, ADDR_SUSPR4 + i*4));
+end loop;
+end procedure;
  
  begin
  if rising_edge(Clock) then
@@ -300,8 +276,11 @@ end process;
                 configReg := mem(GetChannelAddr(highestChannel, ADDR_CR)); 
                 -- switch channel to highestChannel
                 channel <= highestChannel;
+                -- update core signals
+                UpdateCoreSignals(highestChannel);
                 -- start if the Enable signal switched to high or the channel changed
                 if En(highestChannel) = '1' and (prevEn(highestChannel) = '0' or channel /= highestChannel) then
+                
                     -- copy configuration signals
                     
                     -- if mode is decryption but the channel has changed, the keyexpansion data aren't valid anymore 
@@ -370,6 +349,8 @@ end process;
                         DIN <= M_RW_rdData;
                         -- start core
                         EnICore <= '1';
+                        -- update core signals before starting the core
+                        UpdateCoreSignals(channel);
                         state <= Computing;
                     end if;
                 end if;
