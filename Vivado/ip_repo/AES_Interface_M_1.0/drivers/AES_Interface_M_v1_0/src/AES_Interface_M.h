@@ -72,12 +72,16 @@ void AES_SetInterruptEnabled(AES* InstancePtr, u32 channel, u32 en);
 void AES_SetIV(AES* InstancePtr, u32 channel, u8 *IV, u32 IVLen);
 void AES_SetSusp(AES* InstancePtr, u32 channel, u8 Susp[BLOCK_SIZE*2]);
 
-void AES_GetSusp(AES* InstancePtr, u32 channel, u8 outSusp[BLOCK_SIZE*2]);
+
 void AES_GetKey(AES *InstancePtr, u32 channel, u8 outKey[BLOCK_SIZE]);
 Mode AES_GetMode(AES *InstancePtr, u32 channel);
 ChainingMode AES_GetChainingMode(AES* InstancePtr, u32 channel);
-u32 AES_GetPriority(AES* InstancePtr, u32 channel);
 GCMPhase AES_GetGCMPhase(AES* InstancePtr, u32 channel);
+u32 AES_GetPriority(AES* InstancePtr, u32 channel);
+u32 AES_GetInterruptEnabled(AES* InstancePtr, u32 channel);
+void AES_GetIV(AES* InstancePtr, u32 channel, u8 outIV[BLOCK_SIZE]);
+void AES_GetSusp(AES* InstancePtr, u32 channel, u8 outSusp[BLOCK_SIZE*2]);
+
 u32 AES_isActive(AES* InstancePtr, u32 channel);
 
 
@@ -110,6 +114,8 @@ int AES_isComputationCompleted(AES* InstancePtr, u32 channel);
 // blocks until computation is completed
 void AES_waitUntilCompleted(AES* InstancePtr, u32 channel);
 
+
+u32 AES_GetError(AES* InstancePtr, u32 channel);
 // clears the flag indicating that the computation has completed.
 // This should be unnecessary, as the flag is cleared automatically when a new computation starts
 void AES_clearCompletedStatus(AES* InstancePtr, u32 channel);

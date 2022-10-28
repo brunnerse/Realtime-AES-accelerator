@@ -32,6 +32,8 @@
 #define CCFC_POS 31
 #define PRIORITY_POS 16
 #define SR_CCF_POS 24
+#define SR_WRERR_POS 26
+#define SR_RDERR_POS 25
 #define MODE_GCM_IV_INIT 0x02000000
 #define MODE_GCM_IV_FINAL 0x01000000
 #else
@@ -45,6 +47,8 @@
 #define GCM_PHASE_POS 13
 #define CCFC_POS 7
 #define SR_CCF_POS 1
+#define SR_WRERR_POS 3
+#define SR_RDERR_POS 2
 #define MODE_GCM_IV_INIT 0x00000002
 #define MODE_GCM_IV_FINAL 0x00000001
 #endif
@@ -60,6 +64,8 @@
 #define CCFC_LEN 1
 #define PRIORITY_LEN 3 // TODO!
 #define SR_CCF_LEN 1
+#define SR_WRERR_LEN 1
+#define SR_RDERR_LEN 1
 
 
 /**************************   Private variables **********************/
@@ -210,6 +216,12 @@ void AES_GetSusp(AES* InstancePtr, u32 channel, u8 outSusp[BLOCK_SIZE*2])
 		*(u32*)(outSusp+i) = AES_Read(InstancePtr, channel, AES_SUSPR0_OFFSET+i);
 }
 
+void AES_GetIV(AES* InstancePtr, u32 channel, u8 outIV[BLOCK_SIZE])
+{
+	for (u32 i = 0; i < BLOCK_SIZE; i+=4)
+		*(u32*)(outIV+i) = AES_Read(InstancePtr, channel, AES_IVR0_OFFSET+i);
+}
+
 void AES_GetKey(AES *InstancePtr, u32 channel, u8 outKey[BLOCK_SIZE])
 {
    for (int i = 0; i < BLOCK_SIZE; i+=4)
@@ -243,11 +255,18 @@ u32 AES_GetPriority(AES* InstancePtr, u32 channel)
     return getBits(cr, PRIORITY_POS, PRIORITY_LEN);
 }
 
+u32 AES_GetInterruptEnabled(AES* InstancePtr, u32 channel)
+{
+	u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
+    return getBits(cr, CCFIE_POS, CCFIE_LEN);
+}
+
+
 /**
- * @brief Whether the AES unit has a pending computation job
+ * @brief Whether the AES unit has a pending computation job for this channel
  * 
  * @param InstancePtr 
- * @return u32 
+ * @return u32 1 when active, 0 when inactive
  */
 u32 AES_isActive(AES* InstancePtr, u32 channel)
 {
@@ -396,6 +415,21 @@ int AES_isComputationCompleted(AES* InstancePtr, u32 channel)
 {
 	xil_printf("Status register: %x\n\r", AES_Read(InstancePtr, channel, AES_SR_OFFSET));
 	return getBits(AES_Read(InstancePtr, channel, AES_SR_OFFSET), SR_CCF_POS, SR_CCF_LEN);
+}
+
+/*****************************************************************************/
+/**
+ * This function gets the error bits in the status.
+ *
+ * @param	InstancePtr is the driver instance we are working on
+ *
+ * @return	The error bits in the status register. Zero indicates no errors.
+ *
+ *****************************************************************************/
+u32 AES_GetError(AES* InstancePtr, u32 channel)
+{
+	// TODO besser zwischen RDERR und WRERR differenzieren?
+	return getBits(AES_Read(InstancePtr, channel, AES_SR_OFFSET), (SR_WRERR_POS > SR_RDERR_POS ? SR_WRERR_POS : SR_RDERR_POS), SR_WRERR_LEN + SR_RDERR_LEN);
 }
 
 
