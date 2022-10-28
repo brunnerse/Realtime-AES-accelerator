@@ -217,7 +217,7 @@ prevCCF <= CCF when rising_edge(Clock);
 --BUSY(channel) <= '0' when state = Idle else '1';
 
 -- Read key, IV, Susp and H from memory
--- TODO in Idle-Zustand des Prozesses laden? Vermeidet concurrent statement
+-- TODO Klappt Timing auch mit concurrent statements?
 --GenSignals:
 --for i in 0 to 3 generate -- TODO get channel and IV from highestChannel instead of channel? This could help making a smaller delay
 --key(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_KEYR0 + i*4));
@@ -263,9 +263,9 @@ end procedure;
             dataCount(i) <= (others => '0');
         end loop;
     else
-        -- Check all channels if CCF  should be cleared
+        -- Check all channels if CCF  should be cleared;  either user flag is set or channel was just enabled
         for i in channel_range loop
-            if mem(GetChannelAddr(i, ADDR_CR))(CR_POS_CCFC) = '1' then
+            if mem(GetChannelAddr(i, ADDR_CR))(CR_POS_CCFC) = '1' or (En(i) = '1' and prevEn(i) = '0') then
                 CCF(i) <= '0';
             end if;
         end loop;
@@ -296,8 +296,6 @@ end procedure;
                     CCFIE <= configReg(CR_POS_CCFIE);
                     ERRC <= configReg(CR_POS_ERRC); 
 
-                    -- reset CCF
-                    CCF(highestChannel) <= '0';
                     -- If mode is keyexpansion or the GCM init mode, start the AES Core immediately, no data reading required
                     -- need to read from configReg instead of the signals, as the signals only update after the process
                     if configReg(CR_POS_MODE) = MODE_KEYEXPANSION or (configReg(CR_POS_CHMODE) = CHAINING_MODE_GCM and configReg(CR_POS_GCMPHASE) = GCM_PHASE_INIT) then
