@@ -434,7 +434,8 @@ if rising_edge(Clock) then
 end if;
 end process;
 
--- write process;
+-- write process
+-- drives the En and Priority signals; if there's a write to the CR register, it copies the values to En and Priority
 process (Clock)
 variable channelIdx : integer;
 
@@ -448,16 +449,12 @@ if rising_edge(Clock) then
             En(i) <= '0';
             Priority(i) <= (others => '0');
         end loop;
-        highestChannel <= channel_range'LOW;
     else
         -- Check if channel is finished: Reset the enable bit and reset the susp register
         if CCF(channel) = '1' and prevCCF(channel) = '0' then -- TODO check if this works even with context switch
             -- Set En to 0 and write back to memory
             mem(GetChannelAddr(channel, ADDR_CR))(CR_POS_EN) <= '0';
             En(channel) <= '0';
-            -- TODO test if I can do the search directly here; maybe separate driver process for highestChannel?
-            -- set highest channel
-            highestChannel <= nextHighestChannel;
             -- Clear susp register, so it is 0 for the next run. 
             -- SUSPR4 - SUSPR7 are not necessary, as they are overwritten in the GCM init phase.
             for i in ADDR_SUSPR0/4 to ADDR_SUSPR3/4 loop
@@ -475,18 +472,13 @@ if rising_edge(Clock) then
            -- Set enable and priority signals if it was a write to the CR register
            if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH)(addr_register_range)) then
                 channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
-                if WrStrb1(0) = '1' then
+                -- TODO prevent WriteStrobes other than 1111 for CR register in driver
+                --if WrStrb1(0) = '1' then
                     En(channelIdx) <= WrData1(CR_POS_EN);
-                end if;
-                if WrStrb1(2) = '1' then
+                --end if;
+                --if WrStrb1(2) = '1' then
                     Priority(channelIdx) <= WrData1(CR_POS_PRIORITY);
-                end if;
-                -- Update highest Channel if the update channel has a higher priority than the current one 
-                if WrData1(CR_POS_EN) = '1' and
-                 ( unsigned(WrData1(CR_POS_PRIORITY)) > unsigned(Priority(highestChannel)) 
-                    or En(highestChannel) = '0' or CCF(highestChannel) = '1' )then -- highestChannel has completed or completed this cycle
-                       highestChannel <= channelIdx;
-                end if;
+                --end if;
            end if;
         end if;
         -- Write port 2 (from the AES Core)
@@ -500,6 +492,77 @@ if rising_edge(Clock) then
     end if;
 end if;
 end process;
+
+
+-- driver process for nextHighestChannel
+-- In each cycle, this process finds the enabled channel with the highest priority that is not currently active
+-- if no channel is enabled, channel 0 is selected
+process(Clock)
+
+variable checkedChannel : channel_range; -- TODO make a signal
+variable channelIdx : channel_range;
+variable runSearch : boolean;
+
+begin
+if rising_edge(Clock) then
+    if Resetn = '0' then
+        highestChannel <= channel_range'LOW;
+        nextHighestChannel <= channel_range'LOW;
+        checkedChannel := channel_range'LOW;
+        runSearch := false;
+    else
+         -- Check if highestChannel is finished, in that case set highestChannel to the next highest Channel
+        if CCF(highestChannel) = '1' then
+            -- do nothing until runSearch is false (i.e. search finished)
+            if not runSearch then
+                 highestChannel <= nextHighestChannel;
+                 runSearch := true;
+                 checkedChannel := channel_range'LOW;
+            end if;
+        end if;
+        if runSearch or checkedChannel /= channel_range'LOW then
+            -- continuously search for the second highest channel, one check per cycle
+            if checkedChannel /= highestChannel and En(checkedChannel) = '1' then
+                if ( unsigned(Priority(checkedChannel)) > unsigned(Priority(nextHighestChannel))) or En(nextHighestChannel) = '0' then
+                    nextHighestChannel <= checkedChannel;
+                end if;
+            end if;
+            -- increment checkedChannel
+            if checkedChannel = channel_range'HIGH then
+                checkedChannel := channel_range'LOW;
+                runSearch := false;
+            else
+                checkedChannel := checkedChannel + 1;
+            end if;
+        end if;
+
+        -- check if a new write to CR happened
+        if WrEn1 = '1' and WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH)(addr_register_range)) then
+                channelIdx := to_integer(unsigned(WrAddr1(addr_channel_range)));
+                -- Update highest Channel if the update channel has a higher priority than the current one 
+                -- check if channel is now enabled
+                if WrData1(CR_POS_EN) = '1' then
+                    -- Make this channel the highest channel if it has a higher priority or the highest channel has finished / is finished TODO is checking for En and CCF correct?
+                    if unsigned(WrData1(CR_POS_PRIORITY)) > unsigned(Priority(highestChannel)) then
+                        nextHighestChannel <= highestChannel;
+                        highestChannel <= channelIdx;
+                    elsif En(highestChannel) = '0' or CCF(highestChannel) = '1' then
+                        if unsigned(WrData1(CR_POS_PRIORITY)) > unsigned(Priority(highestChannel)) or En(nextHighestChannel) = '0' then
+                               highestChannel <= channelIdx;
+                               nextHighestChannel <= nextHighestChannel;
+                        end if;            
+                    elsif unsigned(WrData1(CR_POS_PRIORITY)) > unsigned(Priority(nextHighestChannel)) or En(nextHighestChannel) = '0' then 
+                        --nextHighestChannel <= channelIdx;
+                        -- restart the search for the next highest channel
+                        runSearch := true;
+                        checkedChannel := channel_range'LOW;
+                    end if;
+                end if;
+         end if;
+    end if;
+end if;
+end process;
+
 
 
 end Behavioral;
