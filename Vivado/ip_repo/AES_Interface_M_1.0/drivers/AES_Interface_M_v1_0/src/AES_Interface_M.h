@@ -76,7 +76,7 @@ void AES_GetSusp(AES* InstancePtr, u32 channel, u8 outSusp[BLOCK_SIZE*2]);
 void AES_GetKey(AES *InstancePtr, u32 channel, u8 outKey[BLOCK_SIZE]);
 Mode AES_GetMode(AES *InstancePtr, u32 channel);
 ChainingMode AES_GetChainingMode(AES* InstancePtr, u32 channel);
-void AES_GetPriority(AES* InstancePtr, u32 channel);
+u32 AES_GetPriority(AES* InstancePtr, u32 channel);
 GCMPhase AES_GetGCMPhase(AES* InstancePtr, u32 channel);
 u32 AES_isActive(AES* InstancePtr, u32 channel);
 

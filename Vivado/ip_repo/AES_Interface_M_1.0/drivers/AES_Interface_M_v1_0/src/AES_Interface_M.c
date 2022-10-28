@@ -237,7 +237,7 @@ GCMPhase AES_GetGCMPhase(AES* InstancePtr, u32 channel)
     return (GCMPhase)getBits(cr, GCM_PHASE_POS, GCM_PHASE_LEN);
 }
 
-void AES_GetPriority(AES* InstancePtr, u32 channel)
+u32 AES_GetPriority(AES* InstancePtr, u32 channel)
 {
     u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
     return getBits(cr, PRIORITY_POS, PRIORITY_LEN);
@@ -403,16 +403,15 @@ int AES_isComputationCompleted(AES* InstancePtr, u32 channel)
 
 s32 AES_SetInterruptRoutine(AES* InstancePtr, u32 channel, XScuGic* InterruptCtrlPtr, AES_InterruptHandler interruptRoutine)
 {
-	// TODO nur der Interrupt für diesen Channel!
 	s32 status = XST_SUCCESS;
-
+	u32 IRQSourceNumber =  XPAR_FABRIC_CONTROLLOGIC_0_INTERRUPT_0_INTR + channel;
 	// Set the priority of the interrupt to 0xA0 (highest 0xF8, lowest 0x00) and a trigger for a rising edge 0x3
-	XScuGic_SetPriorityTriggerType(InterruptCtrlPtr, XPAR_FABRIC_CONTROLLOGIC_0_INTERRUPT_INTR, 0xA0, 0x3);
+	XScuGic_SetPriorityTriggerType(InterruptCtrlPtr, IRQSourceNumber, 0xA0, 0x3);
 	// Connect a device driver handler that will be called when an interrupt for the device occurs
 	// the device driver handler performs the specific interrupt processing for the device
-	status |= XScuGic_Connect(InterruptCtrlPtr, XPAR_FABRIC_CONTROLLOGIC_0_INTERRUPT_INTR, (Xil_ExceptionHandler)interruptRoutine, InstancePtr);
+	status |= XScuGic_Connect(InterruptCtrlPtr, IRQSourceNumber, (Xil_ExceptionHandler)interruptRoutine, InstancePtr);
 	// Enable the interrupt for the ControlLogic peripheral
-	XScuGic_Enable(InterruptCtrlPtr, XPAR_FABRIC_CONTROLLOGIC_0_INTERRUPT_INTR);
+	XScuGic_Enable(InterruptCtrlPtr, IRQSourceNumber);
 
 	AES_SetInterruptEnabled(InstancePtr, channel, 1);
 	return status;
