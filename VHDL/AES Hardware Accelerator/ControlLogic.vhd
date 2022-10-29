@@ -263,10 +263,16 @@ end procedure;
             dataCount(i) <= (others => '0');
         end loop;
     else
-        -- Check all channels if CCF  should be cleared;  either user flag is set or channel was just enabled
+        -- Check all channels if the status flags should be cleared
         for i in channel_range loop
+            -- Check if CCF  should be cleared, either because the user flag is set or the channel was just enabled
             if mem(GetChannelAddr(i, ADDR_CR))(CR_POS_CCFC) = '1' or (En(i) = '1' and prevEn(i) = '0') then
                 CCF(i) <= '0';
+            end if;
+           -- Clear error signals when channel is enabled
+            if (En(i) = '1' and prevEn(i) = '0') then
+                RDERR(i) <= '0';
+                WRERR(i) <= '0';
             end if;
         end loop;
              
@@ -338,8 +344,8 @@ end procedure;
                 if M_RW_ready = '1' then
                     -- reset valid signal
                     RW_valid <= '0';
-                    RDERR(channel) <= RDERR(channel) or M_RW_error; -- TODO remove or
-                    -- check if channel changed, if yes return to Idle state
+                    RDERR(channel) <= RDERR(channel) or M_RW_error;
+                    -- check if channel changed, if yes abort and return to Idle state without starting the core
                     if channel /= highestChannel then -- TODO should I be able to stop after fetch?
                         state <= Idle;
                     else
@@ -385,7 +391,7 @@ end procedure;
                          
                     RW_valid <= '0';
                     state <= Idle; 
-                    WRERR(channel) <= WRERR(channel) or M_RW_error; -- TODO remove OR
+                    WRERR(channel) <= WRERR(channel) or M_RW_error;
                     
                     -- increment dataCount of this channel
                     dataCount(channel) <= std_logic_vector(unsigned(dataCount(channel)) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
