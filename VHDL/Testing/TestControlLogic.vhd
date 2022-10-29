@@ -42,6 +42,7 @@ architecture Behavioral of TestControlLogic is
 constant channel : unsigned(2 downto 0) := "011";
 constant CHANNEL_3_OFFSET : unsigned(ADDR_WIDTH-1 downto 0) := channel & "0000000";
 constant CHANNEL_1_OFFSET : unsigned(ADDR_WIDTH-1 downto 0) := "001"   & "0000000";
+constant CHANNEL_6_OFFSET : unsigned(ADDR_WIDTH-1 downto 0) := "110"   & "0000000";
 
 signal Clock : std_logic := '1';
 signal Resetn : std_logic := '0';
@@ -170,13 +171,19 @@ wait for 10ns;
 RdEnAHB <= '0';
 WrEnAHB <= '0'; -- TODO stop write process earlier?
 wait for 50ns;
--- start new encryption in 3rd channel
+-- start new encryption in channel 3
 WrEnAHB <= '1';
 WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_3_OFFSET);
 WrDataAHB <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1';
 wait for 10ns;
 WrEnAHB <= '0';
-wait;
+wait for 50ns;
+-- start new encryption in channel 6
+WrEnAHB <= '1';
+WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_6_OFFSET);
+WrDataAHB <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1';
+wait for 10ns;
+WrEnAHB <= '0';
 end process;
 
 
