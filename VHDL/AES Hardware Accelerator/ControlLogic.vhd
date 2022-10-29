@@ -175,8 +175,7 @@ signal En, prevEn : std_logic_vector(channel_range);
 signal runSearch, waitForSearchEnd : boolean;
 
 -- status signals for each channel
--- TODO erase BUSY signal?
-signal BUSY, WRERR, RDERR, CCF : std_logic_vector(channel_range);
+signal WRERR, RDERR, CCF : std_logic_vector(channel_range);
 signal prevCCF : std_logic_vector(channel_range);
 
 type state_type is (Idle, Fetch, Computing, Writeback);
@@ -216,8 +215,6 @@ chaining_mode <= chainingModeSignal;
 -- store the En and CCF signal of the last cycle for each channel, so processes can check if it changed
 prevEn <= En when rising_edge(Clock);
 prevCCF <= CCF when rising_edge(Clock);
--- status register flag
---BUSY(channel) <= '0' when state = Idle else '1';
 
 -- Read key, IV, Susp and H from memory
 -- TODO Klappt Timing auch mit concurrent statements?
@@ -429,7 +426,7 @@ if rising_edge(Clock) then
         if RdAddr(addr_register_range) = std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)(addr_register_range)) then
             channelIdx := to_integer(unsigned(RdAddr(addr_channel_range)));
             RdData <= (others => '0');
-            RdData(3 downto 0) <= BUSY(channelIdx) & WRERR(channelIdx) & RDERR(channelIdx) & CCF(channelIdx);
+            RdData(2 downto 0) <= WRERR(channelIdx) & RDERR(channelIdx) & CCF(channelIdx);
         else
             RdData <= mem(to_integer(unsigned(RdAddr(addr_range))));
         end if;
