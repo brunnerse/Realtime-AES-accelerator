@@ -88,7 +88,7 @@ int main()
 		 * is enabled
 		 */
 		Xil_DCacheFlushRange((UINTPTR)SrcPtr, Length);
-		Xil_DCacheFlushRange((UINTPTR)DestPtr, Length);
+		//Xil_DCacheFlushRange((UINTPTR)DestPtr, Length);
 
 		Status = XAxiCdma_SimpleTransfer(&AxiCdmaInstance, (UINTPTR)SrcPtr,
 			(UINTPTR)DestPtr, BUFFER_BYTESIZE, NULL, NULL);
