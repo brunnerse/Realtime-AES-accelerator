@@ -278,22 +278,7 @@ begin
 	    end if;                                                            
 	  end process;                                                         
 	     
-	axi_awaddr <= S_RW_ADDR;
-	-- Next address after AWREADY indicates previous address acceptance    
-	--  process(M_AXI_ACLK)                                                  
-	 -- begin                                                                
-	 --   if (rising_edge (M_AXI_ACLK)) then                                 
-	 --     if (M_AXI_ARESETN = '0' or RW_valid_pulse = '1') then     	                              
-	 --          axi_awaddr <= S_RW_addr;                                 
-	 --     else                            
-	 --          -- increment awaddr after every write  TODO necessary/effective?                                 
-	 --       if (M_AXI_AWREADY= '1' and axi_awvalid = '1') then             
-	 --          axi_awaddr <= std_logic_vector(unsigned(axi_awaddr) + to_unsigned(C_M_AXI_DATA_WIDTH/8, C_M_AXI_ADDR_WIDTH));                 
-	 --       end if;                                                        
-	 --     end if;                                                          
-	 --  end if;                                                            
-	 -- end process;                                                         
-
+	axi_awaddr <= S_RW_ADDR;                                                   
 
 	----------------------
 	--Write Data Channel
@@ -307,11 +292,11 @@ begin
 	  process(M_AXI_ACLK)                                                               
 	  begin                                                                             
 	    if (rising_edge (M_AXI_ACLK)) then                                              
-	      if (M_AXI_ARESETN = '0') then  -- TODO also when S_RW_VALID is deasserted?                                                
+	      if (M_AXI_ARESETN = '0') then                                            
 	        axi_wvalid <= '0';                                                          
 	      else 
 		  	-- set wvalid to 1 at the start of the transfer                                                                        
-	        if (RW_valid_pulse =  '1' and S_RW_WRITE = '1') then      -- TODO warten, bis Adresse akzeptiert?                                 
+	        if (RW_valid_pulse =  '1' and S_RW_WRITE = '1') then                           
                   axi_wvalid <= '1'; 
 			-- deassert wvalid after the last write handshake                                                                     
 	        elsif (M_AXI_WREADY = '1' and axi_wvalid = '1' and axi_wlast = '1') then                                
@@ -418,20 +403,7 @@ begin
 	  end process;              
                    
 	                                                      
-	  axi_araddr <= S_RW_addr;
-	-- Next address after ARREADY indicates previous address acceptance  
-	--  process(M_AXI_ACLK)                                                
-	--  begin                                                              
-	--    if (rising_edge (M_AXI_ACLK)) then                               
-	--      if (M_AXI_ARESETN = '0' or RW_valid_pulse = '1' ) then                                 
-	--           axi_araddr <= S_RW_addr;                               
-	--      else                                                           
-	--        if (M_AXI_ARREADY = '1' and axi_arvalid = '1') then
-	--          axi_araddr <= std_logic_vector(unsigned(axi_araddr) + to_unsigned(C_M_AXI_DATA_WIDTH/8, C_M_AXI_ADDR_WIDTH));              
-	--        end if;                                                      
-	--      end if;                                                        
-	 --   end if;                                                          
-	 -- end process;                                                       
+	  axi_araddr <= S_RW_addr;                                                   
 
 
 	----------------------------------
