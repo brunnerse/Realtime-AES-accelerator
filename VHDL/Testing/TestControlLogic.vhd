@@ -58,7 +58,7 @@ signal CL_ready, CL_valid : std_logic;
 signal CL_rdData : std_logic_vector(DATA_WIDTH-1 downto 0);
 
 signal mode : std_logic_vector(MODE_LEN-1 downto 0) := MODE_ENCRYPTION;
-signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0) := CHAINING_MODE_ECB;
+signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0) := CHAINING_MODE_CTR;
 signal GCMPhase : std_logic_vector(1 downto 0) := GCM_PHASE_INIT;
 
 
