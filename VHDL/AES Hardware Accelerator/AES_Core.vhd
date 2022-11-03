@@ -22,6 +22,7 @@
 library IEEE;
 use IEEE.std_logic_1164.ALL;
 use work.common.ALL;
+use work.addresses.ALL;
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
@@ -30,9 +31,9 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity AES_Core is
     generic (
-        ADDR_IV : integer;
-        ADDR_SUSP : integer;
-        ADDR_H  : integer
+        ADDR_IV : integer := ADDR_IVR0;
+        ADDR_SUSP : integer := ADDR_SUSPR0;
+        ADDR_H  : integer := ADDR_SUSPR4
         );
     Port ( Key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
@@ -176,7 +177,9 @@ modeNonTag : AES_Mode_ECBCBCCTR
                      EnIAEAMNT, EnOAEAMNT, dInAEAMNT, dOutAEA, 
                      WrEnMNT, WrAddrMNT, WrDataMNT, mode, chaining_mode, Clock, Resetn); 
 modeGCM  : AES_Mode_GCM 
-            generic map (ADDR_IV, ADDR_SUSP, ADDR_H)
+            generic map (ADDR_IV => ADDR_IV,
+                        ADDR_SUSP => ADDR_SUSP, 
+                        ADDR_H => ADDR_H)
             port map(IV => IV, H => H, Susp => Susp,
                      dIn => dIn, dOut => dOutGCM, EnI => EnIGCM, EnO => EnOGCM, 
                      encrypt => encryptGCM, GCMPhase => GCMPhase, 
