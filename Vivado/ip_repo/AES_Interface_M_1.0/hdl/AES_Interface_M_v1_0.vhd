@@ -449,13 +449,18 @@ AES_Interface_M_v1_0_M_AXI_inst : AES_Interface_M_v1_0_M_AXI
                 WrStrb(i) <= s_axi_wstrb(3 - i);
             end generate;
             -- ReadyValid_RW_Port
-           GenReadyValid_RW_Port_Data: 
-            for j in 3 downto 0 generate
-                -- for each of the 32 bit words, reverse the byte positions
+           GenReadyValid_RW_Port_Data:
+            for j in 128/C_M_AXI_DATA_WIDTH-1 downto 0 generate
+                -- for each of the 32/64 bit words, reverse the byte positions
                 InnerLoop: 
-                for i in 3 downto 0 generate
-                    S_RW_wrDataSignal((4*j + i)*8+7 downto (4*j + i)*8) <= S_RW_wrData((4*j + 3-i)*8+7 downto (4*j + 3-i)*8);
-                    S_RW_rdData((4*j + i)*8+7 downto (4*j + i)*8) <= S_RW_rdDataSignal((4*j + 3-i)*8+7 downto (4*j + 3-i)*8);
+                for i in C_M_AXI_DATA_WIDTH/8-1 downto 0 generate
+                begin
+                    --index := (j * C_M_AXI_DATA_WIDTH/8 + i);
+                    --invindex := ((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i);
+                    S_RW_wrDataSignal((j * C_M_AXI_DATA_WIDTH/8 + i)*8+7 downto (j * C_M_AXI_DATA_WIDTH/8 + i)*8) <= 
+                        S_RW_wrData(((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8+7 downto ((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8);
+                    S_RW_rdData((j * C_M_AXI_DATA_WIDTH/8 + i)*8+7 downto (j * C_M_AXI_DATA_WIDTH/8 + i)*8) <=
+                        S_RW_rdDataSignal(((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8+7 downto ((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8);
                 end generate ;
             end generate;
         end generate;
