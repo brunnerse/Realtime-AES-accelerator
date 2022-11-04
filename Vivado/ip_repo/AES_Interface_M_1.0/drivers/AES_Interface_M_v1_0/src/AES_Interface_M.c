@@ -2,70 +2,13 @@
 
 /***************************** Include Files *******************************/
 #include "AES_Interface_M.h"
+#include "AES_Interface_M_hw.h"
 #include "xparameters.h"
-#include "xscugic.h"
+#include "xdebug.h"
 #include "xil_assert.h"
 /************************** Function Definitions ***************************/
 
-// Comment this line on Big Endian systems
-#define LITTLE_ENDIAN
 
-
-#define AES_CR_OFFSET 0x00
-#define AES_SR_OFFSET 0x04
-#define AES_DINR_ADDR_OFFSET 0x08
-#define AES_DOUTR_ADDR_OFFSET 0x0c
-#define AES_DATASIZE_OFFSET 0x30
-#define AES_KEYR0_OFFSET 0x10
-#define AES_IVR0_OFFSET 0x20
-#define AES_SUSPR0_OFFSET 0x40
-
-// Position definitions in the Control Register CR
-#ifdef LITTLE_ENDIAN
-#define EN_POS 24
-#define MODE_POS 27
-#define CHAIN_MODE_POS 29
-//#define CHAIN_MODE_POS2 8
-#define CCFIE_POS 17
-#define ERRIE_POS 18
-#define GCM_PHASE_POS 21
-#define CCFC_POS 31
-#define PRIORITY_POS 16
-#define SR_CCF_POS 24
-#define SR_WRERR_POS 26
-#define SR_RDERR_POS 25
-#define MODE_GCM_IV_INIT 0x02000000
-#define MODE_GCM_IV_FINAL 0x01000000
-#else
-// Normal, Big Endian Positions of the bits
-#define EN_POS 0
-#define MODE_POS 3
-#define CHAIN_MODE_POS 5
-//#define CHAIN_MODE_POS2 16
-#define CCFIE_POS 9
-#define ERRIE_POS 10
-#define GCM_PHASE_POS 13
-#define CCFC_POS 7
-#define SR_CCF_POS 1
-#define SR_WRERR_POS 3
-#define SR_RDERR_POS 2
-#define MODE_GCM_IV_INIT 0x00000002
-#define MODE_GCM_IV_FINAL 0x00000001
-#endif
-
-#define MODE_CTR_IV_INIT 0x00000000
-#define EN_LEN 1
-#define MODE_LEN 2
-#define CHAIN_MODE_LEN 2
-//#define CHAIN_MODE_LEN2 1
-#define CCFIE_LEN 1
-#define ERRIE_LEN 1
-#define GCM_PHASE_LEN 2
-#define CCFC_LEN 1
-#define PRIORITY_LEN 3 // TODO!
-#define SR_CCF_LEN 1
-#define SR_WRERR_LEN 1
-#define SR_RDERR_LEN 1
 
 
 /**************************   Private variables **********************/
@@ -93,6 +36,11 @@ AES_Config *AES_LookupConfig(u16 DeviceId)
 s32 AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr)
 {
     InstancePtr->BaseAddress = ConfigPtr->BaseAddress;
+	for (u32 i = 0; i < AES_NUM_CHANNELS; i++)
+	{
+		InstancePtr->CallbackFn[i] = NULL;
+		InstancePtr->CallbackRef[i] = NULL;
+	}
     return (s32)(XST_SUCCESS);
 }
 
@@ -125,8 +73,8 @@ void AES_SetSusp(AES* InstancePtr, u32 channel, u8 Susp[BLOCK_SIZE*2])
  * @param gcmPhase 
  */
 void AES_Setup(AES* InstancePtr, u32 channel, Mode mode, ChainingMode chainMode, u32 enabled, GCMPhase gcmPhase)
-{  // TODO priority in setup?
-	// TODO can I disregard the old cr and just start with cr=0?
+{  
+	// Need to read old cr to not overwrite other configuration data like the priority
     u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
 
     // Set mode
@@ -177,6 +125,18 @@ void AES_SetPriority(AES* InstancePtr, u32 channel, u32 priority)
     setBits(&cr, priority, PRIORITY_POS, PRIORITY_LEN);
     AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
 }
+/**
+ * @brief Enable or disable interrupts
+ * 
+ * @param InstancePtr 
+ * @param en 1 for enabling, 0 for disabling interrupts
+ */
+void AES_SetInterruptEnabled(AES* InstancePtr, u32 channel, u32 en)
+{
+	u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
+    setBits(&cr, en, CCFIE_POS, CCFIE_LEN);
+    AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
+}
 
 /**
  * @brief Enables the AES Unit so it starts its calculation according to the configuration
@@ -190,19 +150,6 @@ void AES_startComputation(AES* InstancePtr, u32 channel)
     AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
 }
 
-/**
- * @brief Enable or disable interrupts
- * 
- * @param InstancePtr 
- * @param en 1 for enabling, 0 for disabling interrupts
- */
-void AES_SetInterruptEnabled(AES* InstancePtr, u32 channel, u32 en)
-{
-	u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
-    setBits(&cr, en, CCFIE_POS, CCFIE_LEN);
-	setBits(&cr, en, ERRIE_POS, ERRIE_LEN);
-    AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
-}
 
 /**
  * @brief Get the susp register content, which holds intermediate results for the GCM calculation
@@ -261,7 +208,6 @@ u32 AES_GetInterruptEnabled(AES* InstancePtr, u32 channel)
     return getBits(cr, CCFIE_POS, CCFIE_LEN);
 }
 
-
 /**
  * @brief Whether the AES unit has a pending computation job for this channel
  * 
@@ -284,29 +230,33 @@ void AES_PerformKeyExpansion(AES *InstancePtr, u32 channel)
 	AES_SetMode(InstancePtr, channel, prevMode);
 }
 
-void AES_processDataECB(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size)
-{
-	AES_startNewComputationECB(InstancePtr, channel, encrypt, data, outData, size);
-	AES_waitUntilCompleted(InstancePtr, channel); // TODO Interrupt!
-}
 
-void AES_startNewComputationECB(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size)
-{
+void AES_startNewComputationECB(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size, AES_CallbackFn callbackFn, void* callbackRef)
+{	
+	InstancePtr->CallbackFn[channel] = callbackFn;
+	InstancePtr->CallbackRef[channel] = callbackRef;
+	
 	AES_SetDataParameters(InstancePtr, channel, data, outData, size);
 	// Setup Data and set Enable = 1 to start the encryption
 	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_KEYEXPANSION_AND_DECRYPTION, CHAINING_MODE_ECB, 1, GCM_PHASE_INIT);
 }
 
-void AES_startNewComputationCBC(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size, u8 IV[BLOCK_SIZE])
+void AES_startNewComputationCBC(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size, u8 IV[BLOCK_SIZE], AES_CallbackFn callbackFn, void* callbackRef)
 {
+	InstancePtr->CallbackFn[channel] = callbackFn;
+	InstancePtr->CallbackRef[channel] = callbackRef;
+	
 	AES_SetIV(InstancePtr, channel, IV, BLOCK_SIZE);
 	AES_SetDataParameters(InstancePtr, channel, data, outData, size);
 	// Setup Control and set Enable = 1 to start the encryption
 	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_KEYEXPANSION_AND_DECRYPTION, CHAINING_MODE_CBC, 1, GCM_PHASE_INIT);
 }
 
-void AES_startNewComputationCTR(AES* InstancePtr, u32 channel, u8* data, u8* outData, u32 size, u8 IV[12])
+void AES_startNewComputationCTR(AES* InstancePtr, u32 channel, u8* data, u8* outData, u32 size, u8 IV[12], AES_CallbackFn callbackFn, void* callbackRef)
 {
+	InstancePtr->CallbackFn[channel] = callbackFn;
+	InstancePtr->CallbackRef[channel] = callbackRef;
+
 	AES_SetIV(InstancePtr, channel, IV, 12);
 	// Write last word of the IV manually
 	AES_Write(InstancePtr, channel, AES_IVR0_OFFSET+12, MODE_CTR_IV_INIT);
@@ -315,8 +265,11 @@ void AES_startNewComputationCTR(AES* InstancePtr, u32 channel, u8* data, u8* out
 	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_CTR, 1, GCM_PHASE_INIT);
 }
 
-void AES_startNewComputationGCM(AES* InstancePtr, u32 channel, int encrypt, u8* header, u32 headerLen, u8* payload, u8* outProcessedPayload, u32 payloadLen, u8 IV[12])
+void AES_startNewComputationGCM(AES* InstancePtr, u32 channel, int encrypt, u8* header, u32 headerLen, u8* payload, u8* outProcessedPayload, u32 payloadLen, u8 IV[12], AES_CallbackFn callbackFn, void* callbackRef)
 {
+	InstancePtr->CallbackFn[channel] = callbackFn;
+	InstancePtr->CallbackRef[channel] = callbackRef;
+	
 	AES_SetIV(InstancePtr, channel, IV, 12);
 	// Write last word of the IV manually
 	AES_Write(InstancePtr, channel, AES_IVR0_OFFSET+12, MODE_GCM_IV_INIT);
@@ -341,7 +294,8 @@ void AES_calculateTagGCM(AES* InstancePtr, u32 channel, u32 headerLen, u32 paylo
 {
 	AES_SetGCMPhase(InstancePtr, channel, GCM_PHASE_FINAL);
 	// Set the IV in the final round:  First 12 bytes are the Nonce, last 4 bytes are 0x000000001
-    AES_SetIV(InstancePtr, channel, IV, 12); // TODO remove: This should not be necessary, as the counter is only 32 bits
+	// No need to write the Nonce again, as it is already there from the payload phase
+    //AES_SetIV(InstancePtr, channel, IV, 12);
 	// Write last word of the IV manually
 	AES_Write(InstancePtr, channel, AES_IVR0_OFFSET+12, MODE_GCM_IV_FINAL);
 	// Use headerLen (64 bit) ||  payloadLen(64 bit) as data block in final round
@@ -364,23 +318,28 @@ void AES_SetDataParameters(AES* InstancePtr, u32 channel, volatile u8* source, v
 	AES_Write(InstancePtr, channel, AES_DATASIZE_OFFSET, size);
 }
 
+void AES_processDataECB(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size)
+{
+	AES_startNewComputationECB(InstancePtr, channel, encrypt, data, outData, size, NULL, NULL);
+	AES_waitUntilCompleted(InstancePtr, channel);
+}
+
 void AES_processDataCBC(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size, u8 IV[BLOCK_SIZE])
 {
-	AES_startNewComputationCBC(InstancePtr, channel, encrypt, data, outData, size, IV);
-	AES_waitUntilCompleted(InstancePtr, channel); // TODO Interrupt!
+	AES_startNewComputationCBC(InstancePtr, channel, encrypt, data, outData, size, IV, NULL, NULL);
+	AES_waitUntilCompleted(InstancePtr, channel);
 }
 
 void AES_processDataCTR(AES* InstancePtr, u32 channel,  u8* data, u8* outData, u32 size, u8 IV[12])
 {
-	AES_startNewComputationCTR(InstancePtr, channel, data, outData, size, IV);
-	AES_waitUntilCompleted(InstancePtr, channel); // TODO Interrupt!
+	AES_startNewComputationCTR(InstancePtr, channel, data, outData, size, IV, NULL, NULL);
+	AES_waitUntilCompleted(InstancePtr, channel); 
 }
 
 void AES_processDataGCM(AES* InstancePtr, u32 channel, int encrypt, u8* header, u32 headerLen, u8* payload, u8* outProcessedPayload, u32 payloadLen, u8 IV[12], u8 outTag[BLOCK_SIZE])
 {
-	AES_startNewComputationGCM(InstancePtr, channel, encrypt, header, headerLen, payload, outProcessedPayload, payloadLen, IV);
-	AES_waitUntilCompleted(InstancePtr, channel); // TODO Interrupt!
-	// Final
+	AES_startNewComputationGCM(InstancePtr, channel, encrypt, header, headerLen, payload, outProcessedPayload, payloadLen, IV, NULL, NULL);
+	AES_waitUntilCompleted(InstancePtr, channel);
 	AES_calculateTagGCM(InstancePtr, channel, headerLen, payloadLen, IV, outTag);
 }
 
@@ -395,7 +354,12 @@ int AES_compareTags(u8 tag1[BLOCK_SIZE], u8 tag2[BLOCK_SIZE])
 	return 0;
 }
 
-
+/**
+ * @brief clears the CCF flag, which indicates that the computation has completed.
+ *  This should usually not be necessary, as the flag is cleared automatically when a new computation starts
+ * @param InstancePtr 
+ * @param channel 
+ */
 void AES_clearCompletedStatus(AES* InstancePtr, u32 channel)
 {
     u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
@@ -413,8 +377,8 @@ void AES_waitUntilCompleted(AES* InstancePtr, u32 channel)
 
 int AES_isComputationCompleted(AES* InstancePtr, u32 channel)
 {
-	xil_printf("Status register: %x\n\r", AES_Read(InstancePtr, channel, AES_SR_OFFSET));
-	return getBits(AES_Read(InstancePtr, channel, AES_SR_OFFSET), SR_CCF_POS, SR_CCF_LEN);
+	u32 CCF = getBits(AES_Read(InstancePtr, channel, AES_SR_OFFSET), SR_CCF_POS, SR_CCF_LEN);
+	return  (CCF & (1 << channel)) != 0;
 }
 
 /*****************************************************************************/
@@ -423,33 +387,58 @@ int AES_isComputationCompleted(AES* InstancePtr, u32 channel)
  *
  * @param	InstancePtr is the driver instance we are working on
  *
- * @return	The error bits in the status register. Zero indicates no errors.
+ * @return	The error bits of the channel in the status register. 
+ * 			The ERROR_WRITE bit indicates a write error, the ERROR_READ bit indicates a read error
  *
  *****************************************************************************/
 u32 AES_GetError(AES* InstancePtr, u32 channel)
 {
-	// TODO besser zwischen RDERR und WRERR differenzieren?
-	return getBits(AES_Read(InstancePtr, channel, AES_SR_OFFSET), (SR_WRERR_POS > SR_RDERR_POS ? SR_WRERR_POS : SR_RDERR_POS), SR_WRERR_LEN + SR_RDERR_LEN);
+	u32 sr = AES_Read(InstancePtr, channel, AES_SR_OFFSET);
+	return getBits(sr, SR_RDERR_POS+channel, 1) * ERROR_READ  |  getBits(sr, SR_WRERR_POS+channel, 1) * ERROR_WRITE;
 }
 
 
-
-
-s32 AES_SetInterruptRoutine(AES* InstancePtr, u32 channel, XScuGic* InterruptCtrlPtr, AES_InterruptHandler interruptRoutine)
+/**
+ * This function is the interrupt handler for the driver, it handles all the
+ * interrupts. For the completion of a computation that has a callback function,
+ * the callback function is called.
+ *
+ * @param	HandlerRef is a reference pointer passed to the interrupt
+ *			registration function. It will be a pointer to the driver
+ *			instance we are working on
+ *
+ * @return	None
+ * */
+void AES_IntrHandler(void *HandlerRef)
 {
-	s32 status = XST_SUCCESS;
-	u32 IRQSourceNumber =  XPAR_FABRIC_CONTROLLOGIC_0_INTERRUPT_0_INTR + channel;
-	// Set the priority of the interrupt to 0xA0 (highest 0xF8, lowest 0x00) and a trigger for a rising edge 0x3
-	XScuGic_SetPriorityTriggerType(InterruptCtrlPtr, IRQSourceNumber, 0xA0, 0x3);
-	// Connect a device driver handler that will be called when an interrupt for the device occurs
-	// the device driver handler performs the specific interrupt processing for the device
-	status |= XScuGic_Connect(InterruptCtrlPtr, IRQSourceNumber, (Xil_ExceptionHandler)interruptRoutine, InstancePtr);
-	// Enable the interrupt for the ControlLogic peripheral
-	XScuGic_Enable(InterruptCtrlPtr, IRQSourceNumber);
+    AES* InstancePtr = (AES*)HandlerRef;
 
-	AES_SetInterruptEnabled(InstancePtr, channel, 1);
-	return status;
+	/* Check what interrupts have fired
+	 */
+	u32 SR = AES_Read(InstancePtr, 0, AES_SR_OFFSET);
+	u32 Irq = getBits(SR, SR_IRQ_POS, SR_IRQ_LEN);
+
+	if (Irq == 0x0) {
+		xdbg_printf(XDBG_DEBUG_ERROR, "Intr handler called, but no interrupt occured\r\n");
+		return;
+	}
+
+    // Clear interrupts by writing the Status register back
+    AES_Write(InstancePtr, 0, AES_SR_OFFSET, SR);
+
+    // Call Callback function for each interrupt
+    for (int i = 0; i < AES_NUM_CHANNELS; i++)
+    {
+        if ((Irq & (1 << i)) && InstancePtr->CallbackFn[i])
+        {
+            (InstancePtr->CallbackFn[i])(InstancePtr->CallbackRef[i]);
+			// Set CallbackFn to NULL so it isn't called later unintentionally
+            InstancePtr->CallbackFn[i] = NULL;
+        }
+    }
 }
+
+
 
 
 
