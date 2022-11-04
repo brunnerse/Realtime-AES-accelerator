@@ -28,7 +28,7 @@ use work.control_register_positions.ALL;
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
 use IEEE.NUMERIC_STD.ALL;
-
+use ieee.std_logic_misc.or_reduce;
 
 entity ControlLogic is
   Generic (
@@ -73,7 +73,7 @@ entity ControlLogic is
     chaining_mode : out std_logic_vector (CHMODE_LEN-1 downto 0);
     GCMPhase : out std_logic_vector(1 downto 0);
 -- global signals
-    interrupt : out std_logic_vector(NUM_CHANNELS-1 downto 0);
+    aes_introut : out std_logic;
     Clock    : in std_logic;
     Resetn   : in std_logic
   );
@@ -161,6 +161,11 @@ ATTRIBUTE X_INTERFACE_INFO of M_RW_error: SIGNAL is
 type mem_type is array (0 to (2**ADDR_REGISTER_BITS) * NUM_CHANNELS / DATA_WIDTH_BYTES - 1) of std_logic_vector(DATA_WIDTH-1 downto 0);
 signal mem : mem_type;
 
+-- TODO test this
+--type single_mem_type is array (0 to 84/4-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+--type multi_mem_type is array (channel_range) of single_mem_type;
+--signal multi_mem : multi_mem_type;
+
 -- The current channel
 signal channel : channel_range;
 -- The channel with the highest priority that is active
@@ -193,7 +198,8 @@ signal dataCount : dataCountArray;
 signal dataSize : std_logic_vector(DATA_WIDTH-1 downto 0);
 signal sourceAddress, destAddress : std_logic_vector(M_RW_addr'LENGTH-1 downto 0);
 -- control signals
-signal ERRIE, CCFIE, ERRC, CCFC : std_logic;
+signal interrupt, clearInterrupt : std_logic_vector(channel_range); -- stores for each channel whether it request an interrupt
+signal CCFIE : std_logic;
 signal modeSignal : std_logic_vector(MODE_LEN-1 downto 0);
 signal chainingModeSignal : std_logic_vector(CHMODE_LEN-1 downto 0);
 signal GCMPhaseSignal : std_logic_vector(1 downto 0);
@@ -211,6 +217,9 @@ M_RW_write <= RW_write;
 mode <= modeSignal;
 GCMPhase <= GCMPhaseSignal;
 chaining_mode <= chainingModeSignal;
+
+-- merge interrupt requests into one interrupt signal
+aes_introut <= or_reduce(interrupt);
     
 -- store the En and CCF signal of the last cycle for each channel, so processes can check if it changed
 prevEn <= En when rising_edge(Clock);
@@ -249,17 +258,17 @@ end procedure;
  begin
  if rising_edge(Clock) then
     EnICore <= '0';
-    interrupt <= (others => '0');
     
     -- synchronous reset
     if Resetn = '0' then
         state <= Idle;
         RW_valid <= '0';
         channel <= 0;
+        interrupt <= (others => '0');
+        WRERR <= (others => '0');
+        RDERR <= (others => '0');
+        CCF <= (others => '0');
         for i in channel_range loop
-            WRERR(i) <= '0';
-            RDERR(i) <= '0';
-            CCF(i) <= '0';
             dataCount(i) <= (others => '0');
         end loop;
     else
@@ -268,6 +277,9 @@ end procedure;
             -- Check if CCF  should be cleared, either because the user flag is set or the channel was just enabled
             if mem(GetChannelAddr(i, ADDR_CR))(CR_POS_CCFC) = '1' or (En(i) = '1' and prevEn(i) = '0') then
                 CCF(i) <= '0';
+            end if;
+            if clearInterrupt(i) = '1' then
+                interrupt(i) <= '0';
             end if;
            -- Clear error signals when channel is enabled
             if (En(i) = '1' and prevEn(i) = '0') then
@@ -298,9 +310,7 @@ end procedure;
                     end if;
                     chainingModeSignal <= configReg(CR_POS_CHMODE);
                     GCMPhaseSignal <= configReg(CR_POS_GCMPHASE);
-                    ERRIE <= configReg(CR_POS_ERRIE);
                     CCFIE <= configReg(CR_POS_CCFIE);
-                    ERRC <= configReg(CR_POS_ERRC); 
 
                     -- If mode is keyexpansion or the GCM init mode, start the AES Core immediately, no data reading required
                     -- need to read from configReg instead of the signals, as the signals only update after the process
@@ -430,9 +440,12 @@ if rising_edge(Clock) then
     if RdEn = '1' then
         -- If address is in register SR, don't actually read from memory. This way the register appears read-only
         if RdAddr(addr_register_range) = std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)(addr_register_range)) then
-            channelIdx := to_integer(unsigned(RdAddr(addr_channel_range)));
+            -- fill RdData :   WRERR | RDERR |  CCF  | IRQ
             RdData <= (others => '0');
-            RdData(2 downto 0) <= WRERR(channelIdx) & RDERR(channelIdx) & CCF(channelIdx);
+            RdData(interrupt'RANGE) <= interrupt;
+            RdData(CCF'HIGH+8 downto 8) <= CCF;
+            RdData(RDERR'HIGH+16 downto 16) <= RDERR;
+            RdData(WRERR'HIGH+24 downto 24) <= WRERR;
         else
             RdData <= mem(to_integer(unsigned(RdAddr(addr_range))));
         end if;
@@ -442,11 +455,14 @@ end process;
 
 -- write process
 -- drives the En and Priority signals; if there's a write to the CR register, it copies the values to En and Priority
+-- drives clearInterrupt
 process (Clock)
 variable channelIdx : integer;
 
 begin
 if rising_edge(Clock) then
+    clearInterrupt <= (others => '0');
+    
     if Resetn = '0' then
         for i in mem'RANGE loop 
             mem(i) <= (others => '0');
@@ -485,6 +501,10 @@ if rising_edge(Clock) then
                 --if WrStrb1(2) = '1' then
                     Priority(channelIdx) <= WrData1(CR_POS_PRIORITY);
                 --end if;
+          end if;
+          -- if Write is to Status Register, it contains the Clear Interrupt Flags
+          if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)(addr_register_range)) then
+                clearInterrupt <= WrData1(clearInterrupt'RANGE);
            end if;
         end if;
         -- Write port 2 (from the AES Core)

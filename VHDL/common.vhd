@@ -87,9 +87,7 @@ use work.common.NUM_PRIORITY_BITS;
 
 subtype CR_POS_PRIORITY is integer range (16+NUM_PRIORITY_BITS-1) downto 16;
 subtype CR_POS_GCMPHASE is integer range 14 downto 13;
-constant CR_POS_ERRIE : integer := 10;
 constant CR_POS_CCFIE : integer := 9;
-constant CR_POS_ERRC : integer := 8;
 constant CR_POS_CCFC : integer := 7;
 subtype CR_POS_CHMODE is integer range 6 downto 5;
 subtype CR_POS_MODE is integer range 4 downto 3;
