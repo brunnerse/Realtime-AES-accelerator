@@ -376,13 +376,15 @@ end procedure;
                     if modeSignal = MODE_KEYEXPANSION_AND_DECRYPTION and (chainingModeSignal = CHAINING_MODE_ECB or chainingModeSignal = CHAINING_MODE_CBC) then
                         modeSignal <= MODE_DECRYPTION;
                     end if;
-                    -- In KeyExpansion mode or in GCM Phase Init or Header, no writeback is required
+                    -- In KeyExpansion mode or in GCM Phase Init, no writeback is required
                     if modeSignal = MODE_KEYEXPANSION or 
                         (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT ) then
                         -- set signals that computation has finished
                         CCF(channel) <= '1';
                         interrupt(channel) <= CCFIE; -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0;
                         state <= Idle;
+                    -- In the GCM Header Phase, there's no writeback either, but it has to be checked in the Writeback state
+                    -- whether there is another block to process
                     elsif chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_HEADER then
                          -- change to writeback so it checks in the next cycle whether there are more data to process
                          state <= Writeback;
@@ -400,11 +402,13 @@ end procedure;
                          (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_HEADER) then
                          
                     RW_valid <= '0';
-                    state <= Idle; 
-                    WRERR(channel) <= WRERR(channel) or M_RW_error;
-                    
+                    WRERR(channel) <= WRERR(channel) or M_RW_error;         
                     -- increment dataCount of this channel
                     dataCount(channel) <= std_logic_vector(unsigned(dataCount(channel)) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
+                    
+                    -- Change to Idle per default,
+                    --  unless the following evaluation show that the channel is still the highestChannel and there are more data to process
+                    state <= Idle; 
                     
                     -- check if computation is complete
                     if (unsigned(dataSize) - unsigned(dataCount(channel))) <= to_unsigned(16, dataSize'LENGTH) then
@@ -473,7 +477,7 @@ if rising_edge(Clock) then
         end loop;
     else
         -- Check if channel is finished: Reset the enable bit and reset the susp register
-        if CCF(channel) = '1' and prevCCF(channel) = '0' then -- TODO check if this works even with context switch
+        if CCF(channel) = '1' and prevCCF(channel) = '0' then
             -- Set En to 0 and write back to memory
             mem(GetChannelAddr(channel, ADDR_CR))(CR_POS_EN) <= '0';
             En(channel) <= '0';
@@ -494,7 +498,8 @@ if rising_edge(Clock) then
            -- Set enable and priority signals if it was a write to the CR register
            if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH)(addr_register_range)) then
                 channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
-                -- TODO prevent WriteStrobes other than 1111 for CR register in driver
+                -- WriteStrobe ignored for simplicity; 
+                -- Because of that, WriteStrobes other than 1111 for the CR register have to be prevented in the driver
                 --if WrStrb1(0) = '1' then
                     En(channelIdx) <= WrData1(CR_POS_EN);
                 --end if;
@@ -579,6 +584,7 @@ if rising_edge(Clock) then
         end if;
 
         -- check if a new write to CR happened
+        --  WriteStrobes other than 1111 for the CR register have to be prevented in the driver, otherwise this code must become more complex
         if WrEn1 = '1' and WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH)(addr_register_range)) then
                 channelIdx := to_integer(unsigned(WrAddr1(addr_channel_range)));
                 -- Update highest Channel if the update channel has a higher priority than the current one 

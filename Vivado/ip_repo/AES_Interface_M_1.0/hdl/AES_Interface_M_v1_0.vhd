@@ -426,7 +426,7 @@ AES_Interface_M_v1_0_M_AXI_inst : AES_Interface_M_v1_0_M_AXI
 	);
 
 	-- Add user logic here
-	-- TODO Same for Master Data!
+	
 	-- Depending on the configuration, set up the data forwarding to convert the byte order from little endian to big endian
     DataForwardingBigEndian:
         -- Big Endian case

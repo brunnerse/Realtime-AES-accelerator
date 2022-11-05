@@ -53,8 +53,6 @@ end package;
 
 package addresses is
 -- Define the addresses according to the specification. 
-constant ADDR_BASE : integer := 16#00#; -- TODO specify correct address
-
 constant ADDR_CR : integer := 16#00#;
 constant ADDR_SR : integer := 16#04#;
 constant ADDR_DINADDR : integer := 16#08#;
@@ -69,7 +67,7 @@ constant ADDR_IVR2 : integer := 16#28#;
 constant ADDR_IVR3 : integer := 16#2c#;
 
 constant ADDR_DATASIZE : integer := 16#30#;
--- TODO Luecke aufschlie�en?
+
 constant ADDR_SUSPR0 : integer := 16#40#;
 constant ADDR_SUSPR1 : integer := 16#44#;
 constant ADDR_SUSPR2 : integer := 16#48#;
