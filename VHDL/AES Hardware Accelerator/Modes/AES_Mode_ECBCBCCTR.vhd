@@ -77,7 +77,7 @@ end function;
 
 -- signal definitions
 signal dInXOR1, dInXOR2, dOutXOR: std_logic_vector(KEY_SIZE-1 downto 0);
-signal EnIXOR, EnOXOR : std_logic;
+signal EnIXOR, EnOXOR, WrEnSignal : std_logic;
 
 
 begin
@@ -112,38 +112,42 @@ dOut <=     dOutXOR when chaining_mode = CHAINING_MODE_CTR or (chaining_mode = C
 EnIAEA <=   EnOXOR when chaining_mode = CHAINING_MODE_CBC and encrypt = '1' and mode /= MODE_KEYEXPANSION else
             EnI;
           
--- TODO this can be simplified by setting the EnIXOR signal anyway and just ignoring the output EnO. Should I do it?
 EnIXOR <=   EnI when chaining_mode = CHAINING_MODE_CBC and encrypt = '1' else
             EnOAEA when (chaining_mode = CHAINING_MODE_CBC and encrypt = '0') or chaining_mode = CHAINING_MODE_CTR else
             '0'; -- XOR unit is unused in other modes
-            
 
-EnO <=  EnOXOR when chaining_mode = CHAINING_MODE_CTR or (chaining_mode = CHAINING_MODE_CBC and encrypt = '0') else
-        EnOAEA; -- CHAINING_MODE_ECB | CHAINING_MODE_CBC
+            
+EnO <=  EnOAEA when chaining_mode = CHAINING_MODE_ECB else
+        WrEnSignal when (chaining_mode = CHAINING_MODE_CBC and encrypt = '1') else  -- wait until IV has been written until EnO is set
+        EnOXOR;  -- CTR mode, CBC with decryption
+
+
 
 
 
 -- update IV
--- TODO Das Schreiben erfolgt einen Takt nachdem das EnO Signal ausgegeben wird. EnO verz�gern?
-WrAddr <= std_logic_vector(to_unsigned(ADDR_IV, ADDR_WIDTH)); 
+WrAddr <= std_logic_vector(to_unsigned(ADDR_IV, ADDR_WIDTH));
+WrEn <= WrEnSignal;
+
 process(Clock)
 begin
 if rising_edge(Clock) then 
-    WrEn <= '0';
-    -- For chaining mode CBC, write ciphertext once the AEA has finished
-    if EnOAEA = '1' and chaining_mode = CHAINING_MODE_CBC then
-        WrEn <= '1';
-        if encrypt = '1' then
+    WrEnSignal <= '0';
+    -- For chaining mode CBC
+    if chaining_mode = CHAINING_MODE_CBC then
+        -- When encrypting, wait until the AEA has finished
+        if encrypt = '1' and EnOAEA = '1' then
             WrData <= dOutAEA;
-        else
+            WrEnSignal <= '1';
+        -- For decrypting, we can write back the new IV immediately as it is the input (ciphertext)
+        elsif encrypt = '0' and EnI = '1' then
             WrData <= dIn;
+            WrEnSignal <= '1';
         end if;
     -- For chaining mode CTR, write the incremented IV back immediately
     elsif EnI = '1' and chaining_mode = CHAINING_MODE_CTR then
-        WrEn <= '1';
+        WrEnSignal <= '1';
         WrData <= incrementIV(IV);
-    else
-        WrEn <= '0';
     end if;
 end if;
 end process;

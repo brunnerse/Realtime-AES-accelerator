@@ -117,44 +117,44 @@ begin
 xorUnit1 : AddRoundKey port map(dIn1XOR1, dOutXOR1, dIn2XOR1, EnIXOR1, EnOXOR1, Clock, Resetn);
 xorUnit2 : AddRoundKey port map(dIn1XOR2, dOutXOR2, dIn2XOR2, EnIXOR2, EnOXOR2, Clock, Resetn);
 
--- First Input into XOR is always plaintext
+-- xorUnit1 is not used in the Init and Header Phases; in Payload and final, it is connected to the output of the AEA unit
+-- EnI isn't asserted in the Init Phase and not in the Header Phase either (as EnOAEA stays 0 in that phase because the AEA is never activated)
+EnIXOR1 <= EnOAEA when GCMPHASE /= GCM_PHASE_INIT else -- This only works when Mul is to be faster than AEA, otherwise dIn2Xor1 is wrong in the final phase
+            '0'; -- Do not use xorUnit1 in init phase
 dIn1XOR1 <= dOutAEA;        -- in the diagram, xorUnit1 is the bottom xor in the final phase, in the payload phase it is the first xor
 dIn2XOR1 <= dIn when GCMPhase = GCM_PHASE_PAYLOAD else      
-            dOutMul; -- in GCM_PHASE_FINAL
-EnIXOR1 <= EnOAEA when GCMPHASE /= GCM_PHASE_INIT else -- Mul has to be faster than AEA!
-            '0'; -- Do not use xorUnit1 in init phase
-            
-dOut <= dOutXOR1;
+            dOutMul; -- in GCM_PHASE_FINAL            
 
+
+
+-- xorUnit2 XORs the old Susp with another value.  Used in all phases except Init
+EnIXOR2 <=  EnOXOR1 when GCMPhase = GCM_PHASE_PAYLOAD and encrypt = '1' else -- payload encryption
+            '0' when GCMPhase = GCM_PHASE_INIT else            
+            EnI; -- during Header and Final phase, and during payload decryption
 
 dIn1XOR2 <= Susp;
-dIn2XOR2 <= dOutXOR1 when GCMPhase = GCM_PHASE_PAYLOAD and encrypt = '1' else
-            dIn; -- in final phase and header phase and during payload decryption         
-EnIXOR2 <=  EnI when GCMPhase = GCM_PHASE_HEADER or GCMPhase =  GCM_PHASE_FINAL or
-                (GCMPhase = GCM_PHASE_PAYLOAD and encrypt = '0') else -- payload decryption
-            EnOXOR1 when GCMPhase = GCM_PHASE_PAYLOAD else -- payload encryption
-            '0'; -- Do not use xorUnit2 in init phase
- 
- 
-dInMul <= dOutXOR2;
-EnIMul <= EnOXOR2;
-                  
-                  
-dInAEA <=   IV when GCMPhase /= GCM_PHASE_INIT else
-            (others => '0');                  
-EnIAEA <=   EnI when GCMPhase /= GCM_PHASE_HEADER else
-            '0'; -- Do not use AEA unit in Header phase
+dIn2XOR2 <= dOutXOR1 when GCMPhase = GCM_PHASE_PAYLOAD and encrypt = '1' else -- payload encryption
+            dIn; -- in final phase and header phase and during payload decryption    
 
-EnO <=  EnOXOR1 when GCMPhase = GCM_PHASE_FINAL else
-        WrEnSignal when GCMPhase = GCM_PHASE_INIT or GCMPhase = GCM_PHASE_HEADER else
-        EnOAEA when encrypt = '0' else -- payload phase, decryption
-        EnOMul; -- payload phase, encryption  
-        -- TODO: Fuer den letzten Fall wird Susp immer noch einen Takt später geschrieben! Sollte aber nichts machen?
+-- MUL always processes the output of XOR2            
+EnIMul <= EnOXOR2;
+dInMul <= dOutXOR2;
+                  
+-- AEA is used in all Phases except Header
+EnIAEA <=   EnI when GCMPhase /= GCM_PHASE_HEADER else
+            '0';            
+dInAEA <=   IV when GCMPhase /= GCM_PHASE_INIT else
+            (others => '0');  -- In Init Phase, the input is a 0-vector                
+
+
+dOut <= dOutXOR1;
+EnO <=  EnOXOR1 when GCMPhase = GCM_PHASE_FINAL or (GCMPhase = GCM_PHASE_PAYLOAD and encrypt = '0') else -- final phase and payload phase, decryption
+        WrEnSignal;  -- init phase, header phase, payload phase during encryption
         
 
 WrEn <= WrEnSignal;
                
--- process to write the new IV to the register set
+-- process to write the new IV, Susp and H to the register set
 process(Clock)
 begin
 if rising_edge(Clock) then
