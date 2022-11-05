@@ -225,19 +225,6 @@ aes_introut <= or_reduce(interrupt);
 prevEn <= En when rising_edge(Clock);
 prevCCF <= CCF when rising_edge(Clock);
 
--- Read key, IV, Susp and H from memory
--- TODO Klappt Timing auch mit concurrent statements?
---GenSignals:
---for i in 0 to 3 generate -- TODO get channel and IV from highestChannel instead of channel? This could help making a smaller delay
---key(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_KEYR0 + i*4));
---IV (127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_IVR0 + i*4));
---Susp(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_SUSPR0 + i*4)); -- TODO funktioniert noch nicht ganz!
---H(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(channel, ADDR_SUSPR4 + i*4));
---end generate;
-
-
-
-
  -- process that handles the data fetching, computing and writing back
  -- this process drives the Control signals and channel
 process(Clock)
@@ -317,7 +304,6 @@ end procedure;
                     if configReg(CR_POS_MODE) = MODE_KEYEXPANSION or (configReg(CR_POS_CHMODE) = CHAINING_MODE_GCM and configReg(CR_POS_GCMPHASE) = GCM_PHASE_INIT) then
                         EnICore <= '1';
                         state <= Computing;
-                        dataSize <= (others => '0'); -- TODO necessary?
                     else
                         -- start read data transaction;  
                         -- Read addresses and datasize from memory register depending on Endianness
@@ -370,7 +356,6 @@ end procedure;
                 end if;
             when Computing =>
                 -- write back once the core has finished
-                -- TODO if not at the end and not interrupted, fetch next data while core is computing
                 if EnOCore = '1' then
                     -- if mode was KEYEXPANSION_AND_DECRYPTION, we can switch to DECRYPTION to save time in the next computation
                     if modeSignal = MODE_KEYEXPANSION_AND_DECRYPTION and (chainingModeSignal = CHAINING_MODE_ECB or chainingModeSignal = CHAINING_MODE_CBC) then
@@ -481,11 +466,6 @@ if rising_edge(Clock) then
             -- Set En to 0 and write back to memory
             mem(GetChannelAddr(channel, ADDR_CR))(CR_POS_EN) <= '0';
             En(channel) <= '0';
-            -- Clear susp register, so it is 0 for the next run. 
-            -- SUSPR4 - SUSPR7 are not necessary, as they are overwritten in the GCM init phase.
-            for i in ADDR_SUSPR0/4 to ADDR_SUSPR3/4 loop
-                mem(GetChannelAddr(channel, i*4)) <= (others => '0');
-            end loop;
         end if;
         
         -- Write port 1 (from the Interface)
@@ -516,7 +496,7 @@ if rising_edge(Clock) then
         if WrEn2 = '1' then
             -- write four words, i.e. 128 bit
             for i in 0 to 3 loop
-                -- append to current channel to WrAddr2 -- TODO check if it is written to the correct channel during a context switch
+                -- Write to WrAddr2 register of current channel
                 mem(GetChannelAddr(channel, to_integer(unsigned(WrAddr2)))+i) <= WrData2(127-i*32 downto 96-i*32);
             end loop;
         end if;
@@ -561,6 +541,7 @@ if rising_edge(Clock) then
             end if;
         end if;
         
+        -- TODO Synthesize this with just 1 channel to check whether the for loop is correctly synthesized away
         -- search; check the next CHECK_CHANNELS_PER_CYCLE channels if they are the next highest channel
         if runSearch then
             -- use a variable for nextHighestChannel so we can search multiple channels per cycle
