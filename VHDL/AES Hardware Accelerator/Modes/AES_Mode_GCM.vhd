@@ -109,6 +109,7 @@ end function;
 -- signal definitions
 signal  dIn1XOR1, dIn2XOR1, dIn1XOR2,dIn2XOR2, dOutXOR1, dOutXOR2, dInMul, dOutMul: std_logic_vector(KEY_SIZE-1 downto 0);
 signal  EnIXOR1, EnIXOR2, EnOXOR1, EnOXOR2, EnIMul, EnOMul, WrEnSignal : std_logic;
+signal WrAddrSignal : std_logic_vector(ADDR_WIDTH-1 downto 0);
 
 signal lastIdx : integer; -- used for the multiplication process
 
@@ -149,10 +150,14 @@ dInAEA <=   IV when GCMPhase /= GCM_PHASE_INIT else
 
 dOut <= dOutXOR1;
 EnO <=  EnOXOR1 when GCMPhase = GCM_PHASE_FINAL or (GCMPhase = GCM_PHASE_PAYLOAD and encrypt = '0') else -- final phase and payload phase, decryption
-        WrEnSignal;  -- init phase, header phase, payload phase during encryption
+        WrEnSignal when GCMPhase = GCM_PHASE_INIT or GCMPhase = GCM_PHASE_HEADER else -- init phase, header phase
+        -- during payload phase with encryption:  EnO = WrEnSignal, however the first write to the IV should be ignored
+        WrEnSignal when WrAddrSignal = std_logic_vector(to_unsigned(ADDR_SUSP, ADDR_WIDTH)) else
+        '0';
         
 
 WrEn <= WrEnSignal;
+WrAddr <= WrAddrSignal;
                
 -- process to write the new IV, Susp and H to the register set
 process(Clock)
@@ -160,15 +165,15 @@ begin
 if rising_edge(Clock) then
     WrEnSignal <= '0';
     if EnOAEA = '1' and GCMPhase = GCM_PHASE_INIT then
-        WrAddr <= std_logic_vector(to_unsigned(ADDR_H, ADDR_WIDTH));
+        WrAddrSignal <= std_logic_vector(to_unsigned(ADDR_H, ADDR_WIDTH));
         WrData <= dOutAEA;
         WrEnSignal <= '1';
     elsif EnOMul = '1' and (GCMPhase = GCM_PHASE_HEADER or GCMPhase = GCM_PHASE_PAYLOAD) then 
-        WrAddr <= std_logic_vector(to_unsigned(ADDR_SUSP, ADDR_WIDTH));
+        WrAddrSignal <= std_logic_vector(to_unsigned(ADDR_SUSP, ADDR_WIDTH));
         WrData <= dOutMul;
         WrEnSignal <= '1';
     elsif EnI = '1' and GCMPhase = GCM_PHASE_PAYLOAD then
-        WrAddr <= std_logic_vector(to_unsigned(ADDR_IV, ADDR_WIDTH));
+        WrAddrSignal <= std_logic_vector(to_unsigned(ADDR_IV, ADDR_WIDTH));
         WrData <= incrementIV(IV);
         WrEnSignal <= '1';
     end if;
