@@ -40,6 +40,7 @@ end TestControlLogic;
 architecture Behavioral of TestControlLogic is
 
 constant channel : unsigned(2 downto 0) := "011";
+constant CHANNEL_0_OFFSET : unsigned(ADDR_WIDTH-1 downto 0) := (others => '0');
 constant CHANNEL_3_OFFSET : unsigned(ADDR_WIDTH-1 downto 0) := channel & "0000000";
 constant CHANNEL_1_OFFSET : unsigned(ADDR_WIDTH-1 downto 0) := "001"   & "0000000";
 constant CHANNEL_6_OFFSET : unsigned(ADDR_WIDTH-1 downto 0) := "110"   & "0000000";
@@ -57,9 +58,9 @@ signal WrDataCore : std_logic_vector(KEY_SIZE-1 downto 0);
 signal CL_ready, CL_valid : std_logic;
 signal CL_rdData : std_logic_vector(DATA_WIDTH-1 downto 0);
 
-signal mode : std_logic_vector(MODE_LEN-1 downto 0) := MODE_ENCRYPTION;
-signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0) := CHAINING_MODE_CTR;
-signal GCMPhase : std_logic_vector(1 downto 0) := GCM_PHASE_INIT;
+signal mode : std_logic_vector(MODE_LEN-1 downto 0);
+signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0);
+signal GCMPhase : std_logic_vector(1 downto 0);
 
 
 
@@ -116,42 +117,67 @@ end process;
 process begin
 -- write to ControlLogic
 wait until Resetn = '1';
+-- Configure Channel 0 as GCM Header mode
 -- set key
 WrEnAHB <= '1';
 for i in 0 to 3 loop
     WrDataAHB <= testKey(127-(3-i)*32 downto 96 - (3-i)*32);
-    WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_KEYR0, ADDR_WIDTH) + CHANNEL_3_OFFSET + i*4);
+    WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_KEYR0, ADDR_WIDTH) + CHANNEL_0_OFFSET + i*4);
+    wait for 10ns;
+end loop;
+-- set H
+for i in 0 to 3 loop
+    WrDataAHB <= x"12341234";
+    WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_SUSPR4, ADDR_WIDTH) + CHANNEL_0_OFFSET + i*4);
     wait for 10ns;
 end loop;
 WrEnAHB <= '0';
 -- set data size
 WrEnAHB <= '1';
-WrDataAHB <= x"30000000"; 
-WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DATASIZE, ADDR_WIDTH) + CHANNEL_3_OFFSET);
+WrDataAHB <= x"60000000"; 
+WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DATASIZE, ADDR_WIDTH) + CHANNEL_0_OFFSET);
 wait for 10ns;
 -- set start addr
 WrDataAHB <= x"00000010"; 
-WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DINADDR, ADDR_WIDTH) + CHANNEL_3_OFFSET);
+WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DINADDR, ADDR_WIDTH) + CHANNEL_0_OFFSET);
 wait for 10ns;
 -- set dest addr
 WrDataAHB <= x"00000020"; 
-WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DOUTADDR, ADDR_WIDTH) + CHANNEL_3_OFFSET);
+WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DOUTADDR, ADDR_WIDTH) + CHANNEL_0_OFFSET);
 wait for 10ns;
-
--- set IV reg
-WrAddrAHB <=  std_logic_vector(to_unsigned(ADDR_IVR1, ADDR_WIDTH) + CHANNEL_3_OFFSET);
-WrDataAHB <= x"deadbeef";
 wait for 10ns;
 -- set control
-WrDataAHB <= x"0000" & '0' & GCM_PHASE_PAYLOAD & "00" & "11" & "00" & CHAINING_MODE_GCM & MODE_ENCRYPTION & "00" & '1';
-WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_3_OFFSET);
+WrDataAHB <= x"0000" & '0' & GCM_PHASE_HEADER & "00" & "11" & "00" & CHAINING_MODE_GCM & MODE_ENCRYPTION & "00" & '1';
+WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_0_OFFSET);
 wait for 10 ns;
 WrEnAHB <= '0';
 wait for 10ns;
--- start second channel
-wait for 200ns; -- <70 ns to interrupt while still in the fetch phase
+
+
+-- configure second channel in CBC encryption mode
+-- set data size
+WrEnAHB <= '1';
+WrDataAHB <= x"10000000"; 
+WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DATASIZE, ADDR_WIDTH) + CHANNEL_1_OFFSET);
+wait for 10ns;
+-- set start addr
+WrDataAHB <= x"00000110"; 
+WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DINADDR, ADDR_WIDTH) + CHANNEL_1_OFFSET);
+wait for 10ns;
+-- set dest addr
+WrDataAHB <= x"00000120"; 
+WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DINADDR, ADDR_WIDTH) + CHANNEL_1_OFFSET);
+wait for 10ns;
+-- set IV
+for i in 0 to 3 loop
+    WrDataAHB <= x"deadbeef";
+    WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_IVR0, ADDR_WIDTH) + CHANNEL_1_OFFSET + i*4);
+    wait for 10ns;
+end loop;
+WrEnAHB <= '0';
+wait for 350ns;
 -- Priority 1
-WrDataAHB <= x"0001" & '0' & GCM_PHASE_PAYLOAD & "00" & "11" & "00" & CHAINING_MODE_ECB & MODE_DECRYPTION & "00" & '1';
+WrDataAHB <= x"0001" & '0' & GCM_PHASE_PAYLOAD & "00" & "11" & "00" & CHAINING_MODE_CBC & MODE_ENCRYPTION & "00" & '1';
 WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_1_OFFSET);
 WrEnAHB <= '1';
 wait for 10 ns;
@@ -174,14 +200,14 @@ wait for 50ns;
 -- start new encryption in channel 3
 WrEnAHB <= '1';
 WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_3_OFFSET);
-WrDataAHB <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1';
+WrDataAHB <= x"000000" & '0' & CHAINING_MODE_CBC & MODE_ENCRYPTION & "00" & '1';
 wait for 10ns;
 WrEnAHB <= '0';
 wait for 50ns;
 -- start new encryption in channel 6
 WrEnAHB <= '1';
 WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_6_OFFSET);
-WrDataAHB <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1';
+WrDataAHB <= x"000000" & '0' & CHAINING_MODE_CTR & MODE_ENCRYPTION & "00" & '1';
 wait for 10ns;
 WrEnAHB <= '0';
 end process;

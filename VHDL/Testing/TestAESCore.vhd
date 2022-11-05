@@ -70,7 +70,7 @@ signal WrEn : std_logic;
 signal WrData : std_logic_vector(KEY_SIZE-1 downto 0);
 signal WrAddr  : std_logic_vector(ADDR_WIDTH-1 downto 0);
 
-signal mode : std_logic_vector(MODE_LEN-1 downto 0) := MODE_KEYEXPANSION_AND_DECRYPTION;
+signal mode : std_logic_vector(MODE_LEN-1 downto 0) := MODE_ENCRYPTION;
 signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0) := CHAINING_MODE_CBC;
 
 begin
