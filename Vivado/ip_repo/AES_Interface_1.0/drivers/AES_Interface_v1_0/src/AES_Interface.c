@@ -75,6 +75,11 @@ AES_Config *AES_LookupConfig(u16 DeviceId)
 int AES_Initialize(AES *InstancePtr, UINTPTR BaseAddr)
 {
     InstancePtr->BaseAddress = BaseAddr;
+	for (int i = 0; i < AES_NUM_CHANNELS; i++)
+	{
+		InstancePtr->CallbackFn[i] = NULL;
+		InstancePtr->CallbackRef[i] = NULL;
+	}
     return (XST_SUCCESS);
 }
 
@@ -99,7 +104,6 @@ void AES_SetSusp(AES* InstancePtr, u8 Susp[BLOCK_SIZE])
 
 void AES_Setup(AES* InstancePtr, Mode mode, ChainingMode chainMode, u32 enabled, GCMPhase gcmPhase)
 {
-	// TODO Kann ich lesen hier vermeiden und gleich mit cr = 0 anfangen?
     u32 cr = AES_Read(InstancePtr, AES_CR_OFFSET);
 
     // Set mode
@@ -274,7 +278,7 @@ void AES_processDataGCM(AES* InstancePtr, int encrypt, u8* header, u32 headerLen
 	// Final
 	AES_SetGCMPhase(InstancePtr, GCM_PHASE_FINAL);
 	// Set the IV in the final round:  First 12 bytes are the Nonce, last 4 bytes are 0x000000001
-    AES_SetIV(InstancePtr, IV, 12); // TODO remove: This should not be necessary, as the counter is only 32 bits
+    //AES_SetIV(InstancePtr, IV, 12); // Nonce doesnt have to be written again, as the CTR mode only updates the last 4 bytes
 	// Write last word of the IV manually
 	AES_Write(InstancePtr, AES_IVR0_OFFSET+12, MODE_GCM_IV_FINAL);
 	// Write headerLen (64 bit) ||  payloadLen(64 bit) to DINR;  lengths have to be in bits
@@ -327,11 +331,11 @@ void AES_waitUntilCompleted(AES* InstancePtr)
 	do {
 		CCF = getBits(AES_Read(InstancePtr, AES_SR_OFFSET), SR_CCF_POS, SR_CCF_LEN);
 	} while (CCF == 0);
-	// Clear CCF bit
+	// Clear CCF bit by settings the CCFC bit
     u32 cr = AES_Read(InstancePtr, AES_CR_OFFSET);
     setBits(&cr, 1, CCFC_POS, CCFC_LEN);
     AES_Write(InstancePtr, AES_CR_OFFSET, cr);
-    // TODO need to reset CCFC manually?
+	// Reset the CCFC bit again
     setBits(&cr, 0, CCFC_POS, CCFC_LEN);
     AES_Write(InstancePtr, AES_CR_OFFSET, cr);
 }
