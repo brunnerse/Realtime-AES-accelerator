@@ -52,7 +52,14 @@ ATTRIBUTE X_INTERFACE_INFO OF s_ahb_hresetn: SIGNAL IS "xilinx.com:signal:reset:
 ATTRIBUTE X_INTERFACE_PARAMETER OF s_ahb_hclk: SIGNAL IS "XIL_INTERFACENAME AHB_CLK, ASSOCIATED_BUSIF AHB_INTERFACE:M_AXI, ASSOCIATED_RESET s_ahb_hresetn, FREQ_HZ 100000000, FREQ_TOLERANCE_HZ 0, PHASE 0.0";
 ATTRIBUTE X_INTERFACE_INFO OF s_ahb_hclk: SIGNAL IS "xilinx.com:signal:clock:1.0 AHB_CLK CLK";
 
-
+-- signals to master AES Interface
+signal    M_RW_valid :  std_logic;
+signal    M_RW_ready : std_logic;
+signal    M_RW_addr : std_logic_vector(31 downto 0);
+signal    M_RW_wrData : std_logic_vector(KEY_SIZE-1 downto 0);
+signal    M_RW_rdData : std_logic_vector(KEY_SIZE-1 downto 0);
+signal    M_RW_write : std_logic; 
+signal    M_RW_error : std_logic;
 
 signal WrDataAHB, RdDataAHB, WrAddrAHB, RdAddrAHB, WrAddrCore : std_logic_vector(DATA_WIDTH-1 downto 0);
 signal WrDataCore : std_logic_vector(KEY_SIZE-1 downto 0);
@@ -65,22 +72,27 @@ signal WrStrb : std_logic_vector(3 downto 0);
 signal mode, GCMPhase : std_logic_vector(1 downto 0);
 signal chaining_mode : std_logic_vector(2 downto 0);
 
+
 begin
 
 
 i_AHB_Interface : entity work.AHB_Interface(Behavioral) 
-    generic map(ADDR_BASE => ADDR_BASE)
     port map(
         s_ahb_hclk, s_ahb_hresetn, s_ahb_hsel, s_ahb_haddr, s_ahb_hprot,s_ahb_htrans, s_ahb_hsize, 
         s_ahb_hwrite, s_ahb_hburst, s_ahb_hwdata, s_ahb_hready, s_ahb_hrdata, s_ahb_hresp,
         WrDataAHB, RdDataAHB, WrAddrAHB, RdAddrAHB, WrEnAHB, RdEnAHB
      );
 
+
+    
 i_ControlLogic : entity work.ControlLogic(Behavioral)
     port map(
-        s_ahb_hclk, s_ahb_hresetn, RdEnAHB, RdAddrAHB, RdDataAHB, 
-        WrEnAHB, WrAddrAHB, WrDataAHB, WrStrb, WrEnCore, WrAddrCore, WrDataCore, 
-        key, IV, H, Susp, DIN, DOUT, EnOCore, EnICore, mode, chaining_mode, GCMPhase
+        M_RW_valid => M_RW_valid, M_RW_ready => M_RW_ready, M_RW_error => M_RW_error, 
+        M_RW_rdData => M_RW_rdData, M_RW_wrData => M_RW_wrData, M_RW_addr => M_RW_addr, M_RW_write => M_RW_write,
+        Clock => s_ahb_hclk, Resetn => s_ahb_hresetn, RdEn => RdEnAHB, RdAddr =>RdAddrAHB, RdData => RdDataAHB, 
+        WrEn1 => WrEnAHB, WrAddr1 => WrAddrAHB, WrData1 => WrDataAHB, WrStrb1 => WrStrb, WrEn2 => WrEnCore, WrAddr2 => WrAddrCore, WrData2 => WrDataCore, 
+        key => key, IV => IV, H => H, Susp => Susp, DIN => DIN, DOUT => DOUT, EnOCore => EnOCore, EnICore => EnICore, mode => mode, 
+        chaining_mode => chaining_mode, GCMPhase => GCMPhase
     );
 
 i_Core : entity work.AES_Core(Behavioral)
