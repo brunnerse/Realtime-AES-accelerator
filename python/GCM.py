@@ -80,6 +80,8 @@ def GCM_crypt(keysize,key,iv,input,aad):
         
     obj = AES.new(key, AES.MODE_ECB) 
     h = bytes(obj.encrypt(bytes(16)))
+    print("H is:")
+    printAsHex(h)
     output = bytes()
     L = len(input)
     if len(iv) == 12:
@@ -106,16 +108,17 @@ def GCM_encrypt(keysize,key,iv,ptext,aad):
 def GCM_decrypt(keysize,key,iv,ctext,aad,tag):
     """GCM's Authenticated Decryption Operation"""
     (ptext,_,g,h) = GCM_crypt(keysize,key,iv,ctext,aad)
-    tag = xor(GHASH(h,aad,ctext),g) 
+    print("\nGHashing the plaintext for comparison...")
+    calculatedTag = xor(GHASH(h,aad,ctext),g) 
     print("Tag: ")
     printAsHex(tag)
-    if tag == xor(GHASH(h,aad,ctext),g):
+    if tag == calculatedTag:
         return True,ptext
     else:
         return False,ptext
  
 
-print("\n\nGCM\n")
+print("\n\n===========\n\nGCM\n\n===========\n\n")
 
 key = bytes([0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f])
 
@@ -125,13 +128,33 @@ data3 = bytes([0xaf, 0xfe, 0xde, 0xad, 0xbe, 0xef, 0xda, 0xdc, 0xab, 0xbe, 0xad,
 
 IV = bytes([0xf0, 0xe0, 0xd0, 0xc0, 0xb0, 0xa0, 0x90, 0x80, 0x70, 0x60, 0x50, 0x40, 0x30, 0x20, 0x10, 0x00])
 
+
+print("Test 1\nIV:")
+printAsHex(bytes([0xde, 0xad, 0xbe, 0xef]) * 3)
+print("Header:")
+printAsHex(data + data)
+print("Payload:")
+printAsHex(data + data  + data)
+ctext, tag = GCM_encrypt(128, key, bytes([0xde, 0xad, 0xbe, 0xef]) * 3, data + data + data, data + data)
+print("Ciphertext:",end="\t")
+printAsHex(ctext)
+print("Tag:")
+printAsHex(tag)
+
+print("\n\nTest 2\nIV:")
+printAsHex(IV[:12])
+print("Header:")
+printAsHex(data + data3)
+print("Payload:")
+printAsHex(data + data  + data2)
+print("\n====\nENCRYPTION\n===")
 ctext, tag = GCM_encrypt(128, key, IV[:12], data + data +  data2, data + data3)
 print("Ciphertext:",end="\t")
 printAsHex(ctext)
 print("Tag:")
 printAsHex(tag)
 
-print("====\nDECRYPTION\n===")
+print("\n====\nDECRYPTION\n===")
 __, ptext = GCM_decrypt(128, key, IV[:12], data + data +  data2, data + data3, tag)
-print("Plaintext",end="\t")
+print("\nDecrypted Ciphertext:")
 printAsHex(ptext)
