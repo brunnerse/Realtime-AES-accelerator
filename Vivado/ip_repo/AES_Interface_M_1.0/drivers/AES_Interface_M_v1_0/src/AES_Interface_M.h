@@ -96,11 +96,11 @@ u32 AES_isActive(AES* InstancePtr, u32 channel);
 void AES_PerformKeyExpansion(AES *InstancePtr, u32 channel);
 
 // Process an entire data chunk at once instead of processing Blocks one by one
-void AES_startNewComputationECB(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size, AES_CallbackFn callbackFn, void* callbackRef);
-void AES_startNewComputationCBC(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size, u8 IV[16], AES_CallbackFn callbackFn, void* callbackRef);
+void AES_startComputationECB(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size, AES_CallbackFn callbackFn, void* callbackRef);
+void AES_startComputationCBC(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size, u8 IV[16], AES_CallbackFn callbackFn, void* callbackRef);
 // encrypt is indifferent, as decryption and encryption is the same process
-void AES_startNewComputationCTR(AES* InstancePtr, u32 channel, u8* data, u8* outData, u32 size, u8 IV[12], AES_CallbackFn callbackFn, void* callbackRef);
-void AES_startNewComputationGCM(AES* InstancePtr, u32 channel, int encrypt, u8* header, u32 headerLen, u8* payload, u8* outProcessedPayload, u32 payloadLen, u8 IV[12], AES_CallbackFn callbackFn, void* callbackRef);
+void AES_startComputationCTR(AES* InstancePtr, u32 channel, u8* data, u8* outData, u32 size, u8 IV[12], AES_CallbackFn callbackFn, void* callbackRef);
+void AES_startComputationGCM(AES* InstancePtr, u32 channel, int encrypt, u8* header, u32 headerLen, u8* payload, u8* outProcessedPayload, u32 payloadLen, u8 IV[12], AES_CallbackFn callbackFn, void* callbackRef);
 void AES_calculateTagGCM(AES* InstancePtr, u32 channel, u32 headerLen, u32 payloadLen, u8 IV[12], u8 outTag[BLOCK_SIZE]);
 
 // Functions block until computation has completed

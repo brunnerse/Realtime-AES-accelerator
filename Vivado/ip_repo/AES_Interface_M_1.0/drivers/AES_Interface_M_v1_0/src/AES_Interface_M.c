@@ -231,7 +231,7 @@ void AES_PerformKeyExpansion(AES *InstancePtr, u32 channel)
 }
 
 
-void AES_startNewComputationECB(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size, AES_CallbackFn callbackFn, void* callbackRef)
+void AES_startComputationECB(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size, AES_CallbackFn callbackFn, void* callbackRef)
 {	
 	InstancePtr->CallbackFn[channel] = callbackFn;
 	InstancePtr->CallbackRef[channel] = callbackRef;
@@ -241,7 +241,7 @@ void AES_startNewComputationECB(AES* InstancePtr, u32 channel, int encrypt, u8* 
 	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_KEYEXPANSION_AND_DECRYPTION, CHAINING_MODE_ECB, 1, GCM_PHASE_INIT);
 }
 
-void AES_startNewComputationCBC(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size, u8 IV[BLOCK_SIZE], AES_CallbackFn callbackFn, void* callbackRef)
+void AES_startComputationCBC(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size, u8 IV[BLOCK_SIZE], AES_CallbackFn callbackFn, void* callbackRef)
 {
 	InstancePtr->CallbackFn[channel] = callbackFn;
 	InstancePtr->CallbackRef[channel] = callbackRef;
@@ -252,7 +252,7 @@ void AES_startNewComputationCBC(AES* InstancePtr, u32 channel, int encrypt, u8* 
 	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_KEYEXPANSION_AND_DECRYPTION, CHAINING_MODE_CBC, 1, GCM_PHASE_INIT);
 }
 
-void AES_startNewComputationCTR(AES* InstancePtr, u32 channel, u8* data, u8* outData, u32 size, u8 IV[12], AES_CallbackFn callbackFn, void* callbackRef)
+void AES_startComputationCTR(AES* InstancePtr, u32 channel, u8* data, u8* outData, u32 size, u8 IV[12], AES_CallbackFn callbackFn, void* callbackRef)
 {
 	InstancePtr->CallbackFn[channel] = callbackFn;
 	InstancePtr->CallbackRef[channel] = callbackRef;
@@ -265,7 +265,7 @@ void AES_startNewComputationCTR(AES* InstancePtr, u32 channel, u8* data, u8* out
 	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_CTR, 1, GCM_PHASE_INIT);
 }
 
-void AES_startNewComputationGCM(AES* InstancePtr, u32 channel, int encrypt, u8* header, u32 headerLen, u8* payload, u8* outProcessedPayload, u32 payloadLen, u8 IV[12], AES_CallbackFn callbackFn, void* callbackRef)
+void AES_startComputationGCM(AES* InstancePtr, u32 channel, int encrypt, u8* header, u32 headerLen, u8* payload, u8* outProcessedPayload, u32 payloadLen, u8 IV[12], AES_CallbackFn callbackFn, void* callbackRef)
 {
 	InstancePtr->CallbackFn[channel] = callbackFn;
 	InstancePtr->CallbackRef[channel] = callbackRef;
@@ -325,25 +325,25 @@ void AES_SetDataParameters(AES* InstancePtr, u32 channel, volatile u8* source, v
 
 void AES_processDataECB(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size)
 {
-	AES_startNewComputationECB(InstancePtr, channel, encrypt, data, outData, size, NULL, NULL);
+	AES_startComputationECB(InstancePtr, channel, encrypt, data, outData, size, NULL, NULL);
 	AES_waitUntilCompleted(InstancePtr, channel);
 }
 
 void AES_processDataCBC(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size, u8 IV[BLOCK_SIZE])
 {
-	AES_startNewComputationCBC(InstancePtr, channel, encrypt, data, outData, size, IV, NULL, NULL);
+	AES_startComputationCBC(InstancePtr, channel, encrypt, data, outData, size, IV, NULL, NULL);
 	AES_waitUntilCompleted(InstancePtr, channel);
 }
 
 void AES_processDataCTR(AES* InstancePtr, u32 channel,  u8* data, u8* outData, u32 size, u8 IV[12])
 {
-	AES_startNewComputationCTR(InstancePtr, channel, data, outData, size, IV, NULL, NULL);
+	AES_startComputationCTR(InstancePtr, channel, data, outData, size, IV, NULL, NULL);
 	AES_waitUntilCompleted(InstancePtr, channel); 
 }
 
 void AES_processDataGCM(AES* InstancePtr, u32 channel, int encrypt, u8* header, u32 headerLen, u8* payload, u8* outProcessedPayload, u32 payloadLen, u8 IV[12], u8 outTag[BLOCK_SIZE])
 {
-	AES_startNewComputationGCM(InstancePtr, channel, encrypt, header, headerLen, payload, outProcessedPayload, payloadLen, IV, NULL, NULL);
+	AES_startComputationGCM(InstancePtr, channel, encrypt, header, headerLen, payload, outProcessedPayload, payloadLen, IV, NULL, NULL);
 	AES_waitUntilCompleted(InstancePtr, channel);
 	AES_calculateTagGCM(InstancePtr, channel, headerLen, payloadLen, IV, outTag);
 }
