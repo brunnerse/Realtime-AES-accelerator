@@ -459,20 +459,27 @@ end process;
 
 -- read process
 process (Clock)
-variable channelIdx : integer;
+variable channelIdx : channel_range;
 begin
 if rising_edge(Clock) then
     if RdEn = '1' then
+        channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
         -- If address is in register SR, don't actually read from memory. This way the register appears read-only
         if RdAddr(addr_register_range) = std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)(addr_register_range)) then
             -- fill RdData :   WRERR | RDERR |  CCF  | IRQ
+            -- TODO define indices in common, also for phase2
             RdData <= (others => '0');
-            RdData(interrupt'RANGE) <= interrupt;
-            RdData(CCF'HIGH+8 downto 8) <= CCF;
-            RdData(RDERR'HIGH+16 downto 16) <= RDERR;
-            RdData(WRERR'HIGH+24 downto 24) <= WRERR;
+            RdData(0) <= interrupt(channelIdx);
+            RdData(8) <= CCF(channelIdx);
+            RdData(16) <= RDERR(channelIdx);
+            RdData(24) <= WRERR(channelIdx);
         else
-            RdData <= mem(to_integer(unsigned(RdAddr(addr_range))));
+            -- TODO Return the same or something different when channel /= channelIdx?
+            if channelIdx = channel then
+                RdData <= mem(to_integer(unsigned(RdAddr(addr_register_range))));
+            else
+                RdData <= (others => '1');    
+            end if;
         end if;
     end if;
 end if;
@@ -507,13 +514,17 @@ if rising_edge(Clock) then
         
         -- Write port 1 (from the Interface)
         if WrEn1 = '1' then
-            for i in 3 downto 0 loop
-                if WrStrb1(i) = '1' then
-                    mem(to_integer(unsigned(WrAddr1(addr_range))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
-                end if;
-           end loop;
-           -- TODO separate process for baseAddr for visibility?
+            channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
+            if channelIdx = channel then
+                for i in 3 downto 0 loop
+                    if WrStrb1(i) = '1' then
+                        mem(to_integer(unsigned(WrAddr1(addr_register_range))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
+                    end if;
+               end loop;
+           end if;
+            -- TODO separate process for baseAddr for visibility?
            if WrAddr1 = std_logic_vector(to_unsigned(ADDR_BASEADDR, WrAddr1'LENGTH)) then
+                -- WriteStrobes other than 1111 must be prevented by the driver
                 if not LITTLE_ENDIAN then
                     baseAddr <= WrData1;
                 else
@@ -522,29 +533,27 @@ if rising_edge(Clock) then
                     end loop;
                 end if;
            end if;
+           
+
            -- Set enable and priority signals if it was a write to the CR register
            if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH)(addr_register_range)) then
-                channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
+
                 -- WriteStrobe ignored for simplicity; 
                 -- Because of that, WriteStrobes other than 1111 for the CR register have to be prevented in the driver
-                --if WrStrb1(0) = '1' then
-                    En(channelIdx) <= WrData1(CR_POS_EN);
-                --end if;
-                --if WrStrb1(2) = '1' then
-                    Priority(channelIdx) <= WrData1(CR_POS_PRIORITY);
-                --end if;
+                 En(channelIdx) <= WrData1(CR_POS_EN);
+                 Priority(channelIdx) <= WrData1(CR_POS_PRIORITY);
           end if;
           -- if Write is to Status Register, it contains the Clear Interrupt Flags
           if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)(addr_register_range)) then
-                clearInterrupt <= WrData1(clearInterrupt'RANGE);
+                clearInterrupt(channelIdx) <= WrData1(0); -- TODO Index!
            end if;
         end if;
         -- Write port 2 (from the AES Core)
         if WrEn2 = '1' then
             -- write four words, i.e. 128 bit
             for i in 0 to 3 loop
-                -- Write to WrAddr2 register of current channel
-                mem(GetChannelAddr(channel, to_integer(unsigned(WrAddr2)))+i) <= WrData2(127-i*32 downto 96-i*32);
+                -- Write to WrAddr2 register
+                mem(to_integer(unsigned(WrAddr2(addr_register_range)))+i) <= WrData2(127-i*32 downto 96-i*32);
             end loop;
         end if;
     end if;
