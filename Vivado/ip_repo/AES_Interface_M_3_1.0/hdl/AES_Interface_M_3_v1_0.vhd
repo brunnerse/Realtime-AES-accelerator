@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity AES_Interface_M_v1_0 is
+entity AES_Interface_M_3_v1_0 is
 	generic (
 		-- Users to add parameters here
         LittleEndian : boolean := true;
@@ -48,6 +48,20 @@ entity AES_Interface_M_v1_0 is
         S_RW_rdData : out std_logic_vector(127 downto 0);
         S_RW_write : in std_logic;
         S_RW_error : out std_logic; 
+        -- ReadyValid_RegMem_Port to ControlLogic
+        S_RM_valid : in std_logic;
+        S_RM_ready : out std_logic;
+        S_RM_addr : in std_logic_vector(31 downto 0);
+        S_RM_size : in std_logic_vector(31 downto 0);
+        S_RM_write : in std_logic;
+        S_RM_error : out std_logic;
+        S_RM_RdReady : in std_logic;
+        S_RM_RdValid : out std_logic;
+        S_RM_RdData : out std_logic_vector(31 downto 0);
+        S_RM_WrReady : out std_logic;
+        S_RM_WrValid : in std_logic;
+        S_RM_WrData : in std_logic_vector(31 downto 0);
+        
 		-- User ports ends
 		
 		-- Do not modify the ports beyond this line
@@ -147,12 +161,12 @@ entity AES_Interface_M_v1_0 is
 		m_axi_rvalid	: in std_logic;
 		m_axi_rready	: out std_logic
 	);
-end AES_Interface_M_v1_0;
+end AES_Interface_M_3_v1_0;
 
-architecture arch_imp of AES_Interface_M_v1_0 is
+architecture arch_imp of AES_Interface_M_3_v1_0 is
 
 	-- component declaration
-	component AES_Interface_M_v1_0_S_AXI is
+	component AES_Interface_M_3_v1_0_S_AXI is
 		generic (
 		C_S_AXI_ID_WIDTH	: integer	:= 1;
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
@@ -215,9 +229,9 @@ architecture arch_imp of AES_Interface_M_v1_0 is
 		S_AXI_RVALID	: out std_logic;
 		S_AXI_RREADY	: in std_logic
 		);
-	end component AES_Interface_M_v1_0_S_AXI;
+	end component AES_Interface_M_3_v1_0_S_AXI;
 
-	component AES_Interface_M_v1_0_M_AXI is
+	component AES_Interface_M_3_v1_0_M_AXI is
 		generic (
 		C_M_AXI_ID_WIDTH	: integer	:= 1;
 		C_M_AXI_ADDR_WIDTH	: integer	:= 32;
@@ -229,7 +243,7 @@ architecture arch_imp of AES_Interface_M_v1_0 is
 		C_M_AXI_BUSER_WIDTH	: integer	:= 0
 		);
 		port (
-		        -- ReadyValid_RW_Port to ControlLogic
+		-- ReadyValid_RW_Port to ControlLogic
         S_RW_VALID : in std_logic;
         S_RW_READY : out std_logic;
         S_RW_ADDR : in std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
@@ -237,6 +251,20 @@ architecture arch_imp of AES_Interface_M_v1_0 is
         S_RW_RDDATA : out std_logic_vector(127 downto 0);
         S_RW_WRITE : in std_logic; 
 		S_RW_ERROR	: out std_logic;
+	   -- ReadyValid_RegMem_Port
+		S_RM_VALID : in std_logic;
+        S_RM_READY : out std_logic;
+        S_RM_ADDR : in std_logic_vector(31 downto 0);
+        S_RM_SIZE : in std_logic_vector(31 downto 0);
+        S_RM_WRITE : in std_logic;
+        S_RM_ERROR : out std_logic;
+        S_RM_RDREADY : in std_logic;
+        S_RM_RDVALID : out std_logic;
+        S_RM_RDDATA : out std_logic_vector(31 downto 0);
+        S_RM_WRREADY : out std_logic;
+        S_RM_WRVALID : in std_logic;
+        S_RM_WRDATA : in std_logic_vector(31 downto 0);
+        -- AXI Port
 		M_AXI_ACLK	: in std_logic;
 		M_AXI_ARESETN	: in std_logic;
 		M_AXI_AWID	: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
@@ -282,15 +310,16 @@ architecture arch_imp of AES_Interface_M_v1_0 is
 		M_AXI_RVALID	: in std_logic;
 		M_AXI_RREADY	: out std_logic
 		);
-	end component AES_Interface_M_v1_0_M_AXI;
+	end component AES_Interface_M_3_v1_0_M_AXI;
 
 	-- signals to forward the RdData and WrData Signals
     signal WrDataSignal, RdDataSignal : std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+    signal S_RM_RdDataSignal, S_RM_WrDataSignal : std_logic_vector(31 downto 0);
     signal S_RW_rdDataSignal, S_RW_wrDataSignal :  std_logic_vector(127 downto 0);
 begin
 
 -- Instantiation of Axi Bus Interface S_AXI
-AES_Interface_M_v1_0_S_AXI_inst : AES_Interface_M_v1_0_S_AXI
+AES_Interface_M_v1_0_S_AXI_inst : AES_Interface_M_3_v1_0_S_AXI
 	generic map (
 		C_S_AXI_ID_WIDTH	=> C_S_AXI_ID_WIDTH,
 		C_S_AXI_DATA_WIDTH	=> C_S_AXI_DATA_WIDTH,
@@ -358,7 +387,7 @@ AES_Interface_M_v1_0_S_AXI_inst : AES_Interface_M_v1_0_S_AXI
 	);
 
 -- Instantiation of Axi Bus Interface M_AXI
-AES_Interface_M_v1_0_M_AXI_inst : AES_Interface_M_v1_0_M_AXI
+AES_Interface_M_v1_0_M_AXI_inst : AES_Interface_M_3_v1_0_M_AXI
 	generic map (
 		C_M_AXI_ID_WIDTH	=> C_M_AXI_ID_WIDTH,
 		C_M_AXI_ADDR_WIDTH	=> C_M_AXI_ADDR_WIDTH,
@@ -378,6 +407,19 @@ AES_Interface_M_v1_0_M_AXI_inst : AES_Interface_M_v1_0_M_AXI
         S_RW_RDDATA => S_RW_rdDataSignal,
         S_RW_WRITE => S_RW_write,
 		S_RW_ERROR	=> S_RW_error,
+		-- RegMem Port signals
+		S_RM_VALID => S_RM_valid,
+		S_RM_READY => S_RM_ready,
+		S_RM_ADDR => S_RM_addr,
+		S_RM_SIZE => S_RM_size,
+		S_RM_WRITE => S_RM_write,
+		S_RM_ERROR => S_RM_error,
+		S_RM_RDREADY => S_RM_RdReady,
+		S_RM_RDVALID => S_RM_RdValid,
+		S_RM_RDDATA => S_RM_RdDataSignal,
+		S_RM_WRREADY => S_RM_WrReady,
+		S_RM_WRVALID => S_RM_WrValid,
+		S_RM_WRDATA => S_RM_WrDataSignal,
 		-- AXI signals
 		M_AXI_ACLK	=> m_axi_aclk,
 		M_AXI_ARESETN	=> m_axi_aresetn,
@@ -438,32 +480,40 @@ AES_Interface_M_v1_0_M_AXI_inst : AES_Interface_M_v1_0_M_AXI
             -- ReadyValid_RW_Port
             S_RW_wrDataSignal <= S_RW_wrData;
             S_RW_rdData <= S_RW_rdDataSignal;
+            -- ReadyValid_RegMem_Port
+            S_RM_WrDataSignal <= S_RM_WrData;
+            S_RM_RdData <= S_RM_RdDataSignal;
         end generate;
     DataForwardingLittleEndian:
         if LittleEndian generate
-            -- ReadWritePort
+            -- 32-bit signals
             GenReadWritePort: 
             for i in 3 downto 0 generate
+                -- ReadWritePort
                 WrData(i*8+7 downto i*8) <= WrDataSignal((3-i)*8+7 downto (3-i)*8);
                 RdDataSignal(i*8+7 downto i*8) <= RdData((3-i)*8+7 downto (3-i)*8);
                 WrStrb(i) <= s_axi_wstrb(3 - i);
+                -- ReadyValid_RegMem_Port
+                S_RM_WrDataSignal(i*8+7 downto i*8) <= S_RM_WrData((3-i)*8+7 downto (3-i)*8);
+                S_RM_RdData(i*8+7 downto i*8) <= S_RM_RDDataSignal((3-i)*8+7 downto (3-i)*8);
             end generate;
-            -- ReadyValid_RW_Port
+            -- 128-bit signals: ReadyValid_RW_Port
            GenReadyValid_RW_Port_Data:
             for j in 128/C_M_AXI_DATA_WIDTH-1 downto 0 generate
                 -- for each of the 32/64 bit words, reverse the byte positions
                 InnerLoop: 
                 for i in C_M_AXI_DATA_WIDTH/8-1 downto 0 generate
+                signal index, invindex : integer;
                 begin
-                    --index := (j * C_M_AXI_DATA_WIDTH/8 + i);
-                    --invindex := ((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i);
-                    S_RW_wrDataSignal((j * C_M_AXI_DATA_WIDTH/8 + i)*8+7 downto (j * C_M_AXI_DATA_WIDTH/8 + i)*8) <= 
-                        S_RW_wrData(((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8+7 downto ((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8);
-                    S_RW_rdData((j * C_M_AXI_DATA_WIDTH/8 + i)*8+7 downto (j * C_M_AXI_DATA_WIDTH/8 + i)*8) <=
-                        S_RW_rdDataSignal(((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8+7 downto ((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8);
+                    index <= (j * C_M_AXI_DATA_WIDTH/8 + i)*8;
+                    invindex <= ((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8;
+                    S_RW_wrDataSignal(index+7 downto index) <= S_RW_wrData(invindex+7 downto invindex);
+                    S_RW_rdData(index+7 downto index) <= S_RW_rdDataSignal(invindex+7 downto invindex);
+                    --S_RW_wrDataSignal((j * C_M_AXI_DATA_WIDTH/8 + i)*8+7 downto (j * C_M_AXI_DATA_WIDTH/8 + i)*8) <= 
+                    --    S_RW_wrData(((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8+7 downto ((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8);
+                    --S_RW_rdData((j * C_M_AXI_DATA_WIDTH/8 + i)*8+7 downto (j * C_M_AXI_DATA_WIDTH/8 + i)*8) <=
+                    --    S_RW_rdDataSignal(((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8+7 downto ((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8);
                 end generate ;
             end generate;
         end generate;
-	-- User logic ends
-
 end arch_imp;

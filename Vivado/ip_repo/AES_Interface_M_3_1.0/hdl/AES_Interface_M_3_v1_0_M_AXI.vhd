@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity AES_Interface_M_v1_0_M_AXI is
+entity AES_Interface_M_3_v1_0_M_AXI is
 	generic (
 		-- Thread ID Width
 		C_M_AXI_ID_WIDTH	: integer	:= 1;
@@ -23,6 +23,7 @@ entity AES_Interface_M_v1_0_M_AXI is
 	);
 	port (
 		-- Users to add ports here
+		-- ReadyValid_RW_Port
         S_RW_VALID : in std_logic;
         S_RW_READY : out std_logic;
         S_RW_ADDR : in std_logic_vector(31 downto 0);
@@ -30,6 +31,19 @@ entity AES_Interface_M_v1_0_M_AXI is
         S_RW_RDDATA : out std_logic_vector(127 downto 0);
         S_RW_WRITE : in std_logic; 
 		S_RW_ERROR	: out std_logic;
+		-- ReadyValid_RegMem_Port
+		S_RM_VALID : in std_logic;
+        S_RM_READY : out std_logic;
+        S_RM_ADDR : in std_logic_vector(31 downto 0);
+        S_RM_SIZE : in std_logic_vector(31 downto 0);
+        S_RM_WRITE : in std_logic;
+        S_RM_ERROR : out std_logic;
+        S_RM_RDREADY : in std_logic;
+        S_RM_RDVALID : out std_logic;
+        S_RM_RDDATA : out std_logic_vector(31 downto 0);
+        S_RM_WRREADY : out std_logic;
+        S_RM_WRVALID : in std_logic;
+        S_RM_WRDATA : in std_logic_vector(31 downto 0);
 		-- User ports ends
 		-- Do not modify the ports beyond this line
 
@@ -146,9 +160,9 @@ entity AES_Interface_M_v1_0_M_AXI is
     -- accept the read data and response information.
 		M_AXI_RREADY	: out std_logic
 	);
-end AES_Interface_M_v1_0_M_AXI;
+end AES_Interface_M_3_v1_0_M_AXI;
 
-architecture implementation of AES_Interface_M_v1_0_M_AXI is
+architecture implementation of AES_Interface_M_3_v1_0_M_AXI is
 
     function log2( i : natural) return integer is
         variable temp    : integer := i;
