@@ -51,8 +51,8 @@ constant NUM_PRIORITY_BITS : integer := ADDR_CHANNEL_BITS;
 
 end package;
 
-
 package addresses is
+constant ADDR_BASEADDR : integer := 16#3c#;
 -- Define the addresses according to the specification. 
 constant ADDR_CR : integer := 16#00#;
 constant ADDR_SR : integer := 16#04#;

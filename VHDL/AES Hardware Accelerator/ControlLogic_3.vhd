@@ -200,6 +200,8 @@ ATTRIBUTE X_INTERFACE_INFO of M_RM_WrValid: SIGNAL is
 type mem_type is array (0 to (2**ADDR_REGISTER_BITS) / DATA_WIDTH_BYTES - 1) of std_logic_vector(DATA_WIDTH-1 downto 0);
 signal mem : mem_type;
 
+signal baseAddr : std_logic_vector(31 downto 0);
+
 -- The current channel
 signal channel : channel_range;
 -- The channel with the highest priority that is active
@@ -217,8 +219,7 @@ signal runSearch, waitForSearchEnd : boolean;
 signal WRERR, RDERR, CCF : std_logic_vector(channel_range);
 signal prevCCF : std_logic_vector(channel_range);
 
-type state_type is (Idle, Fetch, Computing, Writeback);
-signal state : state_type;
+
 
 -- internal signals for RW port output
 signal RW_addr : std_logic_vector(M_RW_addr'RANGE);
@@ -227,25 +228,22 @@ signal RW_wrData : std_logic_vector(KEY_SIZE-1 downto 0);
 signal RW_write : std_logic;
 
 
-type dataCountArray is array (channel_range) of std_logic_vector(DATA_WIDTH-1 downto 0);
-signal dataCount : dataCountArray;
+
+-- signals for the DMA process
+type state_type is (Idle, Fetch, Computing, Writeback);
+signal state : state_type;
+signal dataCount : std_logic_vector(DATA_WIDTH-1 downto 0);
 signal dataSize : std_logic_vector(DATA_WIDTH-1 downto 0);
 signal sourceAddress, destAddress : std_logic_vector(M_RW_addr'LENGTH-1 downto 0);
--- control signals
-signal interrupt, clearInterrupt : std_logic_vector(channel_range); -- stores for each channel whether it request an interrupt
+
+-- control/status signals
+signal interrupt, clearInterrupt : std_logic_vector(channel_range); -- stores for each channel whether it requests an interrupt
 signal CCFIE : std_logic;
 signal modeSignal : std_logic_vector(MODE_LEN-1 downto 0);
 signal chainingModeSignal : std_logic_vector(CHMODE_LEN-1 downto 0);
 signal GCMPhaseSignal : std_logic_vector(1 downto 0);
 
--- debug signals TODO remove
-signal channelPrev, highestChannelPrev, nextHighestChannelPrev : std_logic_vector(2 downto 0);
 begin
-
--- debug signals TODO remove
-channelPrev <= std_logic_vector(to_unsigned(channel, channelPrev'LENGTH)) when rising_edge(Clock);
-highestChannelPrev <= std_logic_vector(to_unsigned(highestChannel, highestChannelPrev'LENGTH)) when rising_edge(Clock);
-nextHighestChannelPrev <= std_logic_vector(to_unsigned(nextHighestChannel, nextHighestChannelPrev'LENGTH)) when rising_edge(Clock);
 
 -- forward internal RW port output signals
 M_RW_addr <= RW_addr;
@@ -295,9 +293,7 @@ end procedure;
         WRERR <= (others => '0');
         RDERR <= (others => '0');
         CCF <= (others => '0');
-        for i in channel_range loop
-            dataCount(i) <= (others => '0');
-        end loop;
+        dataCount <= (others => '0');
     else
         -- Check all channels if the status flags should be cleared
         for i in channel_range loop
@@ -362,8 +358,8 @@ end procedure;
                         dataSize(3 downto 0) <= (others => '0');
                         
                         -- add dataCount to addresses
-                        destAddrVar := std_logic_vector(unsigned(destAddrVar) + unsigned(dataCount(highestChannel)));
-                        sourceAddrVar := std_logic_vector(unsigned(sourceAddrVar) + unsigned(dataCount(highestChannel)));
+                        destAddrVar := std_logic_vector(unsigned(destAddrVar) + unsigned(dataCount));
+                        sourceAddrVar := std_logic_vector(unsigned(sourceAddrVar) + unsigned(dataCount));
                         destAddress <= destAddrVar;
                         sourceAddress <= sourceAddrVar;
                         
@@ -429,16 +425,16 @@ end procedure;
                     RW_valid <= '0';
                     WRERR(channel) <= WRERR(channel) or M_RW_error;         
                     -- increment dataCount of this channel
-                    dataCount(channel) <= std_logic_vector(unsigned(dataCount(channel)) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
+                    dataCount <= std_logic_vector(unsigned(dataCount) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
                     
                     -- Change to Idle per default,
                     --  unless the following evaluation show that the channel is still the highestChannel and there are more data to process
                     state <= Idle; 
                     
                     -- check if computation is complete
-                    if (unsigned(dataSize) - unsigned(dataCount(channel))) <= to_unsigned(16, dataSize'LENGTH) then
+                    if (unsigned(dataSize) - unsigned(dataCount)) <= to_unsigned(16, dataSize'LENGTH) then
                         -- Computation complete;  set interrupt and CCF, reset dataCount
-                        dataCount(channel) <= (others => '0');
+                        dataCount <= (others => '0');
                         CCF(channel) <= '1';
                         interrupt(channel) <= CCFIE;  -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0
                                   
@@ -500,6 +496,7 @@ if rising_edge(Clock) then
             En(i) <= '0';
             Priority(i) <= (others => '0');
         end loop;
+        baseAddr <= (others => '0');
     else
         -- Check if channel is finished: Reset the enable bit and reset the susp register
         if CCF(channel) = '1' and prevCCF(channel) = '0' then
@@ -515,6 +512,16 @@ if rising_edge(Clock) then
                     mem(to_integer(unsigned(WrAddr1(addr_range))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
                 end if;
            end loop;
+           -- TODO separate process for baseAddr for visibility?
+           if WrAddr1 = std_logic_vector(to_unsigned(ADDR_BASEADDR, WrAddr1'LENGTH)) then
+                if not LITTLE_ENDIAN then
+                    baseAddr <= WrData1;
+                else
+                    for i in 3 downto 0 loop
+                        baseAddr(i*8+7 downto i*8)   <= WrData1((3-i)*8+7 downto (3-i)*8);
+                    end loop;
+                end if;
+           end if;
            -- Set enable and priority signals if it was a write to the CR register
            if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH)(addr_register_range)) then
                 channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
