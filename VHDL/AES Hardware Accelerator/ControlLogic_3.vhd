@@ -30,7 +30,7 @@ use work.control_register_positions.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use ieee.std_logic_misc.or_reduce;
 
-entity ControlLogic is
+entity ControlLogic_3 is
   Generic (
     LITTLE_ENDIAN : boolean := true;
     NUM_CHANNELS : integer range 1 to 8 := 8 -- upper bound must be MAX_CHANNELS, but Vivado doesn't synthesize then
@@ -54,7 +54,20 @@ entity ControlLogic is
     WrAddr1 : in std_logic_vector(ADDR_WIDTH-1 downto 0);
     WrData1: in std_logic_vector(DATA_WIDTH-1 downto 0);
     WrStrb1 : in std_logic_vector(DATA_WIDTH/8-1 downto 0);
- 
+-- Ports to the ReadyValid RegMem port
+    M_RM_valid : out std_logic;
+    M_RM_ready : in std_logic;
+    M_RM_addr : out std_logic_vector(31 downto 0);
+    M_RM_size : out std_logic_vector(31 downto 0);
+    M_RM_write : out std_logic;
+    M_RM_error : in std_logic;
+    M_RM_RdReady : out std_logic;
+    M_RM_RdValid : in std_logic;
+    M_RM_RdData : in std_logic_vector(31 downto 0);
+    M_RM_WrReady : in std_logic;
+    M_RM_WrValid : out std_logic;
+    M_RM_WrData : out std_logic;
+    
 -- Ports to the AES Core
     -- second write port
     WrEn2 : in std_logic;
@@ -77,9 +90,9 @@ entity ControlLogic is
     Clock    : in std_logic;
     Resetn   : in std_logic
   );
-end ControlLogic;
+end ControlLogic_3;
 
-architecture Behavioral of ControlLogic is
+architecture Behavioral of ControlLogic_3 is
 -- helper function, must be at the beginning because it is used in the constants
 function log2( i : natural) return integer is
     variable temp    : integer := i;
@@ -155,6 +168,31 @@ ATTRIBUTE X_INTERFACE_INFO of M_RW_write: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort write";
 ATTRIBUTE X_INTERFACE_INFO of M_RW_error: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort error";
+
+ATTRIBUTE X_INTERFACE_INFO of M_RM_addr: SIGNAL is
+"xilinx.com:user:ReadyValid_RegMem_Port:1.0 M_RegMemPort Addr";
+ATTRIBUTE X_INTERFACE_INFO of M_RM_WrData: SIGNAL is
+"xilinx.com:user:ReadyValid_RegMem_Port:1.0 M_RegMemPort WrData";
+ATTRIBUTE X_INTERFACE_INFO of M_RM_RdData: SIGNAL is
+"xilinx.com:user:ReadyValid_RegMem_Port:1.0 M_RegMemPort RdData";
+ATTRIBUTE X_INTERFACE_INFO of M_RM_ready: SIGNAL is
+"xilinx.com:user:ReadyValid_RegMem_Port:1.0 M_RegMemPort ready";
+ATTRIBUTE X_INTERFACE_INFO of M_RM_valid: SIGNAL is
+"xilinx.com:user:ReadyValid_RegMem_Port:1.0 M_RegMemPort valid";
+ATTRIBUTE X_INTERFACE_INFO of M_RM_write: SIGNAL is
+"xilinx.com:user:ReadyValid_RegMem_Port:1.0 M_RegMemPort write";
+ATTRIBUTE X_INTERFACE_INFO of M_RM_error: SIGNAL is
+"xilinx.com:user:ReadyValid_RegMem_Port:1.0 M_RegMemPort error";
+ATTRIBUTE X_INTERFACE_INFO of M_RM_size: SIGNAL is
+"xilinx.com:user:ReadyValid_RegMem_Port:1.0 M_RegMemPort Size";
+ATTRIBUTE X_INTERFACE_INFO of M_RM_RdReady: SIGNAL is
+"xilinx.com:user:ReadyValid_RegMem_Port:1.0 M_RegMemPort RdReady";
+ATTRIBUTE X_INTERFACE_INFO of M_RM_RdValid: SIGNAL is
+"xilinx.com:user:ReadyValid_RegMem_Port:1.0 M_RegMemPort RdValid";
+ATTRIBUTE X_INTERFACE_INFO of M_RM_WrReady: SIGNAL is
+"xilinx.com:user:ReadyValid_RegMem_Port:1.0 M_RegMemPort WrReady";
+ATTRIBUTE X_INTERFACE_INFO of M_RM_WrValid: SIGNAL is
+"xilinx.com:user:ReadyValid_RegMem_Port:1.0 M_RegMemPort WrValid";
 
 -- Define registers as array out of words with DATA_WIDTH bits
 -- For each register, there is 2**ADDR_REGISTER_BITS ( = 2**7 = 128) bytes of memory, i.e. 128/4 words per channel
