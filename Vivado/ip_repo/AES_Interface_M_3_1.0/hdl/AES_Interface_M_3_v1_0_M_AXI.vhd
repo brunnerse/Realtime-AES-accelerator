@@ -35,7 +35,7 @@ entity AES_Interface_M_3_v1_0_M_AXI is
 		S_RM_VALID : in std_logic;
         S_RM_READY : out std_logic;
         S_RM_ADDR : in std_logic_vector(31 downto 0);
-        S_RM_SIZE : in std_logic_vector(31 downto 0);
+        S_RM_LENGTH : in std_logic_vector(7 downto 0);
         S_RM_WRITE : in std_logic;
         S_RM_ERROR : out std_logic;
         S_RM_RDREADY : in std_logic;
@@ -195,9 +195,9 @@ architecture implementation of AES_Interface_M_3_v1_0_M_AXI is
     signal axi_arsize   : std_logic_vector(M_AXI_ARSIZE'HIGH downto 0);
 	signal axi_rready	: std_logic;
 	--write beat count in a burst
-	signal write_index	: std_logic_vector(log2(NUM_BURSTS)-1 downto 0);
+	signal write_index	: std_logic_vector(S_RM_LENGTH'HIGH downto 0);
 	--read beat count in a burst
-	signal read_index	: std_logic_vector(log2(NUM_BURSTS)-1 downto 0);
+	signal read_index	: std_logic_vector(S_RM_LENGTH'HIGH downto 0);
 
 
 	signal RW_ready : std_logic;
@@ -322,7 +322,7 @@ begin
             elsif (rm_valid_pulse = '1' and S_RM_WRITE = '1') then
                    axi_awvalid <= '1';
                    axi_awaddr <= S_RM_ADDR;
-                   axi_awlen <= std_logic_vector(unsigned(S_RM_SIZE)-to_unsigned(1, S_RM_SIZE'LENGTH));
+                   axi_awlen <= std_logic_vector(unsigned(S_RM_LENGTH)-to_unsigned(1, S_RM_LENGTH'LENGTH));
                    -- RegMem Port uses only 32 bits
                    axi_awsize <= std_logic_vector( to_unsigned(log2(32/8), 3) );                                   
             -- deassert once the address has been accepted          
@@ -366,21 +366,26 @@ begin
         if (rising_edge (M_AXI_ACLK)) then                                              
 	      if (M_AXI_ARESETN = '0') then                                                
                 axi_wlast <= '0';                                                           
-                -- axi_wlast is asserted when the write index                               
-                -- count reaches the penultimate count to synchronize                       
-                -- with the last write data when write_index is b1111                       
-                -- elsif (&(write_index[C_TRANSACTIONS_NUM-1:1])&& ~write_index[0] && wnext)
 	      else
-               -- init wlast at start of the burst
+                -- init wlast when new transaction starts
                 if RW_valid_pulse = '1' then
-                    if NUM_BURSTS = 1 then
-                        axi_wlast <= '1';
-                    else
-                        axi_wlast <= '0';
-                    end if;
+                     -- if transaction is only one burst long, assert wlast immediately
+                     if NUM_BURSTS = 1 then
+                         axi_wlast <= '1';
+                     else
+                         axi_wlast <= '0';
+                     end if;
+                elsif rm_valid_pulse = '1' then
+                     if unsigned(S_RM_LENGTH) <= to_unsigned(4, S_RM_LENGTH'LENGTH) then
+                         axi_wlast <= '1';
+                     else
+                         axi_wlast <= '0';
+                     end if;
                 -- update wlast at each handshake
                 elsif M_AXI_WREADY= '1' and axi_wvalid = '1' then
-                    if write_index = std_logic_vector(to_unsigned(NUM_BURSTS-2, write_index'LENGTH)) then
+                    if S_RW_VALID = '1' and write_index = std_logic_vector(to_unsigned(NUM_BURSTS-2, write_index'LENGTH)) then
+                        axi_wlast <= '1';
+                    elsif S_RM_VALID = '1' and write_index = std_logic_vector(unsigned(S_RM_LENGTH) - 2) then
                         axi_wlast <= '1';
                     else 
                         axi_wlast <= '0';
@@ -456,7 +461,7 @@ begin
             elsif (rm_valid_pulse = '1' and S_RM_WRITE = '0') then
                    axi_arvalid <= '1';
                    axi_araddr <= S_RM_ADDR;
-                   axi_arlen <= std_logic_vector(unsigned(S_RM_SIZE)-to_unsigned(1, S_RM_SIZE'LENGTH));  
+                   axi_arlen <= std_logic_vector(unsigned(S_RM_LENGTH)-to_unsigned(1, S_RM_LENGTH'LENGTH));  
                    -- RegMem Port uses only 32 bits
                    axi_arsize <= std_logic_vector( to_unsigned(log2(32/8), 3) );             
             -- deassert once the address has been accepted                                      

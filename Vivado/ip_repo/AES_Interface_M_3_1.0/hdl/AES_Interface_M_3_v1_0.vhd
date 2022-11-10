@@ -52,7 +52,7 @@ entity AES_Interface_M_3_v1_0 is
         S_RM_valid : in std_logic;
         S_RM_ready : out std_logic;
         S_RM_addr : in std_logic_vector(31 downto 0);
-        S_RM_size : in std_logic_vector(31 downto 0);
+        S_RM_length : in std_logic_vector(7 downto 0);
         S_RM_write : in std_logic;
         S_RM_error : out std_logic;
         S_RM_RdReady : in std_logic;
@@ -255,7 +255,7 @@ architecture arch_imp of AES_Interface_M_3_v1_0 is
 		S_RM_VALID : in std_logic;
         S_RM_READY : out std_logic;
         S_RM_ADDR : in std_logic_vector(31 downto 0);
-        S_RM_SIZE : in std_logic_vector(31 downto 0);
+        S_RM_LENGTH : in std_logic_vector(7 downto 0);
         S_RM_WRITE : in std_logic;
         S_RM_ERROR : out std_logic;
         S_RM_RDREADY : in std_logic;
@@ -411,7 +411,7 @@ AES_Interface_M_v1_0_M_AXI_inst : AES_Interface_M_3_v1_0_M_AXI
 		S_RM_VALID => S_RM_valid,
 		S_RM_READY => S_RM_ready,
 		S_RM_ADDR => S_RM_addr,
-		S_RM_SIZE => S_RM_size,
+		S_RM_LENGTH => S_RM_length,
 		S_RM_WRITE => S_RM_write,
 		S_RM_ERROR => S_RM_error,
 		S_RM_RDREADY => S_RM_RdReady,

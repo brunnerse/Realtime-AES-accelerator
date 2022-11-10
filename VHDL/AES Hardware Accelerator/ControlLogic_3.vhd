@@ -58,7 +58,7 @@ entity ControlLogic_3 is
     M_RM_valid : out std_logic;
     M_RM_ready : in std_logic;
     M_RM_addr : out std_logic_vector(31 downto 0);
-    M_RM_size : out std_logic_vector(31 downto 0);
+    M_RM_length : out std_logic_vector(7 downto 0);
     M_RM_write : out std_logic;
     M_RM_error : in std_logic;
     M_RM_RdReady : out std_logic;
@@ -183,8 +183,8 @@ ATTRIBUTE X_INTERFACE_INFO of M_RM_write: SIGNAL is
 "xilinx.com:user:ReadyValid_RegMem_Port:1.0 M_RegMemPort write";
 ATTRIBUTE X_INTERFACE_INFO of M_RM_error: SIGNAL is
 "xilinx.com:user:ReadyValid_RegMem_Port:1.0 M_RegMemPort error";
-ATTRIBUTE X_INTERFACE_INFO of M_RM_size: SIGNAL is
-"xilinx.com:user:ReadyValid_RegMem_Port:1.0 M_RegMemPort Size";
+ATTRIBUTE X_INTERFACE_INFO of M_RM_length: SIGNAL is
+"xilinx.com:user:ReadyValid_RegMem_Port:1.0 M_RegMemPort Length";
 ATTRIBUTE X_INTERFACE_INFO of M_RM_RdReady: SIGNAL is
 "xilinx.com:user:ReadyValid_RegMem_Port:1.0 M_RegMemPort RdReady";
 ATTRIBUTE X_INTERFACE_INFO of M_RM_RdValid: SIGNAL is
