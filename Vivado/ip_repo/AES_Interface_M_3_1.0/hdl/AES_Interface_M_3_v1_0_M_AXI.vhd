@@ -182,27 +182,36 @@ architecture implementation of AES_Interface_M_3_v1_0_M_AXI is
 	--AXI4 internal temp signals
 	signal axi_awaddr	: std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
 	signal axi_awvalid	: std_logic;
+	signal axi_awlen    : std_logic_vector(M_AXI_AWLEN'HIGH downto 0);
+	signal axi_awsize   : std_logic_vector(M_AXI_AWSIZE'HIGH downto 0);
 	signal axi_wdata	: std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
+	signal axi_wstrb    : std_logic_vector(M_AXI_WSTRB'HIGH downto 0);
 	signal axi_wlast	: std_logic;
 	signal axi_wvalid	: std_logic;
 	signal axi_bready	: std_logic;
 	signal axi_araddr	: std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
 	signal axi_arvalid	: std_logic;
+    signal axi_arlen    : std_logic_vector(M_AXI_ARLEN'HIGH downto 0);
+    signal axi_arsize   : std_logic_vector(M_AXI_ARSIZE'HIGH downto 0);
 	signal axi_rready	: std_logic;
 	--write beat count in a burst
 	signal write_index	: std_logic_vector(log2(NUM_BURSTS)-1 downto 0);
 	--read beat count in a burst
 	signal read_index	: std_logic_vector(log2(NUM_BURSTS)-1 downto 0);
 
-	signal writes_done	: std_logic;
-	signal reads_done	: std_logic;
-	signal wnext	: std_logic;
-	signal rnext	: std_logic;
-	
+
 	signal RW_ready : std_logic;
     signal RW_valid_prev : std_logic;
 	signal RW_valid_pulse	: std_logic;
 	signal RW_ready_prev : std_logic;
+	signal RW_axi_wdata : std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
+	
+	signal rm_ready : std_logic;
+	signal rm_error : std_logic;
+	signal rm_rdvalid : std_logic;
+	signal rm_rddata : std_logic_vector(31 downto 0);
+	signal rm_wrready : std_logic;
+	signal rm_valid_prev, rm_valid_pulse, rm_ready_prev : std_logic;
 
 
 begin
@@ -213,9 +222,9 @@ begin
 	--The AXI address is a concatenation of the target base address + active offset range
 	M_AXI_AWADDR	<= axi_awaddr;
 	--Burst LENgth is number of transaction beats, minus 1
-	M_AXI_AWLEN	<= std_logic_vector( to_unsigned(NUM_BURSTS - 1, 8) );
+	M_AXI_AWLEN	<= axi_awlen; 
 	--Size should be C_M_AXI_DATA_WIDTH, in 2^SIZE byte, otherwise narrow bursts are used
-	M_AXI_AWSIZE	<= std_logic_vector( to_unsigned(log2(C_M_AXI_DATA_WIDTH/8), 3) );
+	M_AXI_AWSIZE	<= axi_awsize; std_logic_vector( to_unsigned(log2(C_M_AXI_DATA_WIDTH/8), 3) );
 	--INCR burst type
 	M_AXI_AWBURST	<= "01";
 	M_AXI_AWLOCK	<= '0';
@@ -228,7 +237,7 @@ begin
 	--Write Data(W)
 	M_AXI_WDATA	<= axi_wdata;
 	--All bursts are complete and aligned
-	M_AXI_WSTRB	<= (others => '1');
+	M_AXI_WSTRB	<= axi_wstrb;
 	M_AXI_WLAST	<= axi_wlast;
 	M_AXI_WUSER	<= (others => '0');
 	M_AXI_WVALID	<= axi_wvalid;
@@ -238,9 +247,9 @@ begin
 	M_AXI_ARID	<= (others => '0');
 	M_AXI_ARADDR	<= axi_araddr;
 	--Burst LENgth is number of transaction beats, minus 1
-	M_AXI_ARLEN	<= std_logic_vector( to_unsigned(NUM_BURSTS - 1, 8) );
+	M_AXI_ARLEN	<= axi_arlen;
 	--Size should be C_M_AXI_DATA_WIDTH, in 2^n bytes, otherwise narrow bursts are used
-	M_AXI_ARSIZE	<= std_logic_vector( to_unsigned(log2(C_M_AXI_DATA_WIDTH/8), 3) );
+	M_AXI_ARSIZE	<= axi_arsize;
 	--INCR burst type is usually used, except for keyhole bursts
 	M_AXI_ARBURST	<= "01";
 	M_AXI_ARLOCK	<= '0';
@@ -253,6 +262,8 @@ begin
 	--Read and Read Response (R)
 	M_AXI_RREADY	<= axi_rready;
 	
+	
+	-- ReadyValid_RW_Port signals
 	S_RW_READY <= RW_ready;
 	-- store handshake signals from previous cycle
     RW_valid_prev <= S_RW_VALID when rising_edge(M_AXI_ACLK);
@@ -261,7 +272,32 @@ begin
 	-- either RW_valid was 0 before and is now 1,  or the previous transaction completed but S_RW_valid is still high
 	RW_valid_pulse	<= S_RW_VALID and (not RW_valid_prev or RW_ready_prev);
 
+    
+    -- ReadyValid_RegMem_Port signals
+    S_RM_READY <= rm_ready;
+    S_RM_ERROR <= rm_error;
+    S_RM_RDVALID <= rm_rdvalid;
+    S_RM_RDDATA <= rm_rddata;
+    S_RM_WRReady <= rm_wrready;
 
+    -- delay rm_valid_prev if RW port is currently active
+    rm_valid_prev <= S_RM_VALID when rising_edge(M_AXI_ACLK) and S_RW_VALID = '0';
+	rm_ready_prev <= rm_ready when rising_edge(M_AXI_ACLK);
+	-- pulse from RW_valid signal (i.e. when to start a new transfer):
+	-- either RM_valid was 0 before and is now 1,  or the previous transaction completed but S_RM_valid is still high
+	rm_valid_pulse	<= S_RM_VALID and (not rm_valid_prev or rm_ready_prev);
+	
+	-- forward the AXI signals to the RM signals
+	rm_rdvalid <= M_AXI_RVALID;
+	rm_rddata <= M_AXI_RDATA;
+	rm_wrready <= M_AXI_WREADY;
+	
+	-- Set certain AXI signals depending on which input port is active
+	-- RW Port uses the full bus width, RegMem Port only 32 bits
+	axi_wstrb <= (others => '1') when S_RW_VALID = '1' else 
+	              std_logic_vector(to_unsigned(15, axi_wstrb'LENGTH)); -- "00001111"
+    
+	
 	----------------------
 	--Write Address Channel
 	----------------------
@@ -269,30 +305,33 @@ begin
 	-- The purpose of the write address channel is to request the address and 
 	-- command information for the entire transaction.  It is a single beat
 	-- of information.
-
-	-- The AXI4 Write address channel in this example will continue to initiate
-	-- write commands as fast as it is allowed by the slave/interconnect.
-	-- The address will be incremented on each accepted address transaction,
-	-- by burst_size_byte to point to the next address. 
-
+    
+      -- drives axi_awvalid, axi_awlen, axi_awaddr, axi_awsize
 	  process(M_AXI_ACLK)                                            
 	  begin                                                                
 	    if (rising_edge (M_AXI_ACLK)) then                                 
 	      if (M_AXI_ARESETN = '0') then                                   
-	        axi_awvalid <= '0';                                            
+	        axi_awvalid <= '0';                                      
 	      else                                                             
 	        -- start next transaction            
 	        if (RW_valid_pulse = '1' and S_RW_WRITE = '1') then 
-                  axi_awvalid <= '1';                                          
+                  axi_awvalid <= '1';
+                  axi_awaddr <= S_RW_ADDR;
+                  axi_awlen <= std_logic_vector( to_unsigned(NUM_BURSTS - 1, 8) );
+                  axi_awsize <=  std_logic_vector( to_unsigned(log2(C_M_AXI_DATA_WIDTH/8), 3) );      
+            elsif (rm_valid_pulse = '1' and S_RM_WRITE = '1') then
+                   axi_awvalid <= '1';
+                   axi_awaddr <= S_RM_ADDR;
+                   axi_awlen <= std_logic_vector(unsigned(S_RM_SIZE)-to_unsigned(1, S_RM_SIZE'LENGTH));
+                   -- RegMem Port uses only 32 bits
+                   axi_awsize <= std_logic_vector( to_unsigned(log2(32/8), 3) );                                   
             -- deassert once the address has been accepted          
 	        elsif (M_AXI_AWREADY = '1' and axi_awvalid = '1') then         
                   axi_awvalid <= '0';                                                                        
 	        end if;                                                        
 	      end if;                                                          
 	    end if;                                                            
-	  end process;                                                         
-	     
-	axi_awaddr <= S_RW_ADDR;                                                   
+	  end process;                                                                                                          
 
 	----------------------
 	--Write Data Channel
@@ -357,9 +396,11 @@ begin
 	       variable idx_offset : integer;                                                              
 	  begin                                                                             
 	    if (rising_edge (M_AXI_ACLK)) then                                              
-	      if (M_AXI_ARESETN = '0' or RW_valid_pulse = '1') then               
+	      if RW_valid_pulse = '1' then               
 	           write_index <= (others => '0');
-	           axi_wdata <= S_RW_wrData(127 downto 128 - C_M_AXI_DATA_WIDTH);                                             
+	           axi_wdata <= S_RW_wrData(127 downto 128 - C_M_AXI_DATA_WIDTH);
+	      elsif rm_valid_pulse = '1' then    
+	           write_index <= (others => '0');                                         
 	      else                                                                          
 	           -- update write_index and wdata at each handshake
                if M_AXI_WREADY= '1' and axi_wvalid = '1' then
@@ -398,26 +439,33 @@ begin
 
 	--The Read Address Channel (AW) provides a similar function to the
 	--Write Address channel- to provide the tranfer qualifiers for the burst.
+	-- drives axi_arvalid, axi_araddr, axi_arlen, axi_arsize
 	  process(M_AXI_ACLK)										  
 	  begin                                                              
 	    if (rising_edge (M_AXI_ACLK)) then                               
 	      if (M_AXI_ARESETN = '0') then                                 
-	        axi_arvalid <= '0';                                          
+	        axi_arvalid <= '0';                                       
 	     -- If previously not valid , start next transaction             
 	      else              
            -- start next transaction                                          
 	        if (RW_valid_pulse = '1' and S_RW_WRITE = '0') then
-	          axi_arvalid <= '1';     
+	              axi_arvalid <= '1';
+	              axi_araddr <= S_RW_ADDR;
+                  axi_arlen <= std_logic_vector( to_unsigned(NUM_BURSTS - 1, 8) );
+                  axi_arsize <= std_logic_vector( to_unsigned(log2(C_M_AXI_DATA_WIDTH/8), 3) );       
+            elsif (rm_valid_pulse = '1' and S_RM_WRITE = '0') then
+                   axi_arvalid <= '1';
+                   axi_araddr <= S_RM_ADDR;
+                   axi_arlen <= std_logic_vector(unsigned(S_RM_SIZE)-to_unsigned(1, S_RM_SIZE'LENGTH));  
+                   -- RegMem Port uses only 32 bits
+                   axi_arsize <= std_logic_vector( to_unsigned(log2(32/8), 3) );             
             -- deassert once the address has been accepted                                      
 	        elsif (M_AXI_ARREADY = '1' and axi_arvalid = '1') then       
 	          axi_arvalid <= '0';                                        
 	        end if;                                                      
 	      end if;                                                        
 	    end if;                                                          
-	  end process;              
-                   
-	                                                      
-	  axi_araddr <= S_RW_addr;                                                   
+	  end process;                                                             
 
 
 	----------------------------------
