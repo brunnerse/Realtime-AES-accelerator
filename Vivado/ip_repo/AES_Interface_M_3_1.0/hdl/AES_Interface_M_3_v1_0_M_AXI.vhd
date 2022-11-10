@@ -201,9 +201,12 @@ architecture implementation of AES_Interface_M_3_v1_0_M_AXI is
     signal RW_axi_wvalid : std_logic;
     signal RW_axi_rready : std_logic;
 	signal RW_ready : std_logic;
+	signal RW_valid : std_logic;
     signal RW_valid_prev : std_logic;
 	signal RW_valid_pulse	: std_logic;
 	signal RW_ready_prev : std_logic;
+	
+
 	
 	signal rm_ready : std_logic;
 	signal rm_rdvalid : std_logic;
@@ -263,12 +266,19 @@ begin
 	
 	-- ReadyValid_RW_Port signals
 	S_RW_READY <= RW_ready;
+	
+    -- delay RW_valid if RegMem Port is currently active
+	-- RW_valid can always be reset to 0, but it can only be set to 1 if S_RM_VALID is 0
+	-- TODO avoid latch?
+	RW_valid <= S_RW_VALID when S_RW_VALID = '0' or S_RM_VALID = '0';
+    --RW_valid <= '1' when S_RW_VALID = '1' and (S_RM_VALID = '0' or RW_valid = '1') else '0';
+    	
 	-- store handshake signals from previous cycle
-    RW_valid_prev <= S_RW_VALID when rising_edge(M_AXI_ACLK);
+    RW_valid_prev <= RW_valid when rising_edge(M_AXI_ACLK);
 	RW_ready_prev <= RW_ready when rising_edge(M_AXI_ACLK);
 	-- pulse from RW_valid signal (i.e. when to start a new transfer):
-	-- either RW_valid was 0 before and is now 1,  or the previous transaction completed but S_RW_valid is still high
-	RW_valid_pulse	<= S_RW_VALID and (not RW_valid_prev or RW_ready_prev);
+	-- either RW_valid was 0 before and is now 1,  or the previous transaction completed but RW_valid is still high
+	RW_valid_pulse	<= RW_valid and (not RW_valid_prev or RW_ready_prev);
 
     
     -- ReadyValid_RegMem_Port signals
@@ -278,24 +288,24 @@ begin
     S_RM_WRReady <= rm_wrready;
 
     -- delay rm_valid_prev if RW port is currently active
-    rm_valid_prev <= S_RM_VALID when rising_edge(M_AXI_ACLK) and S_RW_VALID = '0';
+    rm_valid_prev <= S_RM_VALID when rising_edge(M_AXI_ACLK) and RW_valid = '0';
 	rm_ready_prev <= rm_ready when rising_edge(M_AXI_ACLK);
 	-- pulse from RW_valid signal (i.e. when to start a new transfer):
 	-- either RM_valid was 0 before and is now 1,  or the previous transaction completed but S_RM_valid is still high
 	rm_valid_pulse	<= S_RM_VALID and (not rm_valid_prev or rm_ready_prev);
 	
-	-- forward the AXI signals to the RM signals when S_RW_VALID is 0 (i.e. RW port isnt active)
-	rm_rdvalid <= M_AXI_RVALID when S_RW_VALID = '0' else '0';
+	-- forward the AXI signals to the RM signals when RW_valid is 0 (i.e. RW port isnt active)
+	rm_rdvalid <= M_AXI_RVALID when RW_valid = '0' else '0';
 	rm_rddata <= M_AXI_RDATA;
-	rm_wrready <= M_AXI_WREADY when S_RW_VALID = '0' else '0';
+	rm_wrready <= M_AXI_WREADY when RW_valid = '0' else '0';
 	
 	-- Set certain AXI signals depending on which input port is active
 	-- RW Port uses the full bus width, RegMem Port only 32 bits
-	axi_wdata <=  RW_axi_wdata when S_RW_VALID = '1'  else  std_logic_vector(to_unsigned(0, axi_wdata'LENGTH-32)) & S_RM_WRDATA;
-	axi_wstrb <= (others => '1') when S_RW_VALID = '1' else 
+	axi_wdata <=  RW_axi_wdata when RW_valid = '1'  else  std_logic_vector(to_unsigned(0, axi_wdata'LENGTH-32)) & S_RM_WRDATA;
+	axi_wstrb <= (others => '1') when RW_valid = '1' else 
 	              std_logic_vector(to_unsigned(0, axi_wstrb'LENGTH-4)) & "1111";
-    axi_wvalid <= RW_axi_wvalid when S_RW_VALID = '1' else S_RM_WRVALID;
-    axi_rready <= RW_axi_rready when S_RW_VALID = '1' else S_RM_RDREADY;
+    axi_wvalid <= RW_axi_wvalid when RW_valid = '1' else S_RM_WRVALID;
+    axi_rready <= RW_axi_rready when RW_valid = '1' else S_RM_RDREADY;
 
 	----------------------
 	--Write Address Channel
@@ -382,7 +392,7 @@ begin
                      end if;
                 -- update wlast at each handshake
                 elsif M_AXI_WREADY= '1' and axi_wvalid = '1' then
-                    if S_RW_VALID = '1' and write_index = std_logic_vector(to_unsigned(NUM_BURSTS-2, write_index'LENGTH)) then
+                    if RW_valid = '1' and write_index = std_logic_vector(to_unsigned(NUM_BURSTS-2, write_index'LENGTH)) then
                         axi_wlast <= '1';
                     elsif S_RM_VALID = '1' and write_index = std_logic_vector(unsigned(S_RM_LENGTH) - 2) then
                         axi_wlast <= '1';
@@ -433,7 +443,7 @@ begin
 	--into the ERROR output. 
 
 	-- set bready to 1 during the entire transfer (if it is a write transfer)
-      axi_bready <= S_RW_VALID and S_RW_WRITE;                                             
+      axi_bready <= (RW_valid and S_RW_WRITE) or (not RW_valid and S_RM_VALID and S_RM_WRITE);                                             
 
 	------------------------------
 	--Read Address Channel
@@ -524,7 +534,7 @@ begin
 	    if (rising_edge (M_AXI_ACLK)) then                                                                       
            RW_ready <= '0';
            rm_ready <= '0';
-           if S_RW_VALID = '1' then    
+           if RW_valid = '1' then    
                -- wlast doesnt matter, as there's one response for the entire transfer                                                                                           
                if (S_RW_WRITE = '1' and M_AXI_BVALID = '1' and axi_bready = '1')  or                                                               
                    (S_RW_WRITE = '0' and M_AXI_RVALID = '1' and axi_rready = '1' and M_AXI_RLAST = '1') then
@@ -558,7 +568,7 @@ begin
                                                                      
               if (axi_bready and M_AXI_BVALID and M_AXI_BRESP(1)) = '1' or                                         
                       (axi_rready and M_AXI_RVALID and M_AXI_RRESP(1)) = '1' then
-                  if S_RW_VALID = '1' then
+                  if RW_valid = '1' then
                     S_RW_ERROR <= '1';
                   elsif S_RM_VALID = '1' then
                     S_RM_ERROR <= '1';
