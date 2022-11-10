@@ -206,7 +206,6 @@ architecture implementation of AES_Interface_M_3_v1_0_M_AXI is
 	signal RW_ready_prev : std_logic;
 	
 	signal rm_ready : std_logic;
-	signal rm_error : std_logic;
 	signal rm_rdvalid : std_logic;
 	signal rm_rddata : std_logic_vector(31 downto 0);
 	signal rm_wrready : std_logic;
@@ -223,7 +222,7 @@ begin
 	--Burst LENgth is number of transaction beats, minus 1
 	M_AXI_AWLEN	<= axi_awlen; 
 	--Size should be C_M_AXI_DATA_WIDTH, in 2^SIZE byte, otherwise narrow bursts are used
-	M_AXI_AWSIZE	<= axi_awsize; std_logic_vector( to_unsigned(log2(C_M_AXI_DATA_WIDTH/8), 3) );
+	M_AXI_AWSIZE	<= axi_awsize;
 	--INCR burst type
 	M_AXI_AWBURST	<= "01";
 	M_AXI_AWLOCK	<= '0';
@@ -274,7 +273,6 @@ begin
     
     -- ReadyValid_RegMem_Port signals
     S_RM_READY <= rm_ready;
-    S_RM_ERROR <= rm_error;
     S_RM_RDVALID <= rm_rdvalid;
     S_RM_RDDATA <= rm_rddata;
     S_RM_WRReady <= rm_wrready;
@@ -525,13 +523,19 @@ begin
 	  begin                                                                                                      
 	    if (rising_edge (M_AXI_ACLK)) then                                                                       
            RW_ready <= '0';
-           if S_RW_VALID = '1' then                                                                                                   
-               if S_RW_WRITE = '1' and M_AXI_BVALID = '1' and axi_bready = '1' then   -- one response for the entire burst, so wlast doesn't matter
-                  RW_ready <= '1';                                                                               
-               elsif S_RW_WRITE = '0' and M_AXI_RVALID = '1' and axi_rready = '1'and M_AXI_RLAST = '1' then
-                  RW_ready <= '1';
-               end if;        
-           end if;                                                                                                                                                                                           
+           rm_ready <= '0';
+           if S_RW_VALID = '1' then    
+               -- wlast doesnt matter, as there's one response for the entire transfer                                                                                           
+               if (S_RW_WRITE = '1' and M_AXI_BVALID = '1' and axi_bready = '1')  or                                                               
+                   (S_RW_WRITE = '0' and M_AXI_RVALID = '1' and axi_rready = '1' and M_AXI_RLAST = '1') then
+                        RW_ready <= '1'; 
+               end if;  
+           else
+            if (S_RM_WRITE = '1' and M_AXI_BVALID = '1' and axi_bready = '1')  or                                           
+                   (S_RM_WRITE = '0' and M_AXI_RVALID = '1' and axi_rready = '1' and M_AXI_RLAST = '1') then
+                        RM_ready <= '1';
+            end if;
+          end if;                                                                                                                                                                                            
 	    end if;                                                                                                  
 	  end process;                                                                                               
 	                                                                                                                                                                                                         
@@ -540,15 +544,27 @@ begin
 	 --Register and hold any read/write interface errors 
 	  process(M_AXI_ACLK)                                          
 	  begin                                                              
-	    if (rising_edge (M_AXI_ACLK)) then                               
-	      if (M_AXI_ARESETN = '0' or RW_valid_pulse = '1') then                                 
-	           S_RW_ERROR <= '0';                                            
-	      else                                                           
-	        if 	(axi_bready and M_AXI_BVALID and M_AXI_BRESP(1)) = '1' or                                         
-                  (axi_rready and M_AXI_RVALID and M_AXI_RRESP(1)) = '1' then
-	          S_RW_ERROR <= '1';                                          
-	        end if;                                                      
-	      end if;                                                        
+	    if (rising_edge (M_AXI_ACLK)) then
+	      if M_AXI_ARESETN = '0' then
+	           S_RW_ERROR <= '0';
+	           S_RM_ERROR <= '0';
+	      else                               
+              if (RW_valid_pulse = '1') then                                 
+                   S_RW_ERROR <= '0';                                            
+              end if;
+              if rm_valid_pulse = '1' then
+                    S_RM_ERROR <= '0';
+              end if;    
+                                                                     
+              if (axi_bready and M_AXI_BVALID and M_AXI_BRESP(1)) = '1' or                                         
+                      (axi_rready and M_AXI_RVALID and M_AXI_RRESP(1)) = '1' then
+                  if S_RW_VALID = '1' then
+                    S_RW_ERROR <= '1';
+                  elsif S_RM_VALID = '1' then
+                    S_RM_ERROR <= '1';
+                  end if;                                          
+                end if;                                                      
+              end if;
 	    end if;                                                          
 	  end process;      
 
