@@ -14,11 +14,6 @@ use work.common.ALL;
 -- arithmetic functions with Signed or Unsigned values
 --use IEEE.NUMERIC_STD.ALL;
 
--- Uncomment the following library declaration if instantiating
--- any Xilinx leaf cells in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
-
 entity Binary_Search is
     generic (
         NUM_CHANNELS : natural := 8
@@ -26,7 +21,7 @@ entity Binary_Search is
     Port (
         EnI : in std_logic;
         EnO : out std_logic;
-        size : in std_logic_vector(31 downto 0);
+        size : in std_logic_vector(ADDR_CHANNEL_BITS downto 0); -- Big enough to at least store the number MAX_CHANNELS
         ChannelPriority: in PrioArrayType(NUM_CHANNELS-1 downto 0);
         ChannelEn : in std_logic_vector(NUM_CHANNELS-1 downto 0);
         highestChannel : out integer range NUM_CHANNELS -1 downto 0;
@@ -54,7 +49,7 @@ function log2( i : natural) return integer is
 subtype channel_range is integer range NUM_CHANNELS-1 downto 0;
 
 signal channelIdx : IdxArrayType(NUM_CHANNELS-1 downto 0);
-signal sizeInternal : std_logic_vector(31 downto 0); -- TODO log2(NUM_CHANNELS)-1 downto 0 ?
+signal sizeInternal : std_logic_vector(size'HIGH downto 0);
   
 begin
 
@@ -66,24 +61,22 @@ begin
 if rising_edge(Clock) then
     EnO <= '0';
     -- Init channelIdx array at reset and when a new search begins
-    if Resetn = '0' or EnI = '1' then
-        for i in channelIdx'RANGE loop -- TODO Bei Suche den Initialisierungstakt irgendwie sparen?
+    if Resetn = '0' then
+        for i in channelIdx'RANGE loop
             channelIdx(i) <= i;
         end loop;
-        if Resetn = '1' and unsigned(size) < to_unsigned(2, size'LENGTH) then
-            EnO <= '1';
-            highestChannel <= 0;
-        else
-            -- Round up size to next power of 2
-            report "log2 of " & integer'image(to_integer(unsigned(size))) & " gives " & integer'image(log2(to_integer(unsigned(size))));
-            
-            sizeInternal <= std_logic_vector(to_unsigned(2**log2(to_integer(unsigned(size))), sizeInternal'LENGTH));
-        end if;    
+        sizeInternal <= (others => '0');
     else
         -- Do one search step per cycle
         for i in NUM_CHANNELS/2-1 downto 0 loop
-            idx1 := channelIdx(i*2);
-            idx2 := channelIdx(i*2+1);
+            -- If new search is triggered, start with the initial indices
+            if EnI = '1' then
+                idx1 := i*2;
+                idx2 := i*2+1;
+            else
+                idx1 := channelIdx(i*2);
+                idx2 := channelIdx(i*2+1);
+            end if;
             report integer'image(i) & " = testing " & integer'image(idx1) & " and " & integer'image(idx2);
             -- TODO Sonderfall, wenn size keine Zweierpotenz?
             if ChannelEn(idx2) = '1' and (ChannelEn(idx1) = '0' or ChannelPriority(idx2) > ChannelPriority(idx1)) then
@@ -93,10 +86,28 @@ if rising_edge(Clock) then
             end if;
             channelIdx(i) <= winnerIdx;
         end loop;
-        -- divide sizeInternal by 2
-        sizeInternal <= '0' & sizeInternal(sizeInternal'HIGH downto sizeInternal'LOW+1); 
+        -- update sizeInternal
+        if EnI = '1' then
+             -- Round up size to next power of 2
+            report "log2 of " & integer'image(to_integer(unsigned(size))) & " gives " & integer'image(log2(to_integer(unsigned(size))));
+             -- sizeInternal = 2**log2(size) / 2
+            sizeInternal <= '0' & std_logic_vector(to_unsigned(2**log2(to_integer(unsigned(size))), sizeInternal'LENGTH)(sizeInternal'HIGH downto 1));
+        else
+            -- divide sizeInternal by 2
+            sizeInternal <= '0' & sizeInternal(sizeInternal'HIGH downto 1);
+        end if;
+        
+        -- check if search contained only one or two elements
+        if EnI = '1' and unsigned(size) <= to_unsigned(2, size'LENGTH) then
+            EnO <= '1';
+            if unsigned(size) = to_unsigned(2, size'LENGTH) then
+                highestChannel <= winnerIdx;
+            else
+                -- search contained only one element, i.e. the first
+                highestChannel <= 0;
+            end if;
         -- check if current search has finished
-        if unsigned(sizeInternal) = to_unsigned(2, sizeInternal'LENGTH) then
+        elsif unsigned(sizeInternal) = to_unsigned(2, sizeInternal'LENGTH) then
             EnO <= '1';
             -- Best Channel is the winner of the comparison for position 0, i.e. the last loop iteration
             highestChannel <= winnerIdx;
