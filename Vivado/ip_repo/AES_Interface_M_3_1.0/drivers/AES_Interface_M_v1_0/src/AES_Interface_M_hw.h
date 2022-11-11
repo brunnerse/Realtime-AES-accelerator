@@ -20,6 +20,8 @@ extern "C" {
 #define AES_IVR0_OFFSET 0x20
 #define AES_SUSPR0_OFFSET 0x40
 
+#define AES_BASEADDR_OFFSET 0x3c
+
 // Position definitions in the Control Register CR
 #ifdef LITTLE_ENDIAN
 #define EN_POS 24
@@ -59,10 +61,10 @@ extern "C" {
 #define GCM_PHASE_LEN 2
 #define CCFC_LEN 1
 #define PRIORITY_LEN 3
-#define SR_IRQ_LEN AES_NUM_CHANNELS
-#define SR_CCF_LEN AES_NUM_CHANNELS
-#define SR_WRERR_LEN AES_NUM_CHANNELS
-#define SR_RDERR_LEN AES_NUM_CHANNELS
+#define SR_IRQ_LEN 1
+#define SR_CCF_LEN 1
+#define SR_WRERR_LEN 1
+#define SR_RDERR_LEN 1
 
 
 #ifdef __cplusplus

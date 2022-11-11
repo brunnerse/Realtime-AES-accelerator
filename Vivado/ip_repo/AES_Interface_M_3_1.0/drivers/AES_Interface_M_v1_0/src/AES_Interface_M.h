@@ -15,7 +15,7 @@ extern "C" {
 /**************************** Type Definitions *****************************/
 #define BLOCK_SIZE 16
 
-#define AES_NUM_CHANNELS 4
+#define AES_NUM_CHANNELS 1024
 #define ADDR_REGISTER_BITS 7
 
 #define AES_MAX_PRIORITY (AES_NUM_CHANNELS-1)
@@ -48,6 +48,18 @@ typedef enum {
 } GCMPhase;
 
 
+typedef struct __attribute__((__packed__))
+{
+    u32 CR;
+    u32 DinAddr;
+    u32 DoutAddr;
+    u32 DataSize; // TODO beachten: Ist an anderer Position, damit IV, DataProcessedSize usw. mit IncBurst geschrieben werden können
+    u8  Key[BLOCK_SIZE];
+    u8  IV[BLOCK_SIZE];
+    u32 DataProcessedSize;
+    u8  Susp[BLOCK_SIZE*2];
+} RegisterSet;
+
 typedef struct {
 	const u16 DeviceId;	 /**< Unique ID  of device */
 	const u32 BaseAddress; /**< Base address of device (IPIF) */
@@ -58,6 +70,9 @@ typedef struct {
 	UINTPTR BaseAddress;	/**< Device base address */
     AES_CallbackFn  CallbackFn[AES_NUM_CHANNELS];
     void *CallbackRef[AES_NUM_CHANNELS];
+    RegisterSet Registers[AES_NUM_CHANNELS];
+    u8 isChannelFree[AES_NUM_CHANNELS];
+    int highestOccupiedChannel; // TODO:  Funktion nextFreeChannel!
 } AES;
 
 
