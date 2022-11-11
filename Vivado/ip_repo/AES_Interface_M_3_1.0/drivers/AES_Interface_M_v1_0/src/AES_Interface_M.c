@@ -37,6 +37,7 @@ AES_Config *AES_LookupConfig(u16 DeviceId)
 s32 AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr)
 {
     InstancePtr->BaseAddress = ConfigPtr->BaseAddress;
+	InstancePtr->HighestOccupiedChannel = -1;
 	for (u32 i = 0; i < AES_NUM_CHANNELS; i++)
 	{
 		InstancePtr->CallbackFn[i] = NULL;
@@ -423,33 +424,33 @@ u32 AES_GetError(AES* InstancePtr, u32 channel)
 void AES_IntrHandler(void *HandlerRef)
 {
     AES* InstancePtr = (AES*)HandlerRef;
-
-	/* Check what interrupts have fired
-	 */
-	u32 SR = AES_Read(InstancePtr, 0, AES_SR_OFFSET);
-	u32 Irq = getBits(SR, SR_IRQ_POS, SR_IRQ_LEN);
-
-	xil_printf("[INTERRUPT] Received Irq %x\r\n", Irq);
-
-	if (Irq == 0x0) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "Intr handler called, but no interrupt occured\r\n");
-		return;
-	}
-
-    // Clear interrupts by writing the Status register back
-    //AES_Write(InstancePtr, 0, AES_SR_OFFSET, SR);
+	int irqReceived = 0;
 
     // Call Callback function for each interrupt
-    for (int i = 0; i < AES_NUM_CHANNELS; i++)
+    for (int i = 0; i < InstancePtr->HighestOccupiedChannel; i++)
     {
-        if ((Irq & (1 << i)) && InstancePtr->CallbackFn[i])
-        {
-			xil_printf("[Interrupt] Calling CbFunction at %p\r\n", (void*)(&(InstancePtr->CallbackFn[i])));
-            (InstancePtr->CallbackFn[i])(InstancePtr->CallbackRef[i]);
-			// Set CallbackFn to NULL so it isn't called later unintentionally
-            InstancePtr->CallbackFn[i] = NULL;
-        }
+		u32 SR = AES_Read(InstancePtr, i, AES_SR_OFFSET);
+		u32 Irq = getBits(SR, SR_IRQ_POS, SR_IRQ_LEN);
+		if (Irq != 0)
+		{
+			irqReceived = 1;
+			xil_printf("[INTERRUPT] Received Irq from channel %d\r\n", i);
+			// Clear interrupt by writing the Status register back
+			AES_Write(InstancePtr, 0, AES_SR_OFFSET, SR);
+			// Call Callback function of channel if it was set
+			if (InstancePtr->CallbackFn[i])
+			{
+				xil_printf("[Interrupt] Calling CbFunction at %p\r\n", (void*)(&(InstancePtr->CallbackFn[i])));
+				(InstancePtr->CallbackFn[i])(InstancePtr->CallbackRef[i]);
+				// Set CallbackFn to NULL so it isn't called later unintentionally
+				InstancePtr->CallbackFn[i] = NULL;
+			}
+		}
     }
+	if (!irqReceived)
+	{
+		xdbg_printf(XDBG_DEBUG_ERROR, "Intr handler called, but no interrupt occured\r\n");
+	}
 }
 
 
