@@ -24,6 +24,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 use work.common.ALL;
 use work.addresses.ALL;
 use work.control_register_positions.ALL;
+use work.binary_search_types.ALL;
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
@@ -93,6 +94,24 @@ entity ControlLogic_3 is
 end ControlLogic_3;
 
 architecture Behavioral of ControlLogic_3 is
+
+component Binary_Search is
+    generic (
+        NUM_CHANNELS : natural := 8
+    );
+    Port (
+        EnI : in std_logic;
+        EnO : out std_logic;
+        size : in std_logic_vector(ADDR_CHANNEL_BITS downto 0);
+        ChannelPriority: in PrioArrayType(NUM_CHANNELS-1 downto 0);
+        ChannelEn : in std_logic_vector(NUM_CHANNELS-1 downto 0);
+        highestChannel : out integer range NUM_CHANNELS -1 downto 0;
+        Clock : in std_logic;
+        Resetn : in std_logic
+           );
+end component;
+
+
 -- helper function, must be at the beginning because it is used in the constants
 function log2( i : natural) return integer is
     variable temp    : integer := i;
@@ -207,13 +226,17 @@ signal channel : channel_range;
 -- The channel with the highest priority that is active
 signal highestChannel, nextHighestChannel: channel_range;
 -- the priorities of each channel
-type priority_arr_type is array (channel_range) of std_logic_vector(NUM_PRIORITY_BITS-1 downto 0);
-signal Priority : priority_arr_type;
+signal Priority : PrioArrayType(channel_range);
 -- the enable signals of each channel
 signal En, prevEn : std_logic_vector(channel_range);
 
 -- signals for the highestChannel search process
 signal runSearch, waitForSearchEnd : boolean;
+
+-- signals for binary search
+signal EnISearch, ENOSearch : std_logic;
+signal sizeSearch : std_logic_vector(ADDR_CHANNEL_BITS downto 0);
+signal highestChannelSearch : channel_range;
 
 -- status signals for each channel
 signal WRERR, RDERR, CCF : std_logic_vector(channel_range);
@@ -243,6 +266,7 @@ signal modeSignal : std_logic_vector(MODE_LEN-1 downto 0);
 signal chainingModeSignal : std_logic_vector(CHMODE_LEN-1 downto 0);
 signal GCMPhaseSignal : std_logic_vector(1 downto 0);
 
+
 begin
 
 -- forward internal RW port output signals
@@ -263,6 +287,21 @@ aes_introut <= or_reduce(interrupt);
 prevEn <= En when rising_edge(Clock);
 prevCCF <= CCF when rising_edge(Clock);
 
+-- instantitate binary search component
+BinSearch: Binary_Search
+    generic map(NUM_CHANNELS => 2**log2(NUM_CHANNELS))
+    port map(
+        EnI => EnISearch,
+        EnO => EnOSearch, 
+        size => sizeSearch,
+        ChannelPriority => Priority,
+        ChannelEn => En,
+        highestChannel => highestChannelSearch,
+        Clock => Clock,
+        Resetn => Resetn
+    );
+    
+    
  -- process that handles the data fetching, computing and writing back
  -- this process drives the Control signals and channel
 process(Clock)
@@ -297,6 +336,7 @@ end procedure;
     else
         -- Check all channels if the status flags should be cleared
         for i in channel_range loop
+            -- TODO store CCFC separately
             -- Check if CCF  should be cleared, either because the user flag is set or the channel was just enabled
             if mem(GetChannelAddr(i, ADDR_CR))(CR_POS_CCFC) = '1' or (En(i) = '1' and prevEn(i) = '0') then
                 CCF(i) <= '0';
