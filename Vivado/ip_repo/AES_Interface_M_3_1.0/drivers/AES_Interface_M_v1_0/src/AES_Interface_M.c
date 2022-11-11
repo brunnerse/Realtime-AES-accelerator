@@ -453,6 +453,66 @@ void AES_IntrHandler(void *HandlerRef)
 }
 
 
+s32 AES_ReserveNewChannel(AES* InstancePtr, u32* outChannel)
+{
+	// Find a free channel
+	if (InstancePtr->highestOccupiedChannel < AES_NUM_CHANNELS-1)
+	{
+		*outChannel = ++(InstancePtr->highestOccupiedChannel);
+	} else {
+		// All channels have been reserved at some point; find one that has been freed
+		for (u32 i = 0; i < AES_NUM_CHANNELS; i+=32)
+		{
+			u32 flag = InstancePtr->ChannelOccupiedFlag[i/32];
+			// Check if that flag is 0 somewhere
+			if (flag != ~0)
+			{
+				for (u32 j = 0; j < 32; j++)
+				{
+					if (getBits(flag, j, 1) == 0)
+					{
+						if (i+j >= AES_NUM_CHANNELS)
+						{
+							return XST_FAILURE;
+						}
+						else
+						{
+							*outChannel = i+j;
+							// Set flag bit to mark channel as occupied
+							setBits(&InstancePtr->ChannelOccupiedFlag[i/32], 1, j, 1);
+						}
+					}
+				}
+			}
+		}
+	}
+	return XST_FAILURE;
+}
+
+/*
+ * This function marks a channel as free.
+ *
+ * @return	XST_FAILURE when the channel wasn't reserved, otherwise XST_SUCCESS
+*/
+s32 AES_FreeChannel(AES* InstancePtr, u32 channel)
+{
+	// Check if flag bit was set 
+	if (getBits(InstancePtr->ChannelOccupiedFlag[channel/32], channel % 32, 1) == 0)
+		return XST_FAILURE;
+	// Reset the flag bit
+	setBits(&InstancePtr->ChannelOccupiedFlag[channel/32], 0, channel % 32, 1);
+
+	if (InstancePtr->highestOccupiedChannel == channel)
+	{
+		InstancePtr->highestOccupiedChannel -= 1;
+	}
+	// Reset configuration of the channel
+	InstancePtr->CallbackFn[channel] = NULL;
+	InstancePtr->CallbackRef[channel] = NULL;
+	InstancePtr->Registers[channel].DataProcessedSize = 0;
+}
+
+
 
 
 

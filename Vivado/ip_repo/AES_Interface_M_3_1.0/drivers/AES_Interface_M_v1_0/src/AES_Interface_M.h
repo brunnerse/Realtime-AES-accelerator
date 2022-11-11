@@ -71,8 +71,8 @@ typedef struct {
     AES_CallbackFn  CallbackFn[AES_NUM_CHANNELS];
     void *CallbackRef[AES_NUM_CHANNELS];
     RegisterSet Registers[AES_NUM_CHANNELS];
-    u8 isChannelFree[AES_NUM_CHANNELS];
-    int highestOccupiedChannel; // TODO:  Funktion nextFreeChannel!
+    u32 ChannelOccupiedFlag[(AES_NUM_CHANNELS+31)/32]; // Rounding up
+    int highestOccupiedChannel;
 } AES;
 
 
@@ -136,6 +136,10 @@ void AES_waitUntilCompleted(AES* InstancePtr, u32 channel);
 u32 AES_GetError(AES* InstancePtr, u32 channel);
 
 void AES_clearCompletedStatus(AES* InstancePtr, u32 channel);
+
+s32 AES_ReserveNewChannel(AES* InstancePtr, u32* outChannel);
+s32 AES_FreeChannel(AES* InstancePtr, u32 channel);
+
 
 void AES_IntrHandler(void *HandlerRef);
 
