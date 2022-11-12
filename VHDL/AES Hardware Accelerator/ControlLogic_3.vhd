@@ -242,7 +242,7 @@ signal resultSearch : channel_range;
 -- status signals for each channel
 signal WRERR, RDERR, CCF : std_logic_vector(channel_range);
 signal prevCCF : std_logic_vector(channel_range);
-
+signal CCFC : std_logic_vector(channel_range);
 
 
 -- internal signals for RW port output
@@ -340,7 +340,7 @@ end procedure;
         for i in channel_range loop
             -- TODO store CCFC separately
             -- Check if CCF  should be cleared, either because the user flag is set or the channel was just enabled
-            if mem(GetChannelAddr(i, ADDR_CR))(CR_POS_CCFC) = '1' or (En(i) = '1' and prevEn(i) = '0') then
+            if CCFC(i) = '1' or (En(i) = '1' and prevEn(i) = '0') then
                 CCF(i) <= '0';
             end if;
             if clearInterrupt(i) = '1' then
@@ -541,8 +541,9 @@ if rising_edge(Clock) then
         for i in mem'RANGE loop 
             mem(i) <= (others => '0');
         end loop;
+        En <= (others => '0');
+        CCFC <= (others => '0');
         for i in channel_range loop
-            En(i) <= '0';
             Priority(i) <= (others => '0');
         end loop;
         baseAddr <= (others => '0');
@@ -579,11 +580,11 @@ if rising_edge(Clock) then
 
            -- Set enable and priority signals if it was a write to the CR register
            if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH)(addr_register_range)) then
-
                 -- WriteStrobe ignored for simplicity; 
                 -- Because of that, WriteStrobes other than 1111 for the CR register have to be prevented in the driver
                  En(channelIdx) <= WrData1(CR_POS_EN);
                  Priority(channelIdx) <= WrData1(CR_POS_PRIORITY);
+                 CCFC(channelIdx) <= WrData1(CR_POS_CCFC);
           end if;
           -- if Write is to Status Register, it contains the Clear Interrupt Flags
           if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)(addr_register_range)) then

@@ -99,6 +99,6 @@ use IEEE.STD_LOGIC_1164.ALL;
 use work.common.ALL;
 
 package binary_search_types is
-type IdxArrayType is array(natural range<>) of integer;
+type IdxArrayType is array(natural range<>) of integer range MAX_CHANNELS-1 downto 0;
 type PrioArrayType is array(natural range<>) of std_logic_vector(NUM_PRIORITY_BITS-1 downto 0);
 end package;
