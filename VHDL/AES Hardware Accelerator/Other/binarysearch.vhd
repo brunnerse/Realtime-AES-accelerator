@@ -24,6 +24,7 @@ entity Binary_Search is
         size : in std_logic_vector(ADDR_CHANNEL_BITS downto 0); -- Big enough to at least store the number MAX_CHANNELS
         ChannelPriority: in PrioArrayType(NUM_CHANNELS-1 downto 0);
         ChannelEn : in std_logic_vector(NUM_CHANNELS-1 downto 0);
+        avoidChannelIdx : in integer range NUM_CHANNELS-1 downto 0;
         highestChannel : out integer range NUM_CHANNELS -1 downto 0;
         Clock : in std_logic;
         Resetn : in std_logic
@@ -32,6 +33,7 @@ end Binary_Search;
 
 architecture Behavioral of Binary_Search is
 
+-- TODO is this synthesizable?
 -- log2 that rounds up
 function log2( i : natural) return integer is
     variable temp    : integer := 1;
@@ -78,8 +80,10 @@ if rising_edge(Clock) then
                 idx2 := channelIdx(i*2+1);
             end if;
             report integer'image(i) & " = testing " & integer'image(idx1) & " and " & integer'image(idx2);
-            -- TODO Sonderfall, wenn size keine Zweierpotenz?
-            if ChannelEn(idx2) = '1' and (ChannelEn(idx1) = '0' or ChannelPriority(idx2) > ChannelPriority(idx1)) then
+            
+            -- Check if channel idx2 is enabled and has a higher priority than channel idx1
+            -- If either idx1 or idx2 equals avoidChannelIdx, choose the other one as the winner
+            if avoidChannelIdx = idx1 or (avoidChannelIdx /= idx2 and ChannelEn(idx2) = '1' and (ChannelEn(idx1) = '0' or ChannelPriority(idx2) > ChannelPriority(idx1))) then
                 winnerIdx := idx2;
             else
                 winnerIdx := idx1;
