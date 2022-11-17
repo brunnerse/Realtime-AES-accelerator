@@ -341,18 +341,11 @@ end procedure;
                     -- reset valid signal
                     RW_valid <= '0';
                     RDERR(channel) <= RDERR(channel) or M_RW_error;
-                    -- check if channel changed, if yes abort and return to Idle state without starting the core
-                    if channel /= highestChannel then -- TODO should I be able to stop after fetch?
-                        state <= Idle;
-                    else
-                        -- of channel still has the highest priority, start the core
-                        DIN <= M_RW_rdData;
-                        -- start core
-                        EnICore <= '1';
-                        -- update core signals before starting the core
-                        UpdateCoreSignals(channel);
-                        state <= Computing;
-                    end if;
+                    -- start the core
+                    DIN <= M_RW_rdData;
+                    EnICore <= '1';
+                    UpdateCoreSignals(channel);
+                    state <= Computing;
                 end if;
             when Computing =>
                 -- write back once the core has finished
