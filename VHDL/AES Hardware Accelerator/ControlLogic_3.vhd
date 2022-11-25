@@ -67,7 +67,7 @@ entity ControlLogic_3 is
     M_RM_RdData : in std_logic_vector(31 downto 0);
     M_RM_WrReady : in std_logic;
     M_RM_WrValid : out std_logic;
-    M_RM_WrData : out std_logic;
+    M_RM_WrData : out std_logic_vector(31 downto 0);
     
 -- Ports to the AES Core
     -- second write port
@@ -251,6 +251,14 @@ signal RW_valid : std_logic;
 signal RW_wrData : std_logic_vector(KEY_SIZE-1 downto 0);
 signal RW_write : std_logic;
 
+-- internal signals for RM  port output
+signal RM_addr : std_logic_vector(M_RM_addr'RANGE);
+signal RM_valid : std_logic;
+signal RM_length : std_logic_vector(M_RM_length'RANGE);
+signal RM_write : std_logic;
+signal RM_RdReady : std_logic;
+signal RM_WrValid : std_logic;
+signal RM_WrData : std_logic_vector(M_RM_WrData'RANGE); 
 
 
 -- signals for the DMA process
@@ -276,7 +284,16 @@ M_RW_valid <= RW_valid;
 M_RW_wrData <= RW_wrData;
 M_RW_write <= RW_write;
 
--- set AES control signals
+-- forward internal RM port output signals
+M_RM_addr <= RM_addr;
+M_RM_valid <= RM_valid;
+M_RM_length <= RM_length;
+M_RM_write <= RM_write;
+M_RM_RdReady <= RM_RdReady;
+M_RM_WrValid <= RM_WrValid;
+M_RM_WrData <= RM_WrData;
+
+-- forward internal AES control signals
 mode <= modeSignal;
 GCMPhase <= GCMPhaseSignal;
 chaining_mode <= chainingModeSignal;
