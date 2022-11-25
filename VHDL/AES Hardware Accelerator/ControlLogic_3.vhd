@@ -97,7 +97,8 @@ architecture Behavioral of ControlLogic_3 is
 
 component Binary_Search is
     generic (
-        NUM_CHANNELS : natural := 8
+        NUM_CHANNELS : natural := 8;
+        SIZE_IS_POWER_OF_2 : boolean := false
     );
     Port (
         EnI : in std_logic;
@@ -115,12 +116,12 @@ end component;
 
 -- helper function, must be at the beginning because it is used in the constants
 function log2( i : natural) return integer is
-    variable temp    : integer := i;
+    variable temp    : integer := 1;
     variable ret_val : integer := 0; 
   begin					
-    while temp > 1 loop
+    while temp < i loop
       ret_val := ret_val + 1;
-      temp    := temp / 2;     
+      temp    := temp * 2;     
     end loop;
     
     return ret_val;
@@ -236,7 +237,6 @@ signal runSearch, waitForSearchEnd : boolean;
 
 -- signals for binary search
 signal EnISearch, ENOSearch : std_logic;
-signal sizeSearch : std_logic_vector(ADDR_CHANNEL_BITS downto 0);
 signal resultSearch : channel_range;
 
 -- status signals for each channel
@@ -290,11 +290,13 @@ prevCCF <= CCF when rising_edge(Clock);
 
 -- instantitate binary search component
 BinSearch: Binary_Search
-    generic map(NUM_CHANNELS => 2**log2(NUM_CHANNELS))
+    generic map(
+        NUM_CHANNELS => 2**log2(NUM_CHANNELS),
+        SIZE_IS_POWER_OF_2 => true)
     port map(
         EnI => EnISearch,
         EnO => EnOSearch, 
-        size => sizeSearch,
+        size => std_logic_vector(to_unsigned(2**log2(NUM_CHANNELS), ADDR_CHANNEL_BITS+1)),
         ChannelPriority => Priority,
         ChannelEn => En,
         avoidChannelIdx => highestChannel,

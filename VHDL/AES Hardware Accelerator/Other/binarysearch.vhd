@@ -16,7 +16,8 @@ use work.common.ALL;
 
 entity Binary_Search is
     generic (
-        NUM_CHANNELS : natural := 8
+        NUM_CHANNELS : natural := 8;
+        SIZE_IS_POWER_OF_2 : boolean := false
     );
     Port (
         EnI : in std_logic;
@@ -83,34 +84,43 @@ if rising_edge(Clock) then
             
             -- Check if channel idx2 is enabled and has a higher priority than channel idx1
             -- If either idx1 or idx2 equals avoidChannelIdx, choose the other one as the winner
-            if avoidChannelIdx = idx1 or (avoidChannelIdx /= idx2 and ChannelEn(idx2) = '1' and (ChannelEn(idx1) = '0' or ChannelPriority(idx2) > ChannelPriority(idx1))) then
+            if avoidChannelIdx = idx1 or 
+                    (avoidChannelIdx /= idx2 and ChannelEn(idx2) = '1' and 
+                        (ChannelEn(idx1) = '0' or ChannelPriority(idx2) > ChannelPriority(idx1))) then
                 winnerIdx := idx2;
             else
                 winnerIdx := idx1;
             end if;
             channelIdx(i) <= winnerIdx;
         end loop;
-        -- update sizeInternal
+        -- update sizeInternal: set to size/2 on start, then always to sizeInternal/2 in every cycle
         if EnI = '1' then
              -- Round up size to next power of 2
             report "log2 of " & integer'image(to_integer(unsigned(size))) & " gives " & integer'image(log2(to_integer(unsigned(size))));
-             -- sizeInternal = 2**log2(size) / 2
-            sizeInternal <= '0' & std_logic_vector(to_unsigned(2**log2(to_integer(unsigned(size))), sizeInternal'LENGTH)(sizeInternal'HIGH downto 1));
+            if SIZE_IS_POWER_OF_2 then
+                sizeInternal <= '0' & size(size'HIGH downto 1);
+            else
+                -- sizeInternal = 2**log2(size) / 2
+                sizeInternal <= '0' & std_logic_vector(to_unsigned(2**log2(to_integer(unsigned(size))), sizeInternal'LENGTH)(sizeInternal'HIGH downto 1));
+            end if;
         else
             -- divide sizeInternal by 2
             sizeInternal <= '0' & sizeInternal(sizeInternal'HIGH downto 1);
         end if;
         
-        -- check if search contained only one or two elements
-        if EnI = '1' and unsigned(size) <= to_unsigned(2, size'LENGTH) then
-            EnO <= '1';
-            if unsigned(size) = to_unsigned(2, size'LENGTH) then
-                highestChannel <= winnerIdx;
-            else
-                -- search contained only one element, i.e. the first
-                highestChannel <= 0;
+        -- check if a search has finished
+        if EnI = '1' then
+             -- check if search contained only one or two elements: set EnO immediately
+            if unsigned(size) <= to_unsigned(2, size'LENGTH) then
+                EnO <= '1';
+                if unsigned(size) = to_unsigned(2, size'LENGTH) then
+                    highestChannel <= winnerIdx;
+                else
+                    -- search contained only one element, i.e. the first
+                    highestChannel <= 0;
+                end if;
             end if;
-        -- check if current search has finished
+        -- check if a search longer than one cycle has finished
         elsif unsigned(sizeInternal) = to_unsigned(2, sizeInternal'LENGTH) then
             EnO <= '1';
             -- Best Channel is the winner of the comparison for position 0, i.e. the last loop iteration
