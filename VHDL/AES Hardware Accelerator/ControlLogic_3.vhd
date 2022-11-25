@@ -34,7 +34,7 @@ use ieee.std_logic_misc.or_reduce;
 entity ControlLogic_3 is
   Generic (
     LITTLE_ENDIAN : boolean := true;
-    NUM_CHANNELS : integer range 1 to 8 := 8 -- upper bound must be MAX_CHANNELS, but Vivado doesn't synthesize then
+    NUM_CHANNELS : integer range 1 to 1024 := 16 -- upper bound must be MAX_CHANNELS, but Vivado doesn't synthesize then
   );
   Port (    
 -- Ports to the AES interface: 
@@ -138,7 +138,7 @@ subtype addr_range is integer range ADDR_WIDTH-1 downto log2(DATA_WIDTH_BYTES);
 subtype addr_channel_range is integer range ADDR_WIDTH-1 downto ADDR_REGISTER_BITS;
 subtype addr_register_range is integer range ADDR_REGISTER_BITS-1 downto log2(DATA_WIDTH_BYTES);
 
- 
+ -- TODO delete function?
  function GetChannelAddr(channel : channel_range; addr : integer) return integer is
     variable totalAddr : unsigned(addr_range);
     variable addrInt : integer;
@@ -313,13 +313,14 @@ process(Clock)
 variable configReg : std_logic_vector(DATA_WIDTH-1 downto 0);
 variable destAddrVar, sourceAddrVar : std_logic_vector(DATA_WIDTH-1 downto 0);
 
-procedure UpdateCoreSignals(ch : channel_range) is 
+-- TODO necessary or just hardcode instead?
+procedure UpdateCoreSignals is 
 begin
 for i in 3 downto 0 loop
-    key(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(ch, ADDR_KEYR0 + i*4));
-    IV (127-i*32 downto 96-i*32) <= mem(GetChannelAddr(ch, ADDR_IVR0 + i*4));
-    Susp(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(ch, ADDR_SUSPR0 + i*4));
-    H(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(ch, ADDR_SUSPR4 + i*4));
+    key(127-i*32 downto 96-i*32) <= mem(ADDR_KEYR0/4 + i);
+    IV (127-i*32 downto 96-i*32) <= mem(ADDR_IVR0/4 + i);
+    Susp(127-i*32 downto 96-i*32) <= mem(ADDR_SUSPR0/4 + i);
+    H(127-i*32 downto 96-i*32) <= mem(ADDR_SUSPR4/4 + i);
 end loop;
 end procedure;
  
@@ -358,11 +359,11 @@ end procedure;
         case state is
             when Idle =>
                 -- Read CR register of highest channel
-                configReg := mem(GetChannelAddr(highestChannel, ADDR_CR)); 
+                configReg := mem(ADDR_CR); 
                 -- switch channel to highestChannel
                 channel <= highestChannel;
-                -- update core signals
-                UpdateCoreSignals(highestChannel);
+                -- update core signals TODO necessary here?
+                UpdateCoreSignals;
                 -- start if the Enable signal switched to high or the channel changed
                 if En(highestChannel) = '1' and (prevEn(highestChannel) = '0' or channel /= highestChannel) then
                 
@@ -388,14 +389,14 @@ end procedure;
                         -- start read data transaction;  
                         -- Read addresses and datasize from memory register depending on Endianness
                         if not LITTLE_ENDIAN then 
-                            destAddrVar     := mem(GetChannelAddr(highestChannel, ADDR_DOUTADDR));
-                            sourceAddrVar   := mem(GetChannelAddr(highestChannel, ADDR_DINADDR));
-                            dataSize        <= mem(GetChannelAddr(highestChannel, ADDR_DATASIZE));
+                            destAddrVar     := mem(ADDR_DOUTADDR);
+                            sourceAddrVar   := mem(ADDR_DINADDR);
+                            dataSize        <= mem(ADDR_DATASIZE);
                         else
                             for i in 3 downto 0 loop
-                                destAddrVar(i*8+7 downto i*8)   := mem(GetChannelAddr(highestChannel, ADDR_DOUTADDR))((3-i)*8+7 downto (3-i)*8);
-                                sourceAddrVar(i*8+7 downto i*8) := mem(GetChannelAddr(highestChannel, ADDR_DINADDR))((3-i)*8+7 downto (3-i)*8);
-                                dataSize(i*8+7 downto i*8)      <= mem(GetChannelAddr(highestChannel, ADDR_DATASIZE))((3-i)*8+7 downto (3-i)*8);
+                                destAddrVar(i*8+7 downto i*8)   := mem(ADDR_DOUTADDR)((3-i)*8+7 downto (3-i)*8);
+                                sourceAddrVar(i*8+7 downto i*8) := mem(ADDR_DINADDR)((3-i)*8+7 downto (3-i)*8);
+                                dataSize(i*8+7 downto i*8)      <= mem(ADDR_DATASIZE)((3-i)*8+7 downto (3-i)*8);
                             end loop;
                         end if;
                          -- Make sure dataCounter is divisible by 16
@@ -430,7 +431,7 @@ end procedure;
                         -- start core
                         EnICore <= '1';
                         -- update core signals before starting the core
-                        UpdateCoreSignals(channel);
+                        UpdateCoreSignals;
                         state <= Computing;
                     end if;
                 end if;
@@ -521,7 +522,7 @@ if rising_edge(Clock) then
             -- TODO Return the same or something different when channel /= channelIdx?
             if channelIdx = channel then
                 RdData <= mem(to_integer(unsigned(RdAddr(addr_register_range))));
-            else
+            else -- return 111111 when channel is not loaded
                 RdData <= (others => '1');    
             end if;
         end if;
@@ -553,7 +554,7 @@ if rising_edge(Clock) then
         -- Check if channel is finished: Reset the enable bit and reset the susp register
         if CCF(channel) = '1' and prevCCF(channel) = '0' then
             -- Set En to 0 and write back to memory
-            mem(GetChannelAddr(channel, ADDR_CR))(CR_POS_EN) <= '0';
+            mem(ADDR_CR)(CR_POS_EN) <= '0'; -- TODO Write into memory?  TODO is this statement necessary if i dont?
             En(channel) <= '0';
         end if;
         
