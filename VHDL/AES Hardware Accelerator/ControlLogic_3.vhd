@@ -519,6 +519,42 @@ end procedure;
 end if;
 end process;
 
+
+-- RM port process
+process(Clock)
+begin
+if rising_edge(Clock) then
+    if Resetn = '0' then
+        RM_valid <= '0';
+        RM_RdReady <= '0';
+        RM_WrValid <= '0';
+    else
+        if false then -- TODO activate read?
+            RM_write <= '0';
+            RM_length <= std_logic_vector(to_unsigned(84, RM'length'LENGTH)); -- TODO constant! 
+            RM_valid <= '1';
+        elsif false then  -- TODO activate write?
+            RM_write <= '1';
+            RM_valid <= '1';
+            -- TODO ausser für GCM muss nie zurückgeschrieben werden, wenn der CHannel fertig ist (nur bei Unterbrechung)
+            if chainingModeSignal = CHAINING_MODE_GCM then
+                
+                RM_length <= 
+            elsif chainingModeSignal = CHAINING_MODE_CBC or chainingModeSignal = CHAINING_MODE_CTR then
+
+            else -- CHAINING_MODE_ECB
+            
+            end if;
+        end if;
+
+        -- Check if transaction completed
+        if M_RM_ready = '1' then
+
+        end if;
+    end if;
+end if;
+end process;
+
 -- read process
 process (Clock)
 variable channelIdx : channel_range;

@@ -53,7 +53,7 @@ typedef struct __attribute__((__packed__))
     u32 CR;
     u32 DinAddr;
     u32 DoutAddr;
-    u32 DataSize; // TODO beachten: Ist an anderer Position, damit IV, DataProcessedSize usw. mit IncBurst geschrieben werden können
+    u32 DataSize;
     u8  Key[BLOCK_SIZE];
     u8  IV[BLOCK_SIZE];
     u32 DataProcessedSize;

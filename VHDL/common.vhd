@@ -68,7 +68,7 @@ constant ADDR_IVR2 : integer := 16#28#;
 constant ADDR_IVR3 : integer := 16#2c#;
 
 constant ADDR_DATASIZE : integer := 16#30#;
-
+-- TODO vorziehen, sodass mem array kleiner werden kann?
 constant ADDR_SUSPR0 : integer := 16#40#;
 constant ADDR_SUSPR1 : integer := 16#44#;
 constant ADDR_SUSPR2 : integer := 16#48#;
