@@ -230,7 +230,9 @@ u32 AES_GetInterruptEnabled(AES* InstancePtr, u32 channel)
  */
 u32 AES_isActive(AES* InstancePtr, u32 channel)
 {
-	return getBits(InstancePtr->Registers[channel].CR, EN_POS, EN_LEN);
+	// Check both the Enable Bit and the CCF Flag, as En isn't being reset in phase 3
+	return getBits(InstancePtr->Registers[channel].CR, EN_POS, EN_LEN) &&
+			!getBits(AES_Read(InstancePtr, channel, AES_SR_OFFSET), SR_CCF_POS, SR_CCF_LEN);
 }
 
 
@@ -375,9 +377,13 @@ int AES_compareTags(u8 tag1[BLOCK_SIZE], u8 tag2[BLOCK_SIZE])
  */
 void AES_clearCompletedStatus(AES* InstancePtr, u32 channel)
 {
+	// Reset En bit first, just in case
+	setBits(&InstancePtr->Registers[channel].CR, 0, EN_POS, EN_LEN);
+	// Read CR, set the CCFC flag (only in the local copy) and write it to the AES unit
     u32 cr = InstancePtr->Registers[channel].CR;
     setBits(&cr, 1, CCFC_POS, CCFC_LEN);
     AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
+	// Reset the CCFC flag again
     setBits(&cr, 0, CCFC_POS, CCFC_LEN);
     AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
 }
@@ -390,7 +396,11 @@ void AES_waitUntilCompleted(AES* InstancePtr, u32 channel)
 
 int AES_isComputationCompleted(AES* InstancePtr, u32 channel)
 {
-	return getBits(AES_Read(InstancePtr, channel, AES_SR_OFFSET), SR_CCF_POS, SR_CCF_LEN);
+	int ccf = getBits(AES_Read(InstancePtr, channel, AES_SR_OFFSET), SR_CCF_POS, SR_CCF_LEN);
+	// If computation is completed, reset the En bit manually
+	if (ccf)
+		setBits(&InstancePtr->Registers[channnel].CR, 0, EN_POS, EN_LEN);
+	return ccf;
 }
 
 /*****************************************************************************/
