@@ -23,7 +23,7 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use work.common.ALL;
 use work.addresses.ALL;
-use work.control_register_positions.ALL;
+use work.register_bit_positions.ALL;
 use work.binary_search_types.ALL;
 use work.regset.ALL;
 
@@ -395,18 +395,18 @@ end procedure;
                     
                     -- if mode is decryption but the channel has changed, the keyexpansion data aren't valid anymore 
                     --     therefore start in keyexpansion_and_decryption mode to regenerate the keyexpansion data
-                    if configReg(CR_POS_MODE) = MODE_DECRYPTION and channel /= highestChannel then
+                    if configReg(CR_RANGE_MODE) = MODE_DECRYPTION and channel /= highestChannel then
                         modeSignal <= MODE_KEYEXPANSION_AND_DECRYPTION;
                     else
-                        modeSignal <= configReg(CR_POS_MODE);
+                        modeSignal <= configReg(CR_RANGE_MODE);
                     end if;
-                    chainingModeSignal <= configReg(CR_POS_CHMODE);
-                    GCMPhaseSignal <= configReg(CR_POS_GCMPHASE);
+                    chainingModeSignal <= configReg(CR_RANGE_CHMODE);
+                    GCMPhaseSignal <= configReg(CR_RANGE_GCMPHASE);
                     CCFIE <= configReg(CR_POS_CCFIE);
 
                     -- If mode is keyexpansion or the GCM init mode, start the AES Core immediately, no data reading required
                     -- need to read from configReg instead of the signals, as the signals only update after the process
-                    if configReg(CR_POS_MODE) = MODE_KEYEXPANSION or (configReg(CR_POS_CHMODE) = CHAINING_MODE_GCM and configReg(CR_POS_GCMPHASE) = GCM_PHASE_INIT) then
+                    if configReg(CR_RANGE_MODE) = MODE_KEYEXPANSION or (configReg(CR_RANGE_CHMODE) = CHAINING_MODE_GCM and configReg(CR_RANGE_GCMPHASE) = GCM_PHASE_INIT) then
                         EnICore <= '1';
                         state <= Computing;
                     else
@@ -626,10 +626,10 @@ if rising_edge(Clock) then
             -- fill RdData :   WRERR | RDERR |  CCF  | IRQ
             -- TODO define indices in common, also for phase2
             RdData <= (others => '0');
-            RdData(0) <= interrupt(channelIdx);
-            RdData(8) <= CCF(channelIdx);
-            RdData(16) <= RDERR(channelIdx);
-            RdData(24) <= WRERR(channelIdx);
+            RdData(SR_POS_IRQ) <= interrupt(channelIdx);
+            RdData(SR_POS_CCF) <= CCF(channelIdx);
+            RdData(SR_POS_RDERR) <= RDERR(channelIdx);
+            RdData(SR_POS_WRERR) <= WRERR(channelIdx);
         else
             -- TODO Return the same or something different when channel /= channelIdx?
             if channelIdx = channel then
@@ -666,7 +666,7 @@ if rising_edge(Clock) then
         -- Check if channel is finished: Reset the enable bit and reset the susp register
         if CCF(channel) = '1' and prevCCF(channel) = '0' then
             -- Set En to 0 and write back to memory
-            mem(ADDR_CR)(CR_POS_EN) <= '0'; -- TODO Write into memory?  TODO is this statement necessary if i dont?
+            mem(ADDR_CR)(CR_POS_EN) <= '0'; -- TODO statement is not necessary, as CR isnt written back
             En(channel) <= '0';
         end if;
         
@@ -699,7 +699,7 @@ if rising_edge(Clock) then
                 -- WriteStrobe ignored for simplicity; 
                 -- Because of that, WriteStrobes other than 1111 for the CR register have to be prevented in the driver
                  En(channelIdx) <= WrData1(CR_POS_EN);
-                 Priority(channelIdx) <= WrData1(CR_POS_PRIORITY);
+                 Priority(channelIdx) <= WrData1(CR_RANGE_PRIORITY);
                  CCFC(channelIdx) <= WrData1(CR_POS_CCFC);
           end if;
           -- if Write is to Status Register, it contains the Clear Interrupt Flags
@@ -768,7 +768,7 @@ if rising_edge(Clock) then
                 if WrData1(CR_POS_EN) = '1' then
                     -- Make this channel the highest channel if it has a higher priority,
                     -- or if there's no other channel enabled (highestChannel and nextHighestChanel both disabled)
-                    if unsigned(WrData1(CR_POS_PRIORITY)) > unsigned(Priority(highestChannel)) or (En(highestChannel) = '0' and En(nextHighestChannel) = '0') then
+                    if unsigned(WrData1(CR_RANGE_PRIORITY)) > unsigned(Priority(highestChannel)) or (En(highestChannel) = '0' and En(nextHighestChannel) = '0') then
                         highestChannel <= channelIdx;
                         -- abort any running search
                         waitForSearchEnd <= false;
@@ -776,7 +776,7 @@ if rising_edge(Clock) then
                         runSearch <= true;
                         EnISearch <= '1';
                     -- compare channelIdx to nextHighestChannel; if it is higher, replace nextHighestChannel with channelIdx             
-                    elsif unsigned(WrData1(CR_POS_PRIORITY)) > unsigned(Priority(nextHighestChannel)) or En(nextHighestChannel) = '0' or nextHighestChannel = highestChannel then 
+                    elsif unsigned(WrData1(CR_RANGE_PRIORITY)) > unsigned(Priority(nextHighestChannel)) or En(nextHighestChannel) = '0' or nextHighestChannel = highestChannel then 
                         -- if search is currently running and process isn't waiting for the result, restart the search, as it is not definite that channelIdx is really the nextHighestChannel
                         -- the "not waitForSearchEnd" makes sure the search doesn't restart while a new channel is searched, so the search time is fixed
                         if runSearch and not waitForSearchEnd then
