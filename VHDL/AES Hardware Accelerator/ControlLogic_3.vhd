@@ -263,7 +263,7 @@ signal RM_WrData : std_logic_vector(M_RM_WrData'RANGE);
 
 signal Pulse_RegMemWrite, Pulse_RegMemRead : std_logic;
 signal Pulse_RegMemFinished : std_logic;
-signal write_index, read_index : std_logic_vector(7 downto 0);
+signal write_index, read_index : std_logic_vector(4 downto 0); -- maximum is 84/4 = 21
 
 
 -- signals for the DMA process
@@ -566,11 +566,6 @@ if rising_edge(Clock) then
                 RM_length <= std_logic_vector(to_unsigned(4 + KEY_SIZE, RM_length'LENGTH));
             end if;
         end if;
-
-        -- Check if transaction completed
-        if M_RM_ready = '1' then
-
-        end if;
     end if;
 end if;
 end process;
@@ -588,15 +583,11 @@ if rising_edge(Clock) then
             RM_WrValid <= '1';
             RM_WrData <= dataCount;
             write_index <= (others => '0');
-            
         elsif RM_WrValid = '1' and M_RM_WrReady = '1' then
-
             write_index <= std_logic_vector(unsigned(write_index) + 1); 
-
-            -- At each Write Handshake, set WrData to next data piece
-            RM_WrData <= mem(ADDR_IVR0/4 + to_integer(unsigned(write_index)));
-            
-            -- check if WrValid can be deactivated:  next write index equals RM_length/4
+            -- At each Write Handshake, set WrData to next data register
+            RM_WrData <= mem(ADDR_IVR0/4 + to_integer(unsigned(write_index))); 
+            -- check if WrValid can be deactivated, whic is when the next write index equals RM_length/4
             if unsigned(write_index) + 1 = unsigned(RM_length(RM_length'HIGH downto 2)) then -- TODO >= to be sure?
                 RM_WrValid <= '0';
             end if;    
@@ -718,6 +709,7 @@ if rising_edge(Clock) then
         for i in mem'RANGE loop 
             mem(i) <= (others => '0');
         end loop;
+        RM_RdReady <= '0';
     else
         -- Check if channel is finished: Reset the enable bit and reset the susp register
         if CCF(channel) = '1' and prevCCF(channel) = '0' then
@@ -746,6 +738,19 @@ if rising_edge(Clock) then
                 -- Write to WrAddr2 register
                 mem(to_integer(unsigned(WrAddr2(addr_register_range)))+i) <= WrData2(127-i*32 downto 96-i*32);
             end loop;
+        end if;
+        
+        -- Write Port 3 : from RegMem Port
+        if pulse_RegMemRead = '1' then
+            read_index <= (others => '0');
+            RM_RdReady <= '1';
+        elsif RM_RdReady = '1' and M_RM_RdValid = '1' then
+            read_index <= std_logic_vector(unsigned(read_index) + 1);
+            mem(to_integer(unsigned(read_index))) <= M_RM_RdData;
+        end if;
+        -- reset RdReady when transaction is complete
+        if M_RM_Ready = '1' then
+            RM_RdReady <= '0';
         end if;
     end if;
 end if;
