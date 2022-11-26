@@ -558,12 +558,12 @@ if rising_edge(Clock) then
                 -- For finishing, the dataProcessedSize doesnt have to be written back.
                 -- In all other modi, there never has to be something written back when the channel is finished (only when interrupted)
                 RM_length <= std_logic_vector(to_unsigned(4 + KEY_SIZE + KEY_SIZE*2, RM_length'LENGTH));
-            elsif chainingModeSignal = CHAINING_MODE_CBC or chainingModeSignal = CHAINING_MODE_CTR then
-                -- write back IV and dataProcessedSize
-                RM_length <= std_logic_vector(to_unsigned(4 + KEY_SIZE, RM_length'LENGTH));
-            else -- CHAINING_MODE_ECB
+            elsif chainingModeSignal = CHAINING_MODE_ECB then
                 -- only write back dataProcessedSize
                 RM_length <= std_logic_vector(to_unsigned(4, RM_length'LENGTH));
+            else -- CBC or CTR mode
+                -- write back IV and dataProcessedSize
+                RM_length <= std_logic_vector(to_unsigned(4 + KEY_SIZE, RM_length'LENGTH));
             end if;
         end if;
 
@@ -592,22 +592,14 @@ if rising_edge(Clock) then
         elsif RM_WrValid = '1' and M_RM_WrReady = '1' then
 
             write_index <= std_logic_vector(unsigned(write_index) + 1); 
-            -- check if WrValid can be deactivated
-            if write_index then ...TO_01
 
             -- At each Write Handshake, set WrData to next data piece
             RM_WrData <= mem(ADDR_IVR0/4 + to_integer(unsigned(write_index)));
             
-            end if;
-             if chainingModeSignal = CHAINING_MODE_GCM then
-                
-                RM_WrData <= ?;
-            elsif chainingModeSignal = CHAINING_MODE_CBC or chainingModeSignal = CHAINING_MODE_CTR then
-                
-            else -- CHAINING_MODE_ECB
-                -- already finished
+            -- check if WrValid can be deactivated:  next write index equals RM_length/4
+            if unsigned(write_index) + 1 = unsigned(RM_length(RM_length'HIGH downto 2)) then -- TODO >= to be sure?
                 RM_WrValid <= '0';
-            end if;
+            end if;    
         end if;    
     end if;
 end if;
