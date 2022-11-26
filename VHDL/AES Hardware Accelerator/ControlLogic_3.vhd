@@ -634,9 +634,32 @@ if rising_edge(Clock) then
 end if;
 end process;
 
--- write process
--- drives the En and Priority signals; if there's a write to the CR register, it copies the values to En and Priority
--- drives clearInterrupt
+-- write process driving baseAddr
+process (Clock)
+variable channelIdx : integer;
+
+begin
+if rising_edge(Clock) then
+    if Resetn = '0' then
+        baseAddr <= (others => '0');
+    else
+        -- Check if register part of the address equals the baseAddr and set baseAddr in that case
+        if WrEn1 = '1' and WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_BASEADDR, WrAddr1'LENGTH)(addr_register_range))  then
+            -- WriteStrobes other than 1111 must be prevented by the driver
+            if not LITTLE_ENDIAN then
+                baseAddr <= WrData1;
+            else
+                for i in 3 downto 0 loop
+                    baseAddr(i*8+7 downto i*8)   <= WrData1((3-i)*8+7 downto (3-i)*8);
+                end loop;
+            end if;
+        end if;
+    end if;
+end if;
+end process;
+
+
+-- write process driving En, CCFC and Priority: if there's a write to the CR register, it updates the signals
 process (Clock)
 variable channelIdx : integer;
 
@@ -645,60 +668,77 @@ if rising_edge(Clock) then
     clearInterrupt <= (others => '0');
     
     if Resetn = '0' then
-        for i in mem'RANGE loop 
-            mem(i) <= (others => '0');
-        end loop;
         En <= (others => '0');
         CCFC <= (others => '0');
         for i in channel_range loop
             Priority(i) <= (others => '0');
         end loop;
-        baseAddr <= (others => '0');
+    else
+        -- Check if channel is finished: Reset the enable bit
+        if CCF(channel) = '1' and prevCCF(channel) = '0' then
+            En(channel) <= '0';
+        end if;
+        
+        -- Set enable and priority signals if it was a write to the CR register
+        if WrEn1 = '1' and WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH)(addr_register_range)) then
+            channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
+            -- WriteStrobe ignored for simplicity; 
+            -- Because of that, WriteStrobes other than 1111 for the CR register have to be prevented in the driver
+             En(channelIdx) <= WrData1(CR_POS_EN);
+             Priority(channelIdx) <= WrData1(CR_RANGE_PRIORITY);
+             CCFC(channelIdx) <= WrData1(CR_POS_CCFC);
+        end if;
+    end if;
+end if;
+end process;
+
+-- write process driving interruptClear
+process (Clock)
+variable channelIdx : integer;
+begin
+if rising_edge(Clock) then
+    clearInterrupt <= (others => '0');
+     -- if Write is to Status Register, it contains the Clear Interrupt Flags
+    if WrEn1 = '1' and WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)(addr_register_range)) then
+        channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
+        clearInterrupt(channelIdx) <= WrData1(SR_POS_IRQ);
+     end if;
+end if;
+end process;
+
+
+
+-- write process driving mem
+process (Clock)
+variable channelIdx : integer;
+
+begin
+if rising_edge(Clock) then   
+    if Resetn = '0' then
+        for i in mem'RANGE loop 
+            mem(i) <= (others => '0');
+        end loop;
     else
         -- Check if channel is finished: Reset the enable bit and reset the susp register
         if CCF(channel) = '1' and prevCCF(channel) = '0' then
             -- Set En to 0 and write back to memory
             mem(ADDR_CR)(CR_POS_EN) <= '0'; -- TODO statement is not necessary, as CR isnt written back
-            En(channel) <= '0';
         end if;
         
         -- Write port 1 (from the Interface)
         if WrEn1 = '1' then
+            -- TODO forward WritePort1 to memory or just ignore it always?
             channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
+            --TODO ignore certain registers like baseaddr?
             if channelIdx = channel then
+                -- TODO simplify by ignoring WrStrb?
                 for i in 3 downto 0 loop
                     if WrStrb1(i) = '1' then
                         mem(to_integer(unsigned(WrAddr1(addr_register_range))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
                     end if;
                end loop;
-           end if;
-            -- TODO separate process for baseAddr for visibility?
-            -- Check if register part of the address equals the baseAddr and set baseAddr in that case
-           if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_BASEADDR, WrAddr1'LENGTH)(addr_register_range))  then
-                -- WriteStrobes other than 1111 must be prevented by the driver
-                if not LITTLE_ENDIAN then
-                    baseAddr <= WrData1;
-                else
-                    for i in 3 downto 0 loop
-                        baseAddr(i*8+7 downto i*8)   <= WrData1((3-i)*8+7 downto (3-i)*8);
-                    end loop;
-                end if;
-           end if;
-           
-
-           -- Set enable and priority signals if it was a write to the CR register
-           if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH)(addr_register_range)) then
-                -- WriteStrobe ignored for simplicity; 
-                -- Because of that, WriteStrobes other than 1111 for the CR register have to be prevented in the driver
-                 En(channelIdx) <= WrData1(CR_POS_EN);
-                 Priority(channelIdx) <= WrData1(CR_RANGE_PRIORITY);
-                 CCFC(channelIdx) <= WrData1(CR_POS_CCFC);
-          end if;
-          -- if Write is to Status Register, it contains the Clear Interrupt Flags
-          if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)(addr_register_range)) then
-                clearInterrupt(channelIdx) <= WrData1(0); -- TODO Index!
-           end if;
-        end if;
+           end if;  
+        end if;         
         -- Write port 2 (from the AES Core)
         if WrEn2 = '1' then
             -- write four words, i.e. 128 bit
