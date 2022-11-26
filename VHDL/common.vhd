@@ -80,15 +80,20 @@ constant ADDR_SUSPR7 : integer := 16#5c#;
 
 end package;
 
-package control_register_positions is
+package register_bit_positions is
 use work.common.NUM_PRIORITY_BITS;
 
-subtype CR_POS_PRIORITY is integer range (16+NUM_PRIORITY_BITS-1) downto 16;
-subtype CR_POS_GCMPHASE is integer range 14 downto 13;
+subtype CR_RANGE_PRIORITY is integer range (16+NUM_PRIORITY_BITS-1) downto 16;
+subtype CR_RANGE_GCMPHASE is integer range 14 downto 13;
 constant CR_POS_CCFIE : integer := 9;
 constant CR_POS_CCFC : integer := 7;
-subtype CR_POS_CHMODE is integer range 6 downto 5;
-subtype CR_POS_MODE is integer range 4 downto 3;
+subtype CR_RANGE_CHMODE is integer range 6 downto 5;
+subtype CR_RANGE_MODE is integer range 4 downto 3;
 constant CR_POS_EN : integer := 0;
+
+constant SR_POS_IRQ : integer := 0;
+constant SR_POS_CCF : integer := 8;
+constant SR_POS_RDERR : integer := 16;
+constant SR_POS_WRERR : integer := 24;
 
 end package;
