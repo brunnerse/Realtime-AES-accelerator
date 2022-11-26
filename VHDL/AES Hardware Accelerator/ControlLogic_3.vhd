@@ -596,9 +596,7 @@ if rising_edge(Clock) then
             if write_index then ...TO_01
 
             -- At each Write Handshake, set WrData to next data piece
-            if unsigned(write_index) < 4 then
-                RM_WrData <= mem(ADDR_IVR0/4 + to_integer(unsigned(write_index)));
-            else
+            RM_WrData <= mem(ADDR_IVR0/4 + to_integer(unsigned(write_index)));
             
             end if;
              if chainingModeSignal = CHAINING_MODE_GCM then
@@ -683,7 +681,8 @@ if rising_edge(Clock) then
                end loop;
            end if;
             -- TODO separate process for baseAddr for visibility?
-           if WrAddr1 = std_logic_vector(to_unsigned(ADDR_BASEADDR, WrAddr1'LENGTH)) then
+            -- Check if register part of the address equals the baseAddr and set baseAddr in that case
+           if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_BASEADDR, WrAddr1'LENGTH)(addr_register_range))  then
                 -- WriteStrobes other than 1111 must be prevented by the driver
                 if not LITTLE_ENDIAN then
                     baseAddr <= WrData1;

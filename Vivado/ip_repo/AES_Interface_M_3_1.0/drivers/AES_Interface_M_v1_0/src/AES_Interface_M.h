@@ -51,12 +51,12 @@ typedef enum {
 typedef struct __attribute__((__packed__))
 {
     u32 CR;
+    u32 DataSize;
     u32 DinAddr;
     u32 DoutAddr;
-    u32 DataSize;
     u8  Key[BLOCK_SIZE];
-    u8  IV[BLOCK_SIZE];
     u32 DataProcessedSize;
+    u8  IV[BLOCK_SIZE];
     u8  Susp[BLOCK_SIZE*2];
 } RegisterSet;
 
