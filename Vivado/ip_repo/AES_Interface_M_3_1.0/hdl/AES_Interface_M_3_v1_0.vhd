@@ -503,7 +503,7 @@ AES_Interface_M_v1_0_M_AXI_inst : AES_Interface_M_3_v1_0_M_AXI
                 -- for each of the 32/64 bit words, reverse the byte positions
                 InnerLoop: 
                 for i in C_M_AXI_DATA_WIDTH/8-1 downto 0 generate
-                signal index, invindex : integer;
+                signal index, invindex : integer range 120 downto 0 := 0;
                 begin
                     index <= (j * C_M_AXI_DATA_WIDTH/8 + i)*8;
                     invindex <= ((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8;

@@ -404,8 +404,7 @@ begin
 	    end if;                                                                         
 	  end process;                                                                      
 	                                                                                    
-	-- Burst length counter. Uses extra counter register bit to indicate terminal       
-	-- count to reduce decode logic */                                                  
+	-- Counts write_index up at every write handshake.  Also drives RW_axi_wdata.
 	  process(M_AXI_ACLK)   
 	       variable idx_offset : integer;                                                              
 	  begin                                                                             
@@ -416,9 +415,13 @@ begin
 	      else                                                                          
 	           -- update write_index and wdata at each handshake
                if M_AXI_WREADY= '1' and axi_wvalid = '1' then
-                   idx_offset := to_integer(unsigned(write_index)+1) * C_M_AXI_DATA_WIDTH;    
-                   RW_axi_wdata <= S_RW_wrData(127 - idx_offset downto 128 - C_M_AXI_DATA_WIDTH - idx_offset);                   
-	               write_index <= std_logic_vector(unsigned(write_index) + 1);                 
+                   -- set RW_axi_wdata to the next part of S_RW_wrData.
+                   -- To avoid index out of bound issues, only use the bottom two bits of write_index (range 0-3)
+                   idx_offset := to_integer(unsigned(write_index(1 downto 0))+1) * C_M_AXI_DATA_WIDTH;
+                   RW_axi_wdata <= S_RW_wrData(127 - idx_offset downto 128 - C_M_AXI_DATA_WIDTH - idx_offset);
+
+                   -- increment write_index. Both the RW and RM port rely on this for setting wlast
+                   write_index <= std_logic_vector(unsigned(write_index) + 1);
                end if;                                                                     
 	      end if;                                                                       
 	    end if;                                                                         
@@ -495,7 +498,7 @@ begin
           if (M_AXI_ARESETN = '0' or RW_valid_pulse = '1') then    
                idx_offset <= to_unsigned(127, idx_offset'LENGTH);                               
           else
-               -- at every handshake, copy the rdata to the designated part of S_RW_rdData, then increment the read_index
+               -- at every handshake, copy the rdata to the designated part of S_RW_rdData, then change the index to the next position
                if axi_rready = '1' and M_AXI_RVALID = '1' then
                    S_RW_rdData(to_integer(idx_offset) downto to_integer(idx_offset) - C_M_AXI_DATA_WIDTH+1) <= M_AXI_RDATA;    
                    idx_offset <= idx_offset - C_M_AXI_DATA_WIDTH;                           
