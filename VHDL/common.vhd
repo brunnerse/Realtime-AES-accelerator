@@ -80,6 +80,12 @@ constant ADDR_SUSPR7 : integer := 16#5c#;
 
 end package;
 
+package regset is
+constant REGSET_SIZE : integer := 84;
+constant REGSET_ADDR_DATAPROCESSEDSIZE : integer :=  32;
+constant REGSET_ADDR_IV : integer := 36;
+end package;
+
 package control_register_positions is
 use work.common.NUM_PRIORITY_BITS;
 

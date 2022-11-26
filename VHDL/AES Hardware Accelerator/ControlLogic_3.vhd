@@ -25,6 +25,7 @@ use work.common.ALL;
 use work.addresses.ALL;
 use work.control_register_positions.ALL;
 use work.binary_search_types.ALL;
+use work.regset.ALL;
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
@@ -260,6 +261,10 @@ signal RM_RdReady : std_logic;
 signal RM_WrValid : std_logic;
 signal RM_WrData : std_logic_vector(M_RM_WrData'RANGE); 
 
+signal Pulse_RegMemWrite, Pulse_RegMemRead : std_logic;
+signal Pulse_RegMemFinished : std_logic;
+signal write_index, read_index : std_logic_vector(7 downto 0);
+
 
 -- signals for the DMA process
 type state_type is (Idle, Fetch, Computing, Writeback);
@@ -292,6 +297,8 @@ M_RM_write <= RM_write;
 M_RM_RdReady <= RM_RdReady;
 M_RM_WrValid <= RM_WrValid;
 M_RM_WrData <= RM_WrData;
+
+pulse_RegMemFinished <= RM_valid and M_RM_ready;
 
 -- forward internal AES control signals
 mode <= modeSignal;
@@ -529,21 +536,34 @@ if rising_edge(Clock) then
         RM_RdReady <= '0';
         RM_WrValid <= '0';
     else
-        if false then -- TODO activate read?
+        -- deassert RM_valid when transaction is finished
+        if M_RM_ready = '1' then
+            RM_valid <= '0';
+        end if;
+    
+        if pulse_RegMemRead = '1' then 
             RM_write <= '0';
-            RM_length <= std_logic_vector(to_unsigned(84, RM'length'LENGTH)); -- TODO constant! 
+            -- TODO different size depending on mode?
+            RM_length <= std_logic_vector(to_unsigned(REGSET_SIZE, RM_length'LENGTH));
             RM_valid <= '1';
-        elsif false then  -- TODO activate write?
+        elsif pulse_RegMemWrite = '1' then
             RM_write <= '1';
             RM_valid <= '1';
-            -- TODO ausser für GCM muss nie zurückgeschrieben werden, wenn der CHannel fertig ist (nur bei Unterbrechung)
-            if chainingModeSignal = CHAINING_MODE_GCM then
-                
-                RM_length <= 
-            elsif chainingModeSignal = CHAINING_MODE_CBC or chainingModeSignal = CHAINING_MODE_CTR then
-
-            else -- CHAINING_MODE_ECB
             
+            RM_addr <= std_logic_vector(unsigned(baseAddr) + (channel * REGSET_SIZE) +
+                   REGSET_ADDR_DATAPROCESSEDSIZE); 
+            
+            if chainingModeSignal = CHAINING_MODE_GCM then
+                -- TODO check if channel has finished or was interrupted.
+                -- For finishing, the dataProcessedSize doesnt have to be written back.
+                -- In all other modi, there never has to be something written back when the channel is finished (only when interrupted)
+                RM_length <= std_logic_vector(to_unsigned(4 + KEY_SIZE + KEY_SIZE*2, RM_length'LENGTH));
+            elsif chainingModeSignal = CHAINING_MODE_CBC or chainingModeSignal = CHAINING_MODE_CTR then
+                -- write back IV and dataProcessedSize
+                RM_length <= std_logic_vector(to_unsigned(4 + KEY_SIZE, RM_length'LENGTH));
+            else -- CHAINING_MODE_ECB
+                -- only write back dataProcessedSize
+                RM_length <= std_logic_vector(to_unsigned(4, RM_length'LENGTH));
             end if;
         end if;
 
@@ -554,6 +574,47 @@ if rising_edge(Clock) then
     end if;
 end if;
 end process;
+
+-- RM write process
+process (Clock)
+begin
+if rising_edge(Clock) then
+    if Resetn = '0' then
+        RM_WrValid <= '0';
+    else
+        
+        if pulse_RegMemWrite = '1' then
+            -- init WrData and WrValid at start of transaction
+            RM_WrValid <= '1';
+            RM_WrData <= dataCount;
+            write_index <= (others => '0');
+            
+        elsif RM_WrValid = '1' and M_RM_WrReady = '1' then
+
+            write_index <= std_logic_vector(unsigned(write_index) + 1); 
+            -- check if WrValid can be deactivated
+            if write_index then ...TO_01
+
+            -- At each Write Handshake, set WrData to next data piece
+            if unsigned(write_index) < 4 then
+                RM_WrData <= mem(ADDR_IVR0/4 + to_integer(unsigned(write_index)));
+            else
+            
+            end if;
+             if chainingModeSignal = CHAINING_MODE_GCM then
+                
+                RM_WrData <= ?;
+            elsif chainingModeSignal = CHAINING_MODE_CBC or chainingModeSignal = CHAINING_MODE_CTR then
+                
+            else -- CHAINING_MODE_ECB
+                -- already finished
+                RM_WrValid <= '0';
+            end if;
+        end if;    
+    end if;
+end if;
+end process;
+
 
 -- read process
 process (Clock)
