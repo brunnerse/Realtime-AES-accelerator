@@ -358,8 +358,6 @@ end procedure;
         RW_valid <= '0';
         channel <= 0;
         interrupt <= (others => '0');
-        WRERR <= (others => '0');
-        RDERR <= (others => '0');
         CCF <= (others => '0');
         dataCount <= (others => '0');
     else
@@ -373,11 +371,7 @@ end procedure;
             if clearInterrupt(i) = '1' then
                 interrupt(i) <= '0';
             end if;
-           -- Clear error signals when channel is enabled
-            if (En(i) = '1' and prevEn(i) = '0') then
-                RDERR(i) <= '0';
-                WRERR(i) <= '0';
-            end if;
+
         end loop;
              
         case state is
@@ -445,7 +439,6 @@ end procedure;
                 if M_RW_ready = '1' then
                     -- reset valid signal
                     RW_valid <= '0';
-                    RDERR(channel) <= RDERR(channel) or M_RW_error;
                     -- check if channel changed, if yes abort and return to Idle state without starting the core
                     if channel /= highestChannel then -- TODO should I be able to stop after fetch?
                         state <= Idle;
@@ -491,8 +484,7 @@ end procedure;
                  if M_RW_ready = '1' or
                          (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_HEADER) then
                          
-                    RW_valid <= '0';
-                    WRERR(channel) <= WRERR(channel) or M_RW_error;         
+                    RW_valid <= '0';    
                     -- increment dataCount of this channel
                     dataCount <= std_logic_vector(unsigned(dataCount) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
                     
@@ -526,6 +518,40 @@ end procedure;
 end if;
 end process;
 
+
+-- Error process
+process(Clock)
+begin
+if rising_edge(Clock) then
+    if Resetn = '0' then
+        RDERR <= (others => '0');
+        WRERR <= (others => '0');
+    else
+       for i in channel_range loop
+            -- Clear error signals when channel is enabled
+            if (En(i) = '1' and prevEn(i) = '0') then
+                RDERR(i) <= '0';
+                WRERR(i) <= '0';
+            end if;
+       end loop;
+       -- update error when a port finishes
+       if RW_valid = '1' and M_RW_ready = '1' then
+            if RW_write = '1' then
+                WRERR(channel) <= WRERR(channel) or M_RW_error;
+            else
+                RDERR(channel) <= RDERR(channel) or M_RW_error;
+            end if;
+       end if;
+       if RM_valid = '1' and M_RM_ready = '1' then
+            if RM_write = '1' then
+                WRERR(channel) <= WRERR(channel) or M_RM_error;
+            else
+                RDERR(channel) <= RDERR(channel) or M_RM_error;
+            end if;
+       end if; 
+    end if;
+end if;
+end process;
 
 -- RM port process
 process(Clock)
