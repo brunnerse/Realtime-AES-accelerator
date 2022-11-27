@@ -244,7 +244,7 @@ signal resultSearch : channel_range;
 signal WRERR, RDERR, CCF : std_logic_vector(channel_range);
 signal prevCCF : std_logic_vector(channel_range);
 signal CCFC : std_logic_vector(channel_range);
-
+signal isChannelInterrupted : std_logic_vector(channel_range);
 
 -- internal signals for RW port output
 signal RW_addr : std_logic_vector(M_RW_addr'RANGE);
@@ -359,6 +359,7 @@ procedure ChangeToIdleAndMarkAsComplete is
 begin
     CCF(channel) <= '1';
     interrupt(channel) <= CCFIE; -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0
+    isChannelInterrupted(channel) <= '0';
     state <= Idle;
 end procedure;
  
@@ -376,6 +377,7 @@ end procedure;
         channel <= 0;
         interrupt <= (others => '0');
         CCF <= (others => '0');
+        isChannelInterrupted <= (others => '0');
     else
         -- Check all channels if the status flags should be cleared
         for i in channel_range loop
@@ -397,7 +399,12 @@ end procedure;
                 -- start if the Enable signal switched to high or the channel changed
                 if En(highestChannel) = '1' and (prevEn(highestChannel) = '0' or channel /= highestChannel) then
                     state <= LoadReg;
-                    pulse_RegMemRead <= '1';
+                    pulse_RegMemRead <= '1';       
+                    
+                    -- set isChannelInterrupted signal if that is the case
+                    if En(channel) = '1' and channel /= highestChannel then
+                        isChannelInterrupted(channel) <= '1';
+                    end if;      
                 end if;
                  
            when LoadReg =>
@@ -444,7 +451,12 @@ end procedure;
                         sourceAddrVar := std_logic_vector(unsigned(sourceAddrVar) + unsigned(dataCountVar));
                         destAddress <= destAddrVar;
                         sourceAddress <= sourceAddrVar;
-                        dataCount <= dataCountVar;
+                        -- If channel was interrupted, use the old dataCount, otherwise init dataCount with 0
+                        if isChannelInterrupted(channel) = '1' then
+                            dataCount <= dataCountVar;
+                        else
+                            dataCount <= (others => '0');
+                        end if;
                         
                         -- perform the read request
                         -- set RW addr to source address
