@@ -344,7 +344,7 @@ for i in 3 downto 0 loop
     key(127-i*32 downto 96-i*32) <= mem(ADDR_KEYR0/4 + i);
     IV (127-i*32 downto 96-i*32) <= mem(ADDR_IVR0/4 + i);
     Susp(127-i*32 downto 96-i*32) <= mem(ADDR_SUSPR0/4 + i);
-    H(127-i*32 downto 96-i*32) <= mem(ADDR_SUSPR4/4 + i);
+    H(127-i*32 downto 96-i*32) <= mem(ADDR_HR0/4 + i);
 end loop;
 end procedure;
 
@@ -598,14 +598,24 @@ if rising_edge(Clock) then
             RM_write <= '1';
             RM_valid <= '1';
             
+            -- default start address of transaction; can change for gcm mode
             RM_addr <= std_logic_vector(unsigned(baseAddr) + (channel * REGSET_SIZE) +
                    REGSET_ADDR_DATAPROCESSEDSIZE); 
             
+            -- Calculate length (and maybe the addr) depending on the mode
             if chainingModeSignal = CHAINING_MODE_GCM then
-                -- TODO check if channel has finished or was interrupted.
-                -- For finishing, the dataProcessedSize doesnt have to be written back.
-                -- In all other modi, there never has to be something written back when the channel is finished (only when interrupted)
-                RM_length <= std_logic_vector(to_unsigned(4 + KEY_SIZE + KEY_SIZE*2, RM_length'LENGTH));
+                if GCMPhaseSignal = GCM_PHASE_INIT then
+                    -- GCM Init Phase has completed: only need to write back H
+                    RM_addr <= std_logic_vector(unsigned(baseAddr) + (channel * REGSET_SIZE) + REGSET_ADDR_H); 
+                    RM_length <= std_logic_vector(to_unsigned(KEY_SIZE, RM_length'LENGTH));
+                elsif dataSize = dataCount then
+                    -- GCM channel has finished:  only need to write back Susp
+                    RM_addr <= std_logic_vector(unsigned(baseAddr) + (channel * REGSET_SIZE) + REGSET_ADDR_SUSP);
+                    RM_length <= std_logic_vector(to_unsigned(KEY_SIZE, RM_length'LENGTH));
+                else
+                    -- GCM channel was interrupted: write back DataProcessedSize, IV and Susp
+                    RM_length <= std_logic_vector(to_unsigned(4 + KEY_SIZE + KEY_SIZE, RM_length'LENGTH));
+                end if;
             elsif chainingModeSignal = CHAINING_MODE_ECB then
                 -- only write back dataProcessedSize
                 RM_length <= std_logic_vector(to_unsigned(4, RM_length'LENGTH));
@@ -619,6 +629,9 @@ end if;
 end process;
 
 -- RM write process
+RM_write_block: block
+signal startMemIdx : integer;
+begin
 process (Clock)
 begin
 if rising_edge(Clock) then
@@ -629,13 +642,27 @@ if rising_edge(Clock) then
         if pulse_RegMemWrite = '1' then
             -- init WrData and WrValid at start of transaction
             RM_WrValid <= '1';
-            RM_WrData <= dataCount;
             write_index <= (others => '0');
+            -- Special case GCM: If channel was not interrupted but completed, start the writing at a different register
+            if chainingModeSignal = CHAINING_MODE_GCM and (dataSize = dataCount or GCMPhaseSignal = GCM_PHASE_INIT) then
+                -- For init, start with writing H
+                if GCMPhaseSignal = GCM_PHASE_INIT then
+                    RM_WrData <= mem(ADDR_HR0);
+                    startMemIdx <= ADDR_HR0/4;
+                -- for other modes, start with writing Susp
+                else
+                    RM_WrData <= mem(ADDR_SUSPR0);
+                    startMemIdx <= ADDR_SUSPR0/4;
+                end if;
+            else
+                RM_WrData <= dataCount;
+                startMemIdx <= ADDR_DATAPROCESSEDSIZE/4;
+            end if;
         elsif RM_WrValid = '1' and M_RM_WrReady = '1' then
             write_index <= std_logic_vector(unsigned(write_index) + 1); 
             -- At each Write Handshake, set WrData to next data register
-            RM_WrData <= mem(ADDR_IVR0/4 + to_integer(unsigned(write_index))); 
-            -- check if WrValid can be deactivated, whic is when the next write index equals RM_length/4
+            RM_WrData <= mem(startMemIdx + to_integer(unsigned(write_index)) + 1); 
+            -- check if WrValid can be deactivated, which is when the next write index equals RM_length/4
             if unsigned(write_index) + 1 = unsigned(RM_length(RM_length'HIGH downto 2)) then -- TODO >= to be sure?
                 RM_WrValid <= '0';
             end if;    
@@ -643,6 +670,7 @@ if rising_edge(Clock) then
     end if;
 end if;
 end process;
+end block;
 
 
 -- read process

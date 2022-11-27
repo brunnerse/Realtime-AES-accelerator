@@ -73,10 +73,10 @@ constant ADDR_SUSPR0 : integer := 16#34#;
 constant ADDR_SUSPR1 : integer := 16#38#;
 constant ADDR_SUSPR2 : integer := 16#3c#;
 constant ADDR_SUSPR3 : integer := 16#40#;
-constant ADDR_SUSPR4 : integer := 16#44#;
-constant ADDR_SUSPR5 : integer := 16#48#;
-constant ADDR_SUSPR6 : integer := 16#4c#;
-constant ADDR_SUSPR7 : integer := 16#50#;
+constant ADDR_HR0 : integer := 16#44#;
+constant ADDR_HR1 : integer := 16#48#;
+constant ADDR_HR2 : integer := 16#4c#;
+constant ADDR_HR3 : integer := 16#50#;
 
 constant ADDR_SR : integer := 16#54#;
 constant ADDR_BASEADDR : integer := 16#58#;
@@ -87,6 +87,8 @@ package regset is
 constant REGSET_SIZE : integer := 84;
 constant REGSET_ADDR_DATAPROCESSEDSIZE : integer :=  32;
 constant REGSET_ADDR_IV : integer := 36;
+constant REGSET_ADDR_SUSP : integer := 52;
+constant REGSET_ADDR_H : integer := 68;
 end package;
 
 package register_bit_positions is
