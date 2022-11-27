@@ -267,7 +267,7 @@ signal write_index, read_index : std_logic_vector(4 downto 0); -- maximum is 84/
 
 
 -- signals for the DMA process
-type state_type is (Idle, Fetch, Computing, Writeback);
+type state_type is (Idle, Fetch, Computing, Writeback, LoadReg, SaveReg);
 signal state : state_type;
 signal dataCount : std_logic_vector(DATA_WIDTH-1 downto 0);
 signal dataSize : std_logic_vector(DATA_WIDTH-1 downto 0);
@@ -335,7 +335,7 @@ BinSearch: Binary_Search
 process(Clock)
 
 variable configReg : std_logic_vector(DATA_WIDTH-1 downto 0);
-variable destAddrVar, sourceAddrVar : std_logic_vector(DATA_WIDTH-1 downto 0);
+variable destAddrVar, sourceAddrVar, dataCountVar : std_logic_vector(DATA_WIDTH-1 downto 0);
 
 -- TODO necessary or just hardcode instead?
 procedure UpdateCoreSignals is 
@@ -347,10 +347,27 @@ for i in 3 downto 0 loop
     H(127-i*32 downto 96-i*32) <= mem(ADDR_SUSPR4/4 + i);
 end loop;
 end procedure;
+
+procedure ChangeStateToComputing is
+begin
+    UpdateCoreSignals;
+    EnICore <= '1';
+    state <= Computing;
+end procedure;
+
+procedure ChangeToIdleAndMarkAsComplete is
+begin
+    CCF(channel) <= '1';
+    interrupt(channel) <= CCFIE; -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0
+    state <= Idle;
+end procedure;
  
  begin
  if rising_edge(Clock) then
+    -- set pulse signals to 0 at the start of the process
     EnICore <= '0';
+    pulse_RegMemRead <= '0';
+    pulse_RegMemWrite <= '0';
     
     -- synchronous reset
     if Resetn = '0' then
@@ -359,11 +376,9 @@ end procedure;
         channel <= 0;
         interrupt <= (others => '0');
         CCF <= (others => '0');
-        dataCount <= (others => '0');
     else
         -- Check all channels if the status flags should be cleared
         for i in channel_range loop
-            -- TODO store CCFC separately
             -- Check if CCF  should be cleared, either because the user flag is set or the channel was just enabled
             if CCFC(i) = '1' or (En(i) = '1' and prevEn(i) = '0') then
                 CCF(i) <= '0';
@@ -373,20 +388,23 @@ end procedure;
             end if;
 
         end loop;
+       
              
         case state is
             when Idle =>
-                -- Read CR register of highest channel
-                configReg := mem(ADDR_CR); 
                 -- switch channel to highestChannel
                 channel <= highestChannel;
-                -- update core signals TODO necessary here?
-                UpdateCoreSignals;
                 -- start if the Enable signal switched to high or the channel changed
                 if En(highestChannel) = '1' and (prevEn(highestChannel) = '0' or channel /= highestChannel) then
-                
+                    state <= LoadReg;
+                    pulse_RegMemRead <= '1';
+                end if;
+                 
+           when LoadReg =>
+                -- wait until RegMem port transaction is finished
+                if RM_RdReady = '1' then    
                     -- copy configuration signals
-                    
+                    configReg := mem(ADDR_CR); 
                     -- if mode is decryption but the channel has changed, the keyexpansion data aren't valid anymore 
                     --     therefore start in keyexpansion_and_decryption mode to regenerate the keyexpansion data
                     if configReg(CR_RANGE_MODE) = MODE_DECRYPTION and channel /= highestChannel then
@@ -401,8 +419,7 @@ end procedure;
                     -- If mode is keyexpansion or the GCM init mode, start the AES Core immediately, no data reading required
                     -- need to read from configReg instead of the signals, as the signals only update after the process
                     if configReg(CR_RANGE_MODE) = MODE_KEYEXPANSION or (configReg(CR_RANGE_CHMODE) = CHAINING_MODE_GCM and configReg(CR_RANGE_GCMPHASE) = GCM_PHASE_INIT) then
-                        EnICore <= '1';
-                        state <= Computing;
+                        ChangeStateToComputing;
                     else
                         -- start read data transaction;  
                         -- Read addresses and datasize from memory register depending on Endianness
@@ -410,21 +427,24 @@ end procedure;
                             destAddrVar     := mem(ADDR_DOUTADDR);
                             sourceAddrVar   := mem(ADDR_DINADDR);
                             dataSize        <= mem(ADDR_DATASIZE);
+                            dataCountVar    := mem(ADDR_DATAPROCESSEDSIZE);
                         else
                             for i in 3 downto 0 loop
                                 destAddrVar(i*8+7 downto i*8)   := mem(ADDR_DOUTADDR)((3-i)*8+7 downto (3-i)*8);
                                 sourceAddrVar(i*8+7 downto i*8) := mem(ADDR_DINADDR)((3-i)*8+7 downto (3-i)*8);
                                 dataSize(i*8+7 downto i*8)      <= mem(ADDR_DATASIZE)((3-i)*8+7 downto (3-i)*8);
+                                dataCountVar(i*8+7 downto i*8)  := mem(ADDR_DATAPROCESSEDSIZE)((3-i)*8+7 downto (3-i)*8);
                             end loop;
                         end if;
                          -- Make sure dataCounter is divisible by 16
                         dataSize(3 downto 0) <= (others => '0');
                         
                         -- add dataCount to addresses
-                        destAddrVar := std_logic_vector(unsigned(destAddrVar) + unsigned(dataCount));
-                        sourceAddrVar := std_logic_vector(unsigned(sourceAddrVar) + unsigned(dataCount));
+                        destAddrVar := std_logic_vector(unsigned(destAddrVar) + unsigned(dataCountVar));
+                        sourceAddrVar := std_logic_vector(unsigned(sourceAddrVar) + unsigned(dataCountVar));
                         destAddress <= destAddrVar;
                         sourceAddress <= sourceAddrVar;
+                        dataCount <= dataCountVar;
                         
                         -- perform the read request
                         -- set RW addr to source address
@@ -439,18 +459,9 @@ end procedure;
                 if M_RW_ready = '1' then
                     -- reset valid signal
                     RW_valid <= '0';
-                    -- check if channel changed, if yes abort and return to Idle state without starting the core
-                    if channel /= highestChannel then -- TODO should I be able to stop after fetch?
-                        state <= Idle;
-                    else
-                        -- of channel still has the highest priority, start the core
-                        DIN <= M_RW_rdData;
-                        -- start core
-                        EnICore <= '1';
-                        -- update core signals before starting the core
-                        UpdateCoreSignals;
-                        state <= Computing;
-                    end if;
+                    DIN <= M_RW_rdData;
+                    -- start core
+                    ChangeStateToComputing;
                 end if;
             when Computing =>
                 -- write back once the core has finished
@@ -459,13 +470,13 @@ end procedure;
                     if modeSignal = MODE_KEYEXPANSION_AND_DECRYPTION and (chainingModeSignal = CHAINING_MODE_ECB or chainingModeSignal = CHAINING_MODE_CBC) then
                         modeSignal <= MODE_DECRYPTION;
                     end if;
-                    -- In KeyExpansion mode or in GCM Phase Init, no writeback is required
-                    if modeSignal = MODE_KEYEXPANSION or 
-                        (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT ) then
-                        -- set signals that computation has finished
-                        CCF(channel) <= '1';
-                        interrupt(channel) <= CCFIE; -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0;
-                        state <= Idle;
+                    -- In KeyExpansion mode, no writeback is required, as the computation is only one cycle
+                    if modeSignal = MODE_KEYEXPANSION then
+                        ChangeToIdleAndMarkAsComplete;
+                    -- In GCM Phase Init, no writeback is required, but a SaveReg is
+                    elsif (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT ) then
+                        pulse_RegMemWrite <= '1';
+                        state <= SaveReg;
                     -- In the GCM Header Phase, there's no writeback either, but it has to be checked in the Writeback state
                     -- whether there is another block to process
                     elsif chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_HEADER then
@@ -488,17 +499,14 @@ end procedure;
                     -- increment dataCount of this channel
                     dataCount <= std_logic_vector(unsigned(dataCount) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
                     
-                    -- Change to Idle per default,
-                    --  unless the following evaluation show that the channel is still the highestChannel and there are more data to process
-                    state <= Idle; 
-                    
                     -- check if computation is complete
                     if (unsigned(dataSize) - unsigned(dataCount)) <= to_unsigned(16, dataSize'LENGTH) then
-                        -- Computation complete;  set interrupt and CCF, reset dataCount
-                        dataCount <= (others => '0');
-                        CCF(channel) <= '1';
-                        interrupt(channel) <= CCFIE;  -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0
-                                  
+                        if chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal /= GCM_PHASE_FINAL then
+                            pulse_RegMemWrite <= '1';
+                            state <= SaveReg;
+                        else
+                           ChangeToIdleAndMarkAsComplete;
+                        end if;           
                     -- if there are more datablocks to process and the channel still has the highest priority, continue with fetch
                     elsif channel = highestChannel then
                         -- Not complete; Fetch next data block
@@ -510,7 +518,21 @@ end procedure;
                         RW_valid <= '1'; -- new memory request
                         RW_write <= '0';
                         state <= Fetch;
+                    else
+                        -- channel interrupted: start SaveReg
+                        pulse_RegMemWrite <= '1';
+                        state <= SaveReg;
                     end if;    
+                end if;
+            
+            when SaveReg =>
+                if M_RM_ready = '1' then
+                   -- Check for special case GCM mode if the channel work is complete 
+                   if chainingModeSignal = CHAINING_MODE_GCM and dataSize = dataCount then
+                        ChangeToIdleAndMarkAsComplete;
+                   else
+                        state <= Idle;
+                   end if;
                 end if;
             when others =>
        end case;
@@ -569,7 +591,7 @@ if rising_edge(Clock) then
     
         if pulse_RegMemRead = '1' then 
             RM_write <= '0';
-            -- TODO different size depending on mode?
+            -- TODO different size depending on mode? Need to store mode for each channel separately
             RM_length <= std_logic_vector(to_unsigned(REGSET_SIZE, RM_length'LENGTH));
             RM_valid <= '1';
         elsif pulse_RegMemWrite = '1' then
