@@ -18,8 +18,17 @@ void coe_write(FILE *f, uint bytewidth, uint blocklen,
 {
     // Header of COE file
     fprintf(f, ";Initialization file for phase 3 block ram generator\n"
-      "memory_initialization_radix = 16;\n"
-      "memory_initialization_vector = \n");
+      "memory_initialization_radix = 16;\n");
+
+    fprintf(f, "\n; Format per Channel:\n");
+    fprintf(f, "; CR  DataSize  DinAddr  DoutAddr\n");
+    fprintf(f, "; Key\n");
+    fprintf(f, "; ProcessedSize  IV[0:2]\n");
+    fprintf(f, "; IV[3]  SUSP[0:2]\n");
+    fprintf(f, "; SUSP[3:6]\n");
+    fprintf(f, "; SUSP[7];\n\n");
+
+    fprintf(f, "memory_initialization_vector = \n");
 
     uint i;
 
@@ -27,15 +36,14 @@ void coe_write(FILE *f, uint bytewidth, uint blocklen,
     uint numChunksLine = 0;
     for (i=0; i < len; i += bytewidth) {
 
-        // Comment channel number in file
+        // Insert extra newline once the channel part begins
+        if (i == START_ADDR && numChunksLine % CHUNKS_PER_LINE != 0)
+            fprintf(f, "\n");
+
+        // Insert newline after each channel  
         if (i >= START_ADDR && (i % sizeof(RegisterSet) == START_ADDR) && i <= sizeof(RegisterSet)*AES_NUM_CHANNELS + START_ADDR)
         {
-            char comment[20];
-            if (i < sizeof(RegisterSet)*AES_NUM_CHANNELS + START_ADDR)
-                sprintf(comment, "; Channel %2u", i / sizeof(RegisterSet));
-            else
-                sprintf(comment, "; DATA");
-            fprintf(f, "\n%*s\n", CHUNKS_PER_LINE * (1 + 2*bytewidth + 4), comment);
+            fprintf(f, "\n");
             numChunksLine = 0; 
         }
 
@@ -45,41 +53,11 @@ void coe_write(FILE *f, uint bytewidth, uint blocklen,
         fprintf(f, "%0*llX ",
                             2*bytewidth,                          // Refers to the asterisk, gives the length of the chunk
                             u & ((1LL<<(8*bytewidth))-1));         // The bytewidth bytes of this chunk 
-        // Make comment about the type of data                    
+
+              
         if (++numChunksLine % CHUNKS_PER_LINE == 0)
         {
-            if (i >= START_ADDR && i <= sizeof(RegisterSet)*AES_NUM_CHANNELS)
-            {
-    char *comment;
-                switch ((i-START_ADDR) % sizeof(RegisterSet) + bytewidth) {
-                case 16:
-                    comment = "; CR  DataSize  DinAddr  DoutAddr";
-                    break;
-                case 32:
-                    comment = "; Key";
-                    break;
-                case 48:
-                    comment = "; ProcessedSize  IV[0:2]";
-                    break;
-                case 64:
-                    comment = "; IV[3]   SUSP[0:2]";
-                    break;
-                case 80:
-                    comment = "; SUSP[3:6]";
-                    break;
-                case 96:
-                    comment = "; SUSP[7]";
-                    break;
-                default:
-                    comment = "";    
-                }
-                fprintf(f, "%*c%s\n", 4, ' ', comment);
-            }
-            else
-            {
-                fprintf(f, "\n");
-            }
-            
+                fprintf(f, "\n"); 
         }
 
     }
