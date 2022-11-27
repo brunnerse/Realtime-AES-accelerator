@@ -497,7 +497,7 @@ end procedure;
                          
                     RW_valid <= '0';    
                     -- increment dataCount of this channel
-                    dataCount <= std_logic_vector(unsigned(dataCount) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
+                    dataCount <= std_logic_vector(unsigned(dataCount) + to_unsigned(BLOCK_SIZE, RW_addr'LENGTH));
                     
                     -- check if computation is complete
                     if (unsigned(dataSize) - unsigned(dataCount)) <= to_unsigned(16, dataSize'LENGTH) then
@@ -511,10 +511,10 @@ end procedure;
                     elsif channel = highestChannel then
                         -- Not complete; Fetch next data block
                         -- increment addresses
-                        destAddress <= std_logic_vector(unsigned(destAddress) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
-                        sourceAddress <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
+                        destAddress <= std_logic_vector(unsigned(destAddress) + to_unsigned(BLOCK_SIZE, RW_addr'LENGTH));
+                        sourceAddress <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(BLOCK_SIZE, RW_addr'LENGTH));
                         -- set RW_addr to new source address
-                        RW_addr <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));           
+                        RW_addr <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(BLOCK_SIZE, RW_addr'LENGTH));           
                         RW_valid <= '1'; -- new memory request
                         RW_write <= '0';
                         state <= Fetch;
@@ -607,21 +607,21 @@ if rising_edge(Clock) then
                 if GCMPhaseSignal = GCM_PHASE_INIT then
                     -- GCM Init Phase has completed: only need to write back H
                     RM_addr <= std_logic_vector(unsigned(baseAddr) + (channel * REGSET_SIZE) + REGSET_ADDR_H); 
-                    RM_length <= std_logic_vector(to_unsigned(KEY_SIZE, RM_length'LENGTH));
+                    RM_length <= std_logic_vector(to_unsigned(BLOCK_SIZE, RM_length'LENGTH));
                 elsif dataSize = dataCount then
                     -- GCM channel has finished:  only need to write back Susp
                     RM_addr <= std_logic_vector(unsigned(baseAddr) + (channel * REGSET_SIZE) + REGSET_ADDR_SUSP);
-                    RM_length <= std_logic_vector(to_unsigned(KEY_SIZE, RM_length'LENGTH));
+                    RM_length <= std_logic_vector(to_unsigned(BLOCK_SIZE, RM_length'LENGTH));
                 else
                     -- GCM channel was interrupted: write back DataProcessedSize, IV and Susp
-                    RM_length <= std_logic_vector(to_unsigned(4 + KEY_SIZE + KEY_SIZE, RM_length'LENGTH));
+                    RM_length <= std_logic_vector(to_unsigned(4 + BLOCK_SIZE + BLOCK_SIZE, RM_length'LENGTH));
                 end if;
             elsif chainingModeSignal = CHAINING_MODE_ECB then
                 -- only write back dataProcessedSize
                 RM_length <= std_logic_vector(to_unsigned(4, RM_length'LENGTH));
             else -- CBC or CTR mode
                 -- write back IV and dataProcessedSize
-                RM_length <= std_logic_vector(to_unsigned(4 + KEY_SIZE, RM_length'LENGTH));
+                RM_length <= std_logic_vector(to_unsigned(4 + BLOCK_SIZE, RM_length'LENGTH));
             end if;
         end if;
     end if;

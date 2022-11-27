@@ -4,7 +4,8 @@ use IEEE.STD_LOGIC_1164.ALL;
 
 package common is
 
-constant KEY_SIZE : integer := 128;    
+constant KEY_SIZE : integer := 128;
+constant BLOCK_SIZE : integer := KEY_SIZE/8;    
 
 -- AEA definitions
 constant NUM_ROUNDS : integer := 10;
