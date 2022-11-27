@@ -232,6 +232,9 @@ signal highestChannel, nextHighestChannel: channel_range;
 signal Priority : PrioArrayType(channel_range);
 -- the enable signals of each channel
 signal En, prevEn : std_logic_vector(channel_range);
+-- the chaining mode of each channel
+type ChModeArrayType is array(natural range<>) of std_logic_vector(CHMODE_LEN-1 downto 0);
+signal ChMode : ChModeArrayType(channel_range);
 
 -- signals for the highestChannel search process
 signal runSearch, waitForSearchEnd : boolean;
@@ -398,6 +401,7 @@ end procedure;
                 channel <= highestChannel;
                 -- start if the Enable signal switched to high or the channel changed
                 if En(highestChannel) = '1' and (prevEn(highestChannel) = '0' or channel /= highestChannel) then
+                    -- start the RegMem port read transaction
                     state <= LoadReg;
                     pulse_RegMemRead <= '1';       
                     
@@ -603,9 +607,18 @@ if rising_edge(Clock) then
     
         if pulse_RegMemRead = '1' then 
             RM_write <= '0';
-            -- TODO different size depending on mode? Need to store mode for each channel separately
-            RM_length <= std_logic_vector(to_unsigned(REGSET_SIZE, RM_length'LENGTH));
             RM_valid <= '1';
+            -- How many registers need to be loaded depends on the mode
+            if ChMode(channel) = CHAINING_MODE_ECB then
+                -- In ECB mode, IV, Susp and H can be ignored
+                RM_length <= std_logic_vector(to_unsigned(REGSET_ADDR_DATAPROCESSEDSIZE+4, RM_length'LENGTH));
+            elsif ChMode(channel) = CHAINING_MODE_GCM then
+                -- In GCM mode, all registers have to be loaded
+                RM_length <= std_logic_vector(to_unsigned(REGSET_SIZE, RM_length'LENGTH));
+            else
+                -- In CBC or CTR mode, Susp and H can be ignored
+                RM_length <= std_logic_vector(to_unsigned(REGSET_ADDR_IV+BLOCK_SIZE+4, RM_length'LENGTH));
+            end if;
         elsif pulse_RegMemWrite = '1' then
             RM_write <= '1';
             RM_valid <= '1';
@@ -738,7 +751,7 @@ end if;
 end process;
 
 
--- write process driving En, CCFC and Priority: if there's a write to the CR register, it updates the signals
+-- write process driving En, CCFC, Priority and ChMode: if there's a write to the CR register, it updates the signals
 process (Clock)
 variable channelIdx : integer;
 
@@ -766,6 +779,7 @@ if rising_edge(Clock) then
              En(channelIdx) <= WrData1(CR_POS_EN);
              Priority(channelIdx) <= WrData1(CR_RANGE_PRIORITY);
              CCFC(channelIdx) <= WrData1(CR_POS_CCFC);
+             ChMode(channelIdx) <= WrData1(CR_RANGE_CHMODE);
         end if;
     end if;
 end if;
