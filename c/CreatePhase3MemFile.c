@@ -53,16 +53,16 @@ void coe_write(FILE *f, uint bytewidth, uint blocklen,
     char *comment;
                 switch ((i-START_ADDR) % sizeof(RegisterSet) + bytewidth) {
                 case 16:
-                    comment = "; CR  DinAddr  DoutAddr  DataSize";
+                    comment = "; CR  DataSize  DinAddr  DoutAddr";
                     break;
                 case 32:
                     comment = "; Key";
                     break;
                 case 48:
-                    comment = "; IV";
+                    comment = "; ProcessedSize  IV[0:2]";
                     break;
                 case 64:
-                    comment = "; ProcessedSize  SUSP[0:2]";
+                    comment = "; IV[3]   SUSP[0:2]";
                     break;
                 case 80:
                     comment = "; SUSP[3:6]";
@@ -174,12 +174,12 @@ int main()
     }
 
     FILE* file = fopen(filename, "w");
-    hexToStdOut(buf+0x500, 512);
+    //hexToStdOut(buf+0x500, 512);
     memcpy(buf + START_ADDR, aes.Registers, sizeof(RegisterSet) * AES_NUM_CHANNELS);
     //memcpy(buf + START_ADDR, (unsigned char*)aes.Registers, sizeof(aes.Registers));
     uint len = sizeof(buf);
 
-    hexToStdOut(buf+0x500, 512);
+    //hexToStdOut(buf+0x500, 512);
     coe_write(file, 4, 0x3000/4, buf, len);
     fclose(file);
 }
