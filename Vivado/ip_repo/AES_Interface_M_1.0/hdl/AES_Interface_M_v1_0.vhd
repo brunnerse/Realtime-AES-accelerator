@@ -454,13 +454,11 @@ AES_Interface_M_v1_0_M_AXI_inst : AES_Interface_M_v1_0_M_AXI
                 -- for each of the 32/64 bit words, reverse the byte positions
                 InnerLoop: 
                 for i in C_M_AXI_DATA_WIDTH/8-1 downto 0 generate
+                constant index : integer := (j * C_M_AXI_DATA_WIDTH/8 + i) * 8;
+                constant invindex : integer := ((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i) * 8;
                 begin
-                    --index := (j * C_M_AXI_DATA_WIDTH/8 + i);
-                    --invindex := ((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i);
-                    S_RW_wrDataSignal((j * C_M_AXI_DATA_WIDTH/8 + i)*8+7 downto (j * C_M_AXI_DATA_WIDTH/8 + i)*8) <= 
-                        S_RW_wrData(((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8+7 downto ((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8);
-                    S_RW_rdData((j * C_M_AXI_DATA_WIDTH/8 + i)*8+7 downto (j * C_M_AXI_DATA_WIDTH/8 + i)*8) <=
-                        S_RW_rdDataSignal(((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8+7 downto ((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8);
+                    S_RW_wrDataSignal(index+7 downto index) <= S_RW_wrData(invindex+7 downto invindex);
+                    S_RW_rdData(index+7 downto index) <= S_RW_rdDataSignal(invindex+7 downto invindex);
                 end generate ;
             end generate;
         end generate;

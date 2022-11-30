@@ -468,11 +468,11 @@ begin
 
     -- Add user logic here
     -- forward memory request to RdEn, WrEn ports
-   WrAddr <= axi_awaddr; -- when axi_awv_awr_flag = '1' else (others => '0');
-   RdAddr <= axi_araddr; -- when axi_arv_arr_flag = '1' else (others => '0');
+   WrAddr <= axi_awaddr;
+   RdAddr <= axi_araddr;
  
    WrEn <= axi_wready and S_AXI_WVALID;
-   RdEn <= axi_arready and S_AXI_ARVALID; -- arready should already be enough
+   RdEn <= axi_arready and S_AXI_ARVALID;
   
    WrData <= S_AXI_WDATA;
    axi_rdata <= RdData;
