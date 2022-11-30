@@ -34,7 +34,6 @@ end Binary_Search;
 
 architecture Behavioral of Binary_Search is
 
--- TODO is this synthesizable?
 -- log2 that rounds up
 function log2( i : natural) return integer is
     variable temp    : integer := 1;

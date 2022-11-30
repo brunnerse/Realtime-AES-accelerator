@@ -116,6 +116,7 @@ end component;
 
 
 -- helper function, must be at the beginning because it is used in the constants
+-- log2 that rounds up
 function log2( i : natural) return integer is
     variable temp    : integer := 1;
     variable ret_val : integer := 0; 
@@ -127,7 +128,17 @@ function log2( i : natural) return integer is
     
     return ret_val;
   end function;
-  
+ 
+function SwapEndian(x : std_logic_vector) return std_logic_vector is
+variable r : std_logic_vector(x'RANGE);
+variable idx : integer;
+begin
+for i in x'LENGTH/8-1 downto 0 loop
+    idx := (x'LENGTH/8-1-i)*8;
+    r(idx+7 downto idx) := x(i*8+7 downto i*8);
+end loop;
+return r;
+end function;  
   
   -- define constants
 constant DATA_WIDTH_BYTES : integer := DATA_WIDTH/8;
@@ -264,6 +275,7 @@ signal RM_RdReady : std_logic;
 signal RM_WrValid : std_logic;
 signal RM_WrData : std_logic_vector(M_RM_WrData'RANGE); 
 
+signal RM_valid_prev : std_logic;
 signal Pulse_RegMemWrite, Pulse_RegMemRead : std_logic;
 signal Pulse_RegMemFinished : std_logic;
 signal write_index, read_index : std_logic_vector(4 downto 0); -- maximum is 84/4 = 21
@@ -300,6 +312,8 @@ M_RM_write <= RM_write;
 M_RM_RdReady <= RM_RdReady;
 M_RM_WrValid <= RM_WrValid;
 M_RM_WrData <= RM_WrData;
+
+RM_valid_prev <= RM_valid when rising_edge(Clock);
 
 pulse_RegMemFinished <= RM_valid and M_RM_ready;
 
@@ -405,17 +419,17 @@ end procedure;
                     state <= LoadReg;
                     pulse_RegMemRead <= '1';       
                     
-                    -- set isChannelInterrupted signal if that is the case
-                    if En(channel) = '1' and channel /= highestChannel then
+                    -- set isChannelInterrupted signal if channel is Enabled and not already finished
+                    if En(channel) = '1' and CCF(channel) = '0' and channel /= highestChannel then
                         isChannelInterrupted(channel) <= '1';
                     end if;      
                 end if;
                  
            when LoadReg =>
                 -- wait until RegMem port transaction is finished
-                if RM_RdReady = '1' then    
+                if M_RM_ready = '1' then    
                     -- copy configuration signals
-                    configReg := mem(ADDR_CR); 
+                    configReg := mem(ADDR_CR/4); 
                     -- if mode is decryption but the channel has changed, the keyexpansion data aren't valid anymore 
                     --     therefore start in keyexpansion_and_decryption mode to regenerate the keyexpansion data
                     if configReg(CR_RANGE_MODE) = MODE_DECRYPTION and channel /= highestChannel then
@@ -435,32 +449,31 @@ end procedure;
                         -- start read data transaction;  
                         -- Read addresses and datasize from memory register depending on Endianness
                         if not LITTLE_ENDIAN then 
-                            destAddrVar     := mem(ADDR_DOUTADDR);
-                            sourceAddrVar   := mem(ADDR_DINADDR);
-                            dataSize        <= mem(ADDR_DATASIZE);
-                            dataCountVar    := mem(ADDR_DATAPROCESSEDSIZE);
+                            destAddrVar     := mem(ADDR_DOUTADDR/4);
+                            sourceAddrVar   := mem(ADDR_DINADDR/4);
+                            dataSize        <= mem(ADDR_DATASIZE/4);
+                            dataCountVar    := mem(ADDR_DATAPROCESSEDSIZE/4);
                         else
-                            for i in 3 downto 0 loop
-                                destAddrVar(i*8+7 downto i*8)   := mem(ADDR_DOUTADDR)((3-i)*8+7 downto (3-i)*8);
-                                sourceAddrVar(i*8+7 downto i*8) := mem(ADDR_DINADDR)((3-i)*8+7 downto (3-i)*8);
-                                dataSize(i*8+7 downto i*8)      <= mem(ADDR_DATASIZE)((3-i)*8+7 downto (3-i)*8);
-                                dataCountVar(i*8+7 downto i*8)  := mem(ADDR_DATAPROCESSEDSIZE)((3-i)*8+7 downto (3-i)*8);
-                            end loop;
+                            destAddrVar := SwapEndian(mem(ADDR_DOUTADDR/4));
+                            sourceAddrVar := SwapEndian(mem(ADDR_DINADDR/4));
+                            dataSize <= SwapEndian(mem(ADDR_DATASIZE/4));
+                            dataCountVar := SwapEndian(mem(ADDR_DATAPROCESSEDSIZE/4));
                         end if;
                          -- Make sure dataCounter is divisible by 16
                         dataSize(3 downto 0) <= (others => '0');
-                        
-                        -- add dataCount to addresses
-                        destAddrVar := std_logic_vector(unsigned(destAddrVar) + unsigned(dataCountVar));
-                        sourceAddrVar := std_logic_vector(unsigned(sourceAddrVar) + unsigned(dataCountVar));
-                        destAddress <= destAddrVar;
-                        sourceAddress <= sourceAddrVar;
+                       
                         -- If channel was interrupted, use the old dataCount, otherwise init dataCount with 0
                         if isChannelInterrupted(channel) = '1' then
                             dataCount <= dataCountVar;
+                            -- add dataCount to addresses
+                            destAddrVar := std_logic_vector(unsigned(destAddrVar) + unsigned(dataCountVar));
+                            sourceAddrVar := std_logic_vector(unsigned(sourceAddrVar) + unsigned(dataCountVar));
                         else
                             dataCount <= (others => '0');
                         end if;
+                        
+                        destAddress <= destAddrVar;
+                        sourceAddress <= sourceAddrVar;
                         
                         -- perform the read request
                         -- set RW addr to source address
@@ -591,14 +604,12 @@ if rising_edge(Clock) then
 end if;
 end process;
 
--- RM port process
+-- RM port process, driving RM_valid, RM_write, RM_addr and RM_length
 process(Clock)
 begin
 if rising_edge(Clock) then
     if Resetn = '0' then
         RM_valid <= '0';
-        RM_RdReady <= '0';
-        RM_WrValid <= '0';
     else
         -- deassert RM_valid when transaction is finished
         if M_RM_ready = '1' then
@@ -608,16 +619,17 @@ if rising_edge(Clock) then
         if pulse_RegMemRead = '1' then 
             RM_write <= '0';
             RM_valid <= '1';
+            RM_addr <= std_logic_vector(unsigned(baseAddr) + (channel * REGSET_SIZE));
             -- How many registers need to be loaded depends on the mode
             if ChMode(channel) = CHAINING_MODE_ECB then
-                -- In ECB mode, IV, Susp and H can be ignored
-                RM_length <= std_logic_vector(to_unsigned(REGSET_ADDR_DATAPROCESSEDSIZE+4, RM_length'LENGTH));
+                -- In ECB mode, IV, Susp and H can be ignored (load registers until dataprocessedsize)
+                RM_length <= std_logic_vector(to_unsigned((REGSET_ADDR_DATAPROCESSEDSIZE+4)/4, RM_length'LENGTH));
             elsif ChMode(channel) = CHAINING_MODE_GCM then
                 -- In GCM mode, all registers have to be loaded
-                RM_length <= std_logic_vector(to_unsigned(REGSET_SIZE, RM_length'LENGTH));
+                RM_length <= std_logic_vector(to_unsigned(REGSET_SIZE/4, RM_length'LENGTH));
             else
-                -- In CBC or CTR mode, Susp and H can be ignored
-                RM_length <= std_logic_vector(to_unsigned(REGSET_ADDR_IV+BLOCK_SIZE+4, RM_length'LENGTH));
+                -- In CBC or CTR mode, Susp and H can be ignored (load registers up unto IV (including IV))
+                RM_length <= std_logic_vector(to_unsigned((REGSET_ADDR_IV+BLOCK_SIZE+4)/4, RM_length'LENGTH));
             end if;
         elsif pulse_RegMemWrite = '1' then
             RM_write <= '1';
@@ -632,28 +644,28 @@ if rising_edge(Clock) then
                 if GCMPhaseSignal = GCM_PHASE_INIT then
                     -- GCM Init Phase has completed: only need to write back H
                     RM_addr <= std_logic_vector(unsigned(baseAddr) + (channel * REGSET_SIZE) + REGSET_ADDR_H); 
-                    RM_length <= std_logic_vector(to_unsigned(BLOCK_SIZE, RM_length'LENGTH));
+                    RM_length <= std_logic_vector(to_unsigned(BLOCK_SIZE/4, RM_length'LENGTH));
                 elsif dataSize = dataCount then
                     -- GCM channel has finished:  only need to write back Susp
                     RM_addr <= std_logic_vector(unsigned(baseAddr) + (channel * REGSET_SIZE) + REGSET_ADDR_SUSP);
-                    RM_length <= std_logic_vector(to_unsigned(BLOCK_SIZE, RM_length'LENGTH));
+                    RM_length <= std_logic_vector(to_unsigned(BLOCK_SIZE/4, RM_length'LENGTH));
                 else
                     -- GCM channel was interrupted: write back DataProcessedSize, IV and Susp
-                    RM_length <= std_logic_vector(to_unsigned(4 + BLOCK_SIZE + BLOCK_SIZE, RM_length'LENGTH));
+                    RM_length <= std_logic_vector(to_unsigned((4 + BLOCK_SIZE + BLOCK_SIZE)/4, RM_length'LENGTH));
                 end if;
             elsif chainingModeSignal = CHAINING_MODE_ECB then
                 -- only write back dataProcessedSize
-                RM_length <= std_logic_vector(to_unsigned(4, RM_length'LENGTH));
+                RM_length <= std_logic_vector(to_unsigned(4/4, RM_length'LENGTH));
             else -- CBC or CTR mode
                 -- write back IV and dataProcessedSize
-                RM_length <= std_logic_vector(to_unsigned(4 + BLOCK_SIZE, RM_length'LENGTH));
+                RM_length <= std_logic_vector(to_unsigned((4 + BLOCK_SIZE)/4, RM_length'LENGTH));
             end if;
         end if;
     end if;
 end if;
 end process;
 
--- RM write process
+-- RM write process, driving RM_WrValid and RM_WrData
 RM_write_block: block
 signal startMemIdx : integer;
 begin
@@ -663,24 +675,28 @@ if rising_edge(Clock) then
     if Resetn = '0' then
         RM_WrValid <= '0';
     else
-        
-        if pulse_RegMemWrite = '1' then
+        -- use RM_valid as start signal instead of pulse_RegMemWrite so WrValid isnt set too early
+        -- which would lead to writing to the last address instead of the new one
+        --if pulse_RegMemWrite = '1' then
+        if RM_valid = '1' and RM_valid_prev = '0' and RM_write = '1' then
             -- init WrData and WrValid at start of transaction
             RM_WrValid <= '1';
             write_index <= (others => '0');
             -- Special case GCM: If channel was not interrupted but completed, start the writing at a different register
-            if chainingModeSignal = CHAINING_MODE_GCM and (dataSize = dataCount or GCMPhaseSignal = GCM_PHASE_INIT) then
-                -- For init, start with writing H
-                if GCMPhaseSignal = GCM_PHASE_INIT then
-                    RM_WrData <= mem(ADDR_HR0);
-                    startMemIdx <= ADDR_HR0/4;
-                -- for other modes, start with writing Susp
-                else
-                    RM_WrData <= mem(ADDR_SUSPR0);
-                    startMemIdx <= ADDR_SUSPR0/4;
-                end if;
+            if chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT then
+                -- If mode was Init, start with writing H
+                RM_WrData <= mem(ADDR_HR0/4);
+                startMemIdx <= ADDR_HR0/4;
+           elsif chainingModeSignal = CHAINING_MODE_GCM  and dataSize = dataCount then
+                -- In other GCM phases that are completed, start with writing Susp
+                RM_WrData <= mem(ADDR_SUSPR0/4);
+                startMemIdx <= ADDR_SUSPR0/4;
             else
-                RM_WrData <= dataCount;
+                if LITTLE_ENDIAN then
+                    RM_WrData <= SwapEndian(dataCount);
+                else
+                    RM_WrData <= dataCount;
+                end if;
                 startMemIdx <= ADDR_DATAPROCESSEDSIZE/4;
             end if;
         elsif RM_WrValid = '1' and M_RM_WrReady = '1' then
@@ -688,7 +704,7 @@ if rising_edge(Clock) then
             -- At each Write Handshake, set WrData to next data register
             RM_WrData <= mem(startMemIdx + to_integer(unsigned(write_index)) + 1); 
             -- check if WrValid can be deactivated, which is when the next write index equals RM_length/4
-            if unsigned(write_index) + 1 = unsigned(RM_length(RM_length'HIGH downto 2)) then -- TODO >= to be sure?
+            if unsigned(write_index) + 1 = unsigned(RM_length) then -- TODO >= to be sure?
                 RM_WrValid <= '0';
             end if;    
         end if;    
@@ -741,9 +757,7 @@ if rising_edge(Clock) then
             if not LITTLE_ENDIAN then
                 baseAddr <= WrData1;
             else
-                for i in 3 downto 0 loop
-                    baseAddr(i*8+7 downto i*8)   <= WrData1((3-i)*8+7 downto (3-i)*8);
-                end loop;
+                baseAddr <= SwapEndian(WrData1);
             end if;
         end if;
     end if;
@@ -816,7 +830,7 @@ if rising_edge(Clock) then
         -- Check if channel is finished: Reset the enable bit and reset the susp register
         if CCF(channel) = '1' and prevCCF(channel) = '0' then
             -- Set En to 0 and write back to memory
-            mem(ADDR_CR)(CR_POS_EN) <= '0'; -- TODO statement is not necessary, as CR isnt written back
+            mem(ADDR_CR/4)(CR_POS_EN) <= '0'; -- TODO statement is not necessary, as CR isnt written back
         end if;
         
         -- Write port 1 (from the Interface)
