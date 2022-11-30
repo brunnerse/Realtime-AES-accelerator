@@ -10,7 +10,7 @@
 
 #define AES_NUM_CHANNELS 16
 
-#define START_ADDR 0x10
+#define START_ADDR 0x14
 
 
 void coe_write(FILE *f, uint bytewidth, uint blocklen,
