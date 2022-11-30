@@ -385,7 +385,7 @@ begin
                          axi_wlast <= '0';
                      end if;
                 elsif rm_valid_pulse = '1' then
-                     if unsigned(S_RM_LENGTH) <= to_unsigned(4, S_RM_LENGTH'LENGTH) then
+                     if unsigned(S_RM_LENGTH) <= to_unsigned(1, S_RM_LENGTH'LENGTH) then
                          axi_wlast <= '1';
                      else
                          axi_wlast <= '0';
