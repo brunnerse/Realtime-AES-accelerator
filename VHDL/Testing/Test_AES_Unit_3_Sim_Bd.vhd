@@ -5,15 +5,32 @@ use IEEE.NUMERIC_STD.ALL;
 
 use work.common.ALL;
 use work.addresses.ALL;
+use work.register_bit_positions.ALL;
 
 entity Test_AES_Unit_3_Sim_Bd is 
 generic (
-    NUM_CHANNELS : integer := 16
+    NUM_CHANNELS : integer := 16;
+    LITTLE_ENDIAN : boolean := true
     );
 end Test_AES_Unit_3_Sim_Bd;
 
 
 architecture TB of Test_AES_Unit_3_Sim_Bd is
+
+function SwapEndian(x : std_logic_vector) return std_logic_vector is
+variable r : std_logic_vector(x'RANGE);
+variable idx : integer;
+begin
+if not LITTLE_ENDIAN then
+    return x;
+end if;
+
+for i in x'LENGTH/8-1 downto 0 loop
+    idx := (x'LENGTH/8-1-i)*8;
+    r(idx+7 downto idx) := x(i*8+7 downto i*8);
+end loop;
+return r;
+end function;
 
 component AES_Unit_3_Sim_Bd is
 port (
@@ -30,7 +47,9 @@ port (
 );
 end component AES_Unit_3_Sim_Bd;
 
-constant START_ADDR : std_logic_vector(31 downto 0) := x"00000010";
+
+
+constant START_ADDR : std_logic_vector(31 downto 0) := x"00000014";
 
 
 signal Clock : STD_LOGIC := '1';
@@ -55,6 +74,8 @@ signal CHANNEL_CR : channel_cr_type;
 
 signal channel : channel_range;
 
+constant C_M_AXI_DATA_WIDTH : integer := 32;
+signal test_comp, test_in, test_simple : std_logic_vector(127 downto 0);
 
 begin
 
@@ -74,13 +95,18 @@ DUT: component AES_Unit_3_Sim_Bd port map (
 channel_gen:
 for i in channel_range generate
 signal chmode : std_logic_vector(1 downto 0);
+signal priority : unsigned(NUM_PRIORITY_BITS-1 downto 0);
 begin
     CHANNEL_OFFSET(i) <= i * 128;
     chmode <= CHAINING_MODE_ECB when i mod 3 = 0 else
               CHAINING_MODE_CBC when i mod 3 = 1 else
               CHAINING_MODE_CTR; -- when i mod 3 = 2 else
-            
-    CHANNEL_CR(i) <= x"0000" & '0' & GCM_PHASE_INIT & "000" & "0" & "00" & chmode & MODE_ENCRYPTION & "00" & '1';
+    priority <= to_unsigned(0, priority'LENGTH) when i /= 2 else
+                to_unsigned(1, priority'LENGTH);
+    CHANNEL_CR(i)(31 downto CR_RANGE_PRIORITY'HIGH+1) <= (others => '0');
+    CHANNEL_CR(i)(CR_RANGE_PRIORITY) <= std_logic_vector(priority);        
+    CHANNEL_CR(i)(15 downto 0) <= '0' & GCM_PHASE_INIT & "000" & "0" & "00" & chmode & MODE_ENCRYPTION & "00" & '1';
+
 end generate;
 
 Clock <= not Clock after 5ns;
@@ -89,34 +115,29 @@ Resetn <= '1' after 50ns;
 
 
 
-process begin
--- wait until reset is deasserted
-wait until Resetn = '1' and rising_edge(Clock);
-wrdata <= START_ADDR;
-wraddr <= std_logic_vector(to_unsigned(ADDR_BASEADDR, ADDR_WIDTH));
+process 
+procedure activateChannel(ch: channel_range) is
+begin
+wraddr <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
+wrdata <= CHANNEL_CR(ch);
 wren <= '1';
 wait for 10ns;
 wren <= '0';
+end procedure;
 
--- Setup channel 1
-channel <= 1;
-wait for 0ns; -- set signal channel
--- Write CR of channel 1
-wrdata <= CHANNEL_CR(channel);
-wraddr <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_OFFSET(channel));
-wren <= '1';
-wait for 10 ns;
-wren <= '0';
 
--- wait until CCF of channel 1 is set
+procedure waitUntilCCF(ch: channel_range) is
+begin
 rden <= '1';
-rdaddr <= std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH) + CHANNEL_OFFSET(channel));
-wait until rddata(0) = '1'; 
--- clear CCF of first channel
-wait for 50ns;
+rdaddr <= std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
+wait until rddata(SR_POS_CCF) = '1'; 
+end procedure;
+
+procedure clearCCF(ch: channel_range) is
+begin
 wren <= '1';
-wraddr <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_OFFSET(3));
-wrdata <= CHANNEL_CR(channel);
+wraddr <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
+wrdata <= CHANNEL_CR(ch);
 wrdata(7) <= '1'; -- set CCFC flag
 wrdata(0) <= '0'; -- deassert EN
 wait for 10ns;
@@ -124,10 +145,64 @@ wait for 10ns;
 wrdata(7) <= '0';
 wait for 10ns;
 wren <= '0';
-rden <= '0';
+end procedure;
+
+procedure setBaseAddr(baseaddr: std_logic_vector) is
+begin
+wrdata <= SwapEndian(START_ADDR);
+wraddr <= std_logic_vector(to_unsigned(ADDR_BASEADDR, ADDR_WIDTH));
+wren <= '1';
+wait for 10ns;
+wren <= '0';
+end procedure;
+
+begin
+-- wait until reset is deasserted
+wait until Resetn = '1' and rising_edge(Clock);
+-- write baseaddr
+setBaseAddr(START_ADDR);
+
+-- Setup channel 1
+channel <= 1;
+wait for 0ns; -- set signal channel
+activateChannel(1);
+
+-- Wait, then setup channel 2
+wait for 100ns;
+activateChannel(2);
+
+-- wait until CCF of channel 1 is set
+waitUntilCCF(1);
+
+wait for 50ns;
+-- clear CCF of first channel
+clearCCF(1);
+
+waitUntilCCF(2);
+clearCCF(2);
 wait;
 end process;
 
+
+test_in <= x"01020304020202040303030404040405";
+
+-- 128-bit signals: ReadyValid_RW_Port
+GenReadyValid_RW_Port_Data:
+for j in 128/C_M_AXI_DATA_WIDTH-1 downto 0 generate
+    -- for each of the 32/64 bit words, reverse the byte positions
+    InnerLoop: 
+    for i in C_M_AXI_DATA_WIDTH/8-1 downto 0 generate
+    signal index, invindex : integer range 120 downto 0 := 0;
+    begin
+        index <= (j * C_M_AXI_DATA_WIDTH/8 + i)*8;
+        invindex <= ((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8;
+        test_simple(index+7 downto index) <= test_in(invindex+7 downto invindex);
+
+
+        test_comp((j * C_M_AXI_DATA_WIDTH/8 + i)*8+7 downto (j * C_M_AXI_DATA_WIDTH/8 + i)*8) <= 
+            test_in(((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8+7 downto ((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8);
+    end generate ;
+end generate;
 
 
 end TB;
