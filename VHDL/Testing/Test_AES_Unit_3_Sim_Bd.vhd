@@ -74,9 +74,6 @@ signal CHANNEL_CR : channel_cr_type;
 
 signal channel : channel_range;
 
-constant C_M_AXI_DATA_WIDTH : integer := 32;
-signal test_comp, test_in, test_simple : std_logic_vector(127 downto 0);
-
 begin
 
 DUT: component AES_Unit_3_Sim_Bd port map (
@@ -182,27 +179,6 @@ waitUntilCCF(2);
 clearCCF(2);
 wait;
 end process;
-
-
-test_in <= x"01020304020202040303030404040405";
-
--- 128-bit signals: ReadyValid_RW_Port
-GenReadyValid_RW_Port_Data:
-for j in 128/C_M_AXI_DATA_WIDTH-1 downto 0 generate
-    -- for each of the 32/64 bit words, reverse the byte positions
-    InnerLoop: 
-    for i in C_M_AXI_DATA_WIDTH/8-1 downto 0 generate
-    signal index, invindex : integer range 120 downto 0 := 0;
-    begin
-        index <= (j * C_M_AXI_DATA_WIDTH/8 + i)*8;
-        invindex <= ((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8;
-        test_simple(index+7 downto index) <= test_in(invindex+7 downto invindex);
-
-
-        test_comp((j * C_M_AXI_DATA_WIDTH/8 + i)*8+7 downto (j * C_M_AXI_DATA_WIDTH/8 + i)*8) <= 
-            test_in(((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8+7 downto ((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i)*8);
-    end generate ;
-end generate;
 
 
 end TB;
