@@ -623,7 +623,12 @@ if rising_edge(Clock) then
             -- How many registers need to be loaded depends on the mode
             if ChMode(channel) = CHAINING_MODE_ECB then
                 -- In ECB mode, IV, Susp and H can be ignored (load registers until dataprocessedsize)
-                RM_length <= std_logic_vector(to_unsigned((REGSET_ADDR_DATAPROCESSEDSIZE+4)/4, RM_length'LENGTH));
+                if isChannelInterrupted(channel) = '1' then
+                    RM_length <= std_logic_vector(to_unsigned((REGSET_ADDR_DATAPROCESSEDSIZE+4)/4, RM_length'LENGTH));
+                else
+                    -- if Channel was not interrupted (i.e. it starts just now), dataprocessedsize can be skipped as it is 0
+                    RM_length <= std_logic_vector(to_unsigned((REGSET_ADDR_DATAPROCESSEDSIZE)/4, RM_length'LENGTH));
+                end if;
             elsif ChMode(channel) = CHAINING_MODE_GCM then
                 -- In GCM mode, all registers have to be loaded
                 RM_length <= std_logic_vector(to_unsigned(REGSET_SIZE/4, RM_length'LENGTH));
