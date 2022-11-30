@@ -440,41 +440,41 @@ end procedure;
                     chainingModeSignal <= configReg(CR_RANGE_CHMODE);
                     GCMPhaseSignal <= configReg(CR_RANGE_GCMPHASE);
                     CCFIE <= configReg(CR_POS_CCFIE);
+                    
+                    -- Read addresses and datasize from memory register depending on Endianness
+                    if not LITTLE_ENDIAN then 
+                        destAddrVar     := mem(ADDR_DOUTADDR/4);
+                        sourceAddrVar   := mem(ADDR_DINADDR/4);
+                        dataSize        <= mem(ADDR_DATASIZE/4);
+                        dataCountVar    := mem(ADDR_DATAPROCESSEDSIZE/4);
+                    else
+                        destAddrVar := SwapEndian(mem(ADDR_DOUTADDR/4));
+                        sourceAddrVar := SwapEndian(mem(ADDR_DINADDR/4));
+                        dataSize <= SwapEndian(mem(ADDR_DATASIZE/4));
+                        dataCountVar := SwapEndian(mem(ADDR_DATAPROCESSEDSIZE/4));
+                    end if;
+                     -- Make sure dataCounter is divisible by 16
+                    dataSize(3 downto 0) <= (others => '0');
+                   
+                    -- If channel was interrupted, use the old dataCount, otherwise init dataCount with 0
+                    if isChannelInterrupted(channel) = '1' then
+                        dataCount <= dataCountVar;
+                        -- add dataCount to addresses
+                        destAddrVar := std_logic_vector(unsigned(destAddrVar) + unsigned(dataCountVar));
+                        sourceAddrVar := std_logic_vector(unsigned(sourceAddrVar) + unsigned(dataCountVar));
+                    else
+                        dataCount <= (others => '0');
+                    end if;
+                    
+                    destAddress <= destAddrVar;
+                    sourceAddress <= sourceAddrVar;
+
 
                     -- If mode is keyexpansion or the GCM init mode, start the AES Core immediately, no data reading required
                     -- need to read from configReg instead of the signals, as the signals only update after the process
                     if configReg(CR_RANGE_MODE) = MODE_KEYEXPANSION or (configReg(CR_RANGE_CHMODE) = CHAINING_MODE_GCM and configReg(CR_RANGE_GCMPHASE) = GCM_PHASE_INIT) then
                         ChangeStateToComputing;
-                    else
-                        -- start read data transaction;  
-                        -- Read addresses and datasize from memory register depending on Endianness
-                        if not LITTLE_ENDIAN then 
-                            destAddrVar     := mem(ADDR_DOUTADDR/4);
-                            sourceAddrVar   := mem(ADDR_DINADDR/4);
-                            dataSize        <= mem(ADDR_DATASIZE/4);
-                            dataCountVar    := mem(ADDR_DATAPROCESSEDSIZE/4);
-                        else
-                            destAddrVar := SwapEndian(mem(ADDR_DOUTADDR/4));
-                            sourceAddrVar := SwapEndian(mem(ADDR_DINADDR/4));
-                            dataSize <= SwapEndian(mem(ADDR_DATASIZE/4));
-                            dataCountVar := SwapEndian(mem(ADDR_DATAPROCESSEDSIZE/4));
-                        end if;
-                         -- Make sure dataCounter is divisible by 16
-                        dataSize(3 downto 0) <= (others => '0');
-                       
-                        -- If channel was interrupted, use the old dataCount, otherwise init dataCount with 0
-                        if isChannelInterrupted(channel) = '1' then
-                            dataCount <= dataCountVar;
-                            -- add dataCount to addresses
-                            destAddrVar := std_logic_vector(unsigned(destAddrVar) + unsigned(dataCountVar));
-                            sourceAddrVar := std_logic_vector(unsigned(sourceAddrVar) + unsigned(dataCountVar));
-                        else
-                            dataCount <= (others => '0');
-                        end if;
-                        
-                        destAddress <= destAddrVar;
-                        sourceAddress <= sourceAddrVar;
-                        
+                    else        
                         -- perform the read request
                         -- set RW addr to source address
                         RW_addr         <= sourceAddrVar; -- set RW_addr to sourceAddress
@@ -725,7 +725,7 @@ variable channelIdx : channel_range;
 begin
 if rising_edge(Clock) then
     if RdEn = '1' then
-        channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
+        channelIdx :=  to_integer(unsigned(RdAddr(addr_channel_range)));
         -- If address is in register SR, don't actually read from memory. This way the register appears read-only
         if RdAddr(addr_register_range) = std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)(addr_register_range)) then
             -- fill RdData :   WRERR | RDERR |  CCF  | IRQ
@@ -775,9 +775,7 @@ process (Clock)
 variable channelIdx : integer;
 
 begin
-if rising_edge(Clock) then
-    clearInterrupt <= (others => '0');
-    
+if rising_edge(Clock) then   
     if Resetn = '0' then
         En <= (others => '0');
         CCFC <= (others => '0');
