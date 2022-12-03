@@ -37,7 +37,7 @@ AES_Config *AES_LookupConfig(u16 DeviceId)
 s32 AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr)
 {
     InstancePtr->BaseAddress = ConfigPtr->BaseAddress;
-	InstancePtr->HighestOccupiedChannel = -1;
+	InstancePtr->highestOccupiedChannel = -1;
 	for (u32 i = 0; i < AES_NUM_CHANNELS; i++)
 	{
 		InstancePtr->CallbackFn[i] = NULL;
@@ -45,7 +45,7 @@ s32 AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr)
 		InstancePtr->Registers[i].DataProcessedSize = 0;
 	}
 	// Tell the hardware the Baseaddr of the RegisterSet 
-	AES_Write(InstancePtr, 0, AES_BASEADDR_OFFSET, (u32)&(InstancePtr->Registers[0])); // TODO does (u32)InstancePtr->Registers work?
+	AES_Write(InstancePtr, 0, AES_BASEADDR_OFFSET, (u32)InstancePtr->Registers); 
     return (s32)(XST_SUCCESS);
 }
 
@@ -318,12 +318,12 @@ void AES_calculateTagGCM(AES* InstancePtr, u32 channel, u32 headerLen, u32 paylo
 	// No need to write the Nonce again, as it is already there from the payload phase
     //AES_SetIV(InstancePtr, channel, IV, 12);
 	// Write last word of the IV manually
-	(u32)(InstancePtr->Registers[channel].IV[12]) = MODE_GCM_IV_FINAL;
+	*(u32*)(&InstancePtr->Registers[channel].IV[12]) = MODE_GCM_IV_FINAL;
 	AES_Write(InstancePtr, channel, AES_IVR0_OFFSET+12, MODE_GCM_IV_FINAL);
 	// Use headerLen (64 bit) ||  payloadLen(64 bit) as data block in final round
 	u8 finalData[BLOCK_SIZE];
 	*(u32*)finalData = 0;
-	*(u32*)(finalData+4) = headerLen*8;
+	*(u32*)(finalData+4) = headerLen*8;  // TODO swapEndian?
 	*(u32*)(finalData+8) = 0;
 	*(u32*)(finalData+12) = payloadLen*8;
 
@@ -378,7 +378,8 @@ int AES_compareTags(u8 tag1[BLOCK_SIZE], u8 tag2[BLOCK_SIZE])
 void AES_clearCompletedStatus(AES* InstancePtr, u32 channel)
 {
 	// Reset En bit first, just in case
-	setBits(&InstancePtr->Registers[channel].CR, 0, EN_POS, EN_LEN);
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+	setBits(&(InstancePtr->Registers[channel].CR), 0, EN_POS, EN_LEN);
 	// Read CR, set the CCFC flag (only in the local copy) and write it to the AES unit
     u32 cr = InstancePtr->Registers[channel].CR;
     setBits(&cr, 1, CCFC_POS, CCFC_LEN);
@@ -399,7 +400,8 @@ int AES_isComputationCompleted(AES* InstancePtr, u32 channel)
 	int ccf = getBits(AES_Read(InstancePtr, channel, AES_SR_OFFSET), SR_CCF_POS, SR_CCF_LEN);
 	// If computation is completed, reset the En bit manually
 	if (ccf)
-		setBits(&InstancePtr->Registers[channnel].CR, 0, EN_POS, EN_LEN);
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+		setBits(&InstancePtr->Registers[channel].CR, 0, EN_POS, EN_LEN);
 	return ccf;
 }
 
@@ -437,7 +439,7 @@ void AES_IntrHandler(void *HandlerRef)
 	int irqReceived = 0;
 
     // Call Callback function for each interrupt
-    for (int i = 0; i < InstancePtr->HighestOccupiedChannel; i++)
+    for (int i = 0; i < InstancePtr->highestOccupiedChannel; i++)
     {
 		u32 SR = AES_Read(InstancePtr, i, AES_SR_OFFSET);
 		u32 Irq = getBits(SR, SR_IRQ_POS, SR_IRQ_LEN);
@@ -521,6 +523,7 @@ s32 AES_FreeChannel(AES* InstancePtr, u32 channel)
 	InstancePtr->CallbackFn[channel] = NULL;
 	InstancePtr->CallbackRef[channel] = NULL;
 	InstancePtr->Registers[channel].DataProcessedSize = 0;
+	return XST_SUCCESS;
 }
 
 
