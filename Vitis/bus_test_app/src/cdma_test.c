@@ -3,7 +3,7 @@
 #include "xdebug.h"
 #include "xil_cache.h"
 #include "xparameters.h"
-
+#include "xscugic.h"
 
 #define BUFFER_BYTESIZE	16
 
@@ -24,6 +24,11 @@ void hexToStdOut(volatile u8* array, int len)
     xil_printf("\n\r");
 }
 
+void onFinished(void* data)
+{
+	xil_printf("Interrupt called! Copied to address %p\r\n", data);
+}
+
 
 int main()
 {
@@ -33,6 +38,42 @@ int main()
 
 
 	xil_printf("\r\n--- Entering main() --- \r\n");
+
+	XScuGic IntCtrl;
+	XScuGic_Config* IntcConfig = XScuGic_LookupConfig(XPAR_SCUGIC_0_DEVICE_ID);
+	if (NULL == IntcConfig) {
+		return XST_FAILURE;
+	}
+
+	Status = XScuGic_CfgInitialize(&IntCtrl, IntcConfig,
+					IntcConfig->CpuBaseAddress);
+	if (Status != XST_SUCCESS) {
+		return XST_FAILURE;
+	}
+
+	u32 IntrId =  XPAR_FABRIC_AXI_CDMA_0_CDMA_INTROUT_INTR;
+
+	XScuGic_SetPriorityTriggerType(&IntCtrl, IntrId, 0xA0, 0x1);
+
+	Status = XScuGic_Connect(&IntCtrl, IntrId, (Xil_InterruptHandler)XAxiCdma_IntrHandler,
+					&AxiCdmaInstance);
+	if (Status != XST_SUCCESS) {
+		return Status;
+	}
+
+	/*
+	 * Enable the interrupt for the DMA device.
+	 */
+	XScuGic_Enable(&IntCtrl, IntrId);
+
+	Xil_ExceptionInit();
+
+	Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_IRQ_INT,
+				(Xil_ExceptionHandler)XScuGic_InterruptHandler,
+				&IntCtrl);
+
+	Xil_ExceptionEnable();
+
 	u16 DeviceId = XPAR_AXICDMA_0_DEVICE_ID;
 	XAxiCdma_Config *CfgPtr;
 
@@ -49,9 +90,7 @@ int main()
 		return XST_FAILURE;
 	}
 
-	/* Disable interrupts, we use polling mode
-	 */
-	//XAxiCdma_IntrDisable(&AxiCdmaInstance, XAXICDMA_XR_IRQ_ALL_MASK);
+	XAxiCdma_IntrEnable(&AxiCdmaInstance, XAXICDMA_XR_IRQ_ALL_MASK);
 
 
 	// Do the write accesses
@@ -60,7 +99,7 @@ int main()
 	int failure = 0;
 	u8  *SrcPtr = (u8*)SrcBuffer;
 	u8  *DestPtr = (u8*)DestBuffer;
-	u8 buffer[BUFFER_BYTESIZE];
+	u8 buffer[BUFFER_BYTESIZE] __attribute__ ((aligned (64)));
 
 	u8* testAddresses[] = {SrcBuffer, DestBuffer, buffer,
 			(u8*)0x001000000,  (u8*)0x00150000, (u8*)0x10000000, (u8*)0x15000000,
@@ -91,7 +130,7 @@ int main()
 		//Xil_DCacheFlushRange((UINTPTR)DestPtr, Length);
 
 		Status = XAxiCdma_SimpleTransfer(&AxiCdmaInstance, (UINTPTR)SrcPtr,
-			(UINTPTR)DestPtr, BUFFER_BYTESIZE, NULL, NULL);
+			(UINTPTR)DestPtr, BUFFER_BYTESIZE, onFinished, DestPtr);
 
 		if (Status != XST_SUCCESS) {
 				xil_printf("===== Error during SimpleTransfer: %d! =======\n\r", Status);
