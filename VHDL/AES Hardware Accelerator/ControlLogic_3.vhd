@@ -150,18 +150,6 @@ subtype addr_range is integer range ADDR_WIDTH-1 downto log2(DATA_WIDTH_BYTES);
 subtype addr_channel_range is integer range ADDR_WIDTH-1 downto ADDR_REGISTER_BITS;
 subtype addr_register_range is integer range ADDR_REGISTER_BITS-1 downto log2(DATA_WIDTH_BYTES);
 
- -- TODO delete function?
- function GetChannelAddr(channel : channel_range; addr : integer) return integer is
-    variable totalAddr : unsigned(addr_range);
-    variable addrInt : integer;
-    begin
-        --report "Called with channel " & integer'image(channel) & " and addr " & integer'image(addr);
-        totalAddr := (others => '0');
-        totalAddr(addr_channel_range) := to_unsigned(channel, totalAddr(addr_channel_range)'LENGTH);
-        totalAddr(addr_register_range) := to_unsigned(addr, ADDR_WIDTH)(addr_register_range);
-        return to_integer(totalAddr);
-end function;
-
 -- Give the interface ports attributes so Vivado recognizes them as interfaces
 ATTRIBUTE X_INTERFACE_INFO : STRING;
 ATTRIBUTE X_INTERFACE_INFO of WrEn1: SIGNAL is
@@ -709,7 +697,7 @@ if rising_edge(Clock) then
             -- At each Write Handshake, set WrData to next data register
             RM_WrData <= mem(startMemIdx + to_integer(unsigned(write_index)) + 1); 
             -- check if WrValid can be deactivated, which is when the next write index equals RM_length/4
-            if unsigned(write_index) + 1 = unsigned(RM_length) then -- TODO >= to be sure?
+            if unsigned(write_index) + 1 = unsigned(RM_length) then
                 RM_WrValid <= '0';
             end if;    
         end if;    
@@ -729,7 +717,6 @@ if rising_edge(Clock) then
         -- If address is in register SR, don't actually read from memory. This way the register appears read-only
         if RdAddr(addr_register_range) = std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)(addr_register_range)) then
             -- fill RdData :   WRERR | RDERR |  CCF  | IRQ
-            -- TODO define indices in common, also for phase2
             RdData <= (others => '0');
             RdData(SR_POS_IRQ) <= interrupt(channelIdx);
             RdData(SR_POS_CCF) <= CCF(channelIdx);
@@ -829,13 +816,7 @@ if rising_edge(Clock) then
             mem(i) <= (others => '0');
         end loop;
         RM_RdReady <= '0';
-    else
-        -- Check if channel is finished: Reset the enable bit and reset the susp register
-        if CCF(channel) = '1' and prevCCF(channel) = '0' then
-            -- Set En to 0 and write back to memory
-            mem(ADDR_CR/4)(CR_POS_EN) <= '0'; -- TODO statement is not necessary, as CR isnt written back
-        end if;
-        
+    else       
         -- Write port 1 (from the Interface)
         if WrEn1 = '1' then
             -- TODO forward WritePort1 to memory or just ignore it always?
