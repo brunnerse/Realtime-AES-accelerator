@@ -55,8 +55,8 @@ typedef struct __attribute__((__packed__))
     u32 DinAddr;
     u32 DoutAddr;
     u8  Key[BLOCK_SIZE];
-    u32 DataProcessedSize;
     u8  IV[BLOCK_SIZE];
+    u32 DataProcessedSize;
     u8  Susp[BLOCK_SIZE*2];
 } RegisterSet;
 

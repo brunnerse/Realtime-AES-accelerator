@@ -7,9 +7,6 @@
 
 #include "AES_Interface_M.h"
 
-
-#define AES_NUM_CHANNELS 16
-
 #define START_ADDR 0x14
 
 
@@ -23,8 +20,8 @@ void coe_write(FILE *f, uint bytewidth, uint blocklen,
     fprintf(f, "\n; Format per Channel:\n");
     fprintf(f, "; CR  DataSize  DinAddr  DoutAddr\n");
     fprintf(f, "; Key\n");
-    fprintf(f, "; ProcessedSize  IV[0:2]\n");
-    fprintf(f, "; IV[3]  SUSP[0:2]\n");
+    fprintf(f, "; IV\n");
+    fprintf(f, "; ProcessedSize SUSP[0:2]\n");
     fprintf(f, "; SUSP[3:6]\n");
     fprintf(f, "; SUSP[7];\n\n");
 
@@ -91,6 +88,8 @@ int main()
     const char* filename = "phase3_mem.coe";
     AES aes;
     u8 buf[0x3000];
+
+    memset(aes.Registers, 0, sizeof(aes.Registers));
 
     // Create AES struct and fill it with test data for each channel
     printf("Sizeof RegisterSet struct: %d\nSize of AES with %u channels: %d\n", sizeof(RegisterSet), AES_NUM_CHANNELS, sizeof(AES));
