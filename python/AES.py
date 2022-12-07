@@ -8,8 +8,10 @@ def xorBytes(bytes1, bytes2):
     return bytes(outBytes)
 
 def printAsHex(byteArray):
-    for b in byteArray:
+    for i, b in enumerate(byteArray):
         print(format(b, "02x"), end=" ")
+        if i % 16 == 15:
+            print()
     print()
 # define shorter function name
 h = printAsHex
@@ -133,3 +135,31 @@ cipherGCM.verify(tagDecrypt)
 # print the tag
 printAsHex(tagDecrypt)
 
+
+
+print("\n\n======\nSIM TESTS\n=======\n")
+
+numChannels = 4
+for channel in range(0, numChannels):
+    keyC = bytes([channel]) + key[1:]
+    IVC = bytes([channel]) + IV[1:]
+    cipherC = AES.new(keyC, AES.MODE_ECB)
+    if channel % 3 == 1 :
+        cipherC = AES.new(keyC, AES.MODE_CBC, iv=IVC)
+    elif channel % 3 == 2 : 
+        cipherC = AES.new(keyC, AES.MODE_CTR, nonce=IVC[:12])
+    
+    lengthC = 16*(channel+1)
+    dataC = bytes([channel]) + ((data+data2+data3)*(channel+1))[1:lengthC]
+    assert(len(dataC) == lengthC)
+
+    print("\n=== %d\n"%(channel), cipherC)
+    print("Key : ")
+    printAsHex(keyC)
+    print("IV: ")
+    printAsHex(IVC)
+    print("To encrypt:")
+    printAsHex(dataC)
+    print("Result:")
+    printAsHex(cipherC.encrypt(dataC))
+    
