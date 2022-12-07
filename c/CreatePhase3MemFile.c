@@ -114,8 +114,10 @@ int main()
 
     hexToStdOut(testData, BLOCK_SIZE*3);
 
-    u8 *baseAddr = (u8*)0x540;
+    u8 *baseAddr = (u8*)0x560;
     u8 *baseAddrCiphertext = (u8*)0x2000;
+    u8 *plaintextAddr = baseAddr;
+    u8 *ciphertextAddr = baseAddrCiphertext;
     for (u32 channel = 0; channel < AES_NUM_CHANNELS; channel++)
     {
 	    key[0] = channel;
@@ -128,23 +130,30 @@ int main()
     	// for CTR Mode, set the last word of the IV to zero (as it is the index of the block)
     	if (chMode == CHAINING_MODE_CTR)
     		*(u32*)(&aes.Registers[channel].IV[12]) = 0;
-    	u8* plaintextAddr = baseAddr + BLOCK_SIZE * 3 * channel;
-    	u8* ciphertextAddr = baseAddrCiphertext + BLOCK_SIZE * 3 * channel;
-    	// TODO Size absteigend:  * (AES_NUM_CHANNELS - channels - 1)
-    	uint size = BLOCK_SIZE * 3 * (channel+1);
+    	
+        plaintextAddr += BLOCK_SIZE * channel;
+    	ciphertextAddr += BLOCK_SIZE * channel;
+        if (plaintextAddr >= baseAddrCiphertext)
+        {
+            printf("[ERROR] Plaintext is overlapping into ciphertext region at channel %d (0x%p). "
+            "Choose a higher ciphertext base address\n", channel, plaintextAddr);
+            return 1;
+        }
+    	uint size = BLOCK_SIZE * (channel+1);
     	// initialize arrays
     	testData[0] = channel;
     	for (u32 i = 0; i < size; i += BLOCK_SIZE * 3)
     	{
-    		testData[16] = i;
     		memcpy((uint)buf + plaintextAddr + i, testData, BLOCK_SIZE*3);
+
     	}
-    	// TODO Choose different Priorities
+    	// Priorities don't matter here, as they are defined in the simulation VHDL file
     	AES_SetPriority(&aes, channel, 0);
 
     	memset((uint)buf + ciphertextAddr, 0, size);
     	AES_SetDataParameters(&aes, channel, plaintextAddr, ciphertextAddr, size);
    
+
         AES_startComputation(&aes, channel);
         printf("Channel %d CR: %08x\n", channel, aes.Registers[channel].CR);
 
