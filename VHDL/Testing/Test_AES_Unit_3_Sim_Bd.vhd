@@ -98,8 +98,9 @@ begin
     chmode <= CHAINING_MODE_ECB when i mod 3 = 0 else
               CHAINING_MODE_CBC when i mod 3 = 1 else
               CHAINING_MODE_CTR; -- when i mod 3 = 2 else
-    priority <= to_unsigned(0, priority'LENGTH) when i /= 2 else
-                to_unsigned(1, priority'LENGTH);
+    priority <= to_unsigned(1, priority'LENGTH) when i = 2 else
+                to_unsigned(2, priority'LENGTH) when i = 3 else
+                to_unsigned(0, priority'LENGTH);
     CHANNEL_CR(i)(31 downto CR_RANGE_PRIORITY'HIGH+1) <= (others => '0');
     CHANNEL_CR(i)(CR_RANGE_PRIORITY) <= std_logic_vector(priority);        
     CHANNEL_CR(i)(15 downto 0) <= '0' & GCM_PHASE_INIT & "000" & "0" & "00" & chmode & MODE_ENCRYPTION & "00" & '1';
@@ -161,12 +162,19 @@ setBaseAddr(START_ADDR);
 
 -- Setup channel 1
 channel <= 1;
-wait for 0ns; -- set signal channel
+wait for 0ns; -- set signal 
+
+activateChannel(0);
+wait for 10ns;
+
 activateChannel(1);
 
 -- Wait, then setup channel 2
 wait for 100ns;
 activateChannel(2);
+
+wait for 1000ns;
+activateChannel(3);
 
 -- wait until CCF of channel 1 is set
 waitUntilCCF(1);
@@ -177,6 +185,9 @@ clearCCF(1);
 
 waitUntilCCF(2);
 clearCCF(2);
+
+waitUntilCCF(3);
+clearCCF(3);
 wait;
 end process;
 
