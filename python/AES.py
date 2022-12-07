@@ -139,7 +139,7 @@ printAsHex(tagDecrypt)
 
 print("\n\n======\nSIM TESTS\n=======\n")
 
-numChannels = 4
+numChannels = 6
 for channel in range(0, numChannels):
     keyC = bytes([channel]) + key[1:]
     IVC = bytes([channel]) + IV[1:]
@@ -150,7 +150,9 @@ for channel in range(0, numChannels):
         cipherC = AES.new(keyC, AES.MODE_CTR, nonce=IVC[:12])
     
     lengthC = 16*(channel+1)
-    dataC = bytes([channel]) + ((data+data2+data3)*(channel+1))[1:lengthC]
+    dataC = b""
+    for i in range(0, lengthC, 3*16):
+        dataC += bytes([channel]) + (data+data2+data3)[1:lengthC-i]
     assert(len(dataC) == lengthC)
 
     print("\n=== %d\n"%(channel), cipherC)
