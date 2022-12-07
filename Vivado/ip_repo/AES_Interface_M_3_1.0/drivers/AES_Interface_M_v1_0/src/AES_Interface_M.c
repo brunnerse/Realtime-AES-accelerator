@@ -42,7 +42,9 @@ s32 AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr)
 	{
 		InstancePtr->CallbackFn[i] = NULL;
 		InstancePtr->CallbackRef[i] = NULL;
-		InstancePtr->Registers[i].DataProcessedSize = 0;
+		InstancePtr->Registers[i].CR = 0;
+		InstancePtr->Registers[i].Datasize = 0;
+		memset(InstancePtr->Registers[i].Susp, 0, BLOCK_SIZE);
 	}
 	// Tell the hardware the Baseaddr of the RegisterSet 
 	AES_Write(InstancePtr, 0, AES_BASEADDR_OFFSET, (u32)InstancePtr->Registers); 
@@ -275,7 +277,7 @@ void AES_startComputationCTR(AES* InstancePtr, u32 channel, u8* data, u8* outDat
 
 	AES_SetIV(InstancePtr, channel, IV, 12);
 	// Write last word of the IV manually
-	AES_Write(InstancePtr, channel, AES_IVR0_OFFSET+12, MODE_CTR_IV_INIT);
+	*(u32*)&InstancePtr->Registers[channel].IV[12] = MODE_CTR_IV_INIT;
 	AES_SetDataParameters(InstancePtr, channel, data, outData, size);
 	// Setup Control and set Enable = 1 to start the encryption
 	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_CTR, 1, GCM_PHASE_INIT);
@@ -288,7 +290,7 @@ void AES_startComputationGCM(AES* InstancePtr, u32 channel, int encrypt, u8* hea
 	
 	AES_SetIV(InstancePtr, channel, IV, 12);
 	// Write last word of the IV manually
-	AES_Write(InstancePtr, channel, AES_IVR0_OFFSET+12, MODE_GCM_IV_INIT);
+	*(u32*)&InstancePtr->Registers[channel].IV[12] = MODE_GCM_IV_INIT;
 	// Start Init phase
 	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_INIT);
 	// During init phase, reset the Susp register to 0 (only Susp though, clearing H is unnecessary and would result in an error, as the init phase writes to it)
@@ -522,7 +524,6 @@ s32 AES_FreeChannel(AES* InstancePtr, u32 channel)
 	// Reset configuration of the channel
 	InstancePtr->CallbackFn[channel] = NULL;
 	InstancePtr->CallbackRef[channel] = NULL;
-	InstancePtr->Registers[channel].DataProcessedSize = 0;
 	return XST_SUCCESS;
 }
 
