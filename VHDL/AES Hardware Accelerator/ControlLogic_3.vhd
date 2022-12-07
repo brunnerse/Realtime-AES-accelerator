@@ -263,8 +263,6 @@ signal RM_WrValid : std_logic;
 signal RM_WrData : std_logic_vector(M_RM_WrData'RANGE); 
 
 signal RM_valid_prev : std_logic;
-signal Pulse_RegMemWrite, Pulse_RegMemRead : std_logic;
-signal Pulse_RegMemFinished : std_logic;
 signal write_index, read_index : std_logic_vector(4 downto 0); -- maximum is 84/4 = 21
 signal startMemIdx : integer range mem_type'RANGE;
 
@@ -301,9 +299,7 @@ M_RM_WrValid <= RM_WrValid;
 M_RM_WrData <= RM_WrData;
 
 RM_valid_prev <= RM_valid when rising_edge(Clock);
-         
-pulse_RegMemFinished <= RM_valid and M_RM_ready;
-
+        
 -- forward internal AES control signals
 mode <= modeSignal;
 GCMPhase <= GCMPhaseSignal;
@@ -367,17 +363,55 @@ begin
     state <= Idle;
 end procedure;
  
+procedure ChangeStateToLoadReg is
+begin
+    state <= LoadReg;               
+    -- start the RegMem port read transaction
+    RM_write <= '0';
+    RM_valid <= '1';
+    RM_addr <= std_logic_vector(unsigned(baseAddr) + (channel * REGSET_SIZE));
+    
+    -- How many registers need to be loaded depends on the mode
+    if ChMode(channel) = CHAINING_MODE_GCM then
+        -- In GCM mode, all registers have to be loaded
+        RM_length <= std_logic_vector(to_unsigned((ADDR_HR3+4)/4, RM_length'LENGTH));
+    else
+        -- ECB, CBC, CTR
+        if isChannelInterrupted(channel) = '1' then
+                -- load up until dataprocessedsize
+                RM_length <= std_logic_vector(to_unsigned((ADDR_DATAPROCESSEDSIZE+4)/4, RM_length'LENGTH));
+        else
+            if ChMode(channel) = CHAINING_MODE_ECB then
+                -- only need to load up until key
+                RM_length <= std_logic_vector(to_unsigned((ADDR_KEYR3+4)/4, RM_length'LENGTH));
+            else -- CBC or CTR mode: Load up until IV
+                RM_length <=  std_logic_vector(to_unsigned((ADDR_IVR3+4)/4, RM_length'LENGTH));
+            end if;
+        end if;
+    end if;       
+end procedure; 
+ 
+ 
+procedure ChangeStateToSaveReg(addrOffset : integer; length : integer) is
+begin
+    state <= SaveReg;
+    RM_write <= '1';
+    RM_valid <= '1';
+    RM_addr <= std_logic_vector(unsigned(baseAddr) + (channel * REGSET_SIZE) + addrOffset);
+    RM_length <= std_logic_vector(to_unsigned(length/4, RM_length'LENGTH));
+    startMemIdx <= addrOffset/4; 
+end procedure;
+ 
  begin
  if rising_edge(Clock) then
     -- set pulse signals to 0 at the start of the process
     EnICore <= '0';
-    pulse_RegMemRead <= '0';
-    pulse_RegMemWrite <= '0';
     
     -- synchronous reset
     if Resetn = '0' then
         state <= Idle;
         RW_valid <= '0';
+        RM_valid <= '0';
         channel <= 0;
         interrupt <= (others => '0');
         CCF <= (others => '0');
@@ -402,9 +436,7 @@ end procedure;
                 channel <= highestChannel;
                 -- start if the Enable signal switched to high or the channel changed
                 if En(highestChannel) = '1' and (prevEn(highestChannel) = '0' or channel /= highestChannel) then
-                    -- start the RegMem port read transaction
-                    state <= LoadReg;
-                    pulse_RegMemRead <= '1';       
+                    ChangeStateToLoadReg;               
                     
                     -- set isChannelInterrupted signal if channel is Enabled and not already finished
                     if En(channel) = '1' and CCF(channel) = '0' and channel /= highestChannel then
@@ -414,7 +446,8 @@ end procedure;
                  
            when LoadReg =>
                 -- wait until RegMem port transaction is finished
-                if M_RM_ready = '1' then    
+                if M_RM_ready = '1' then
+                    M_RM_valid <= '0';    
                     -- copy configuration signals
                     configReg := mem(ADDR_CR/4); 
                     -- if mode is decryption but the channel has changed, the keyexpansion data aren't valid anymore 
@@ -491,7 +524,7 @@ end procedure;
                         ChangeToIdleAndMarkAsComplete;
                     -- In GCM Phase Init, no writeback is required, but a SaveReg is
                     elsif (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT ) then
-                        pulse_RegMemWrite <= '1';
+                        ChangeStateToSaveReg(ADDR_HR0, BLOCK_SIZE);
                         state <= SaveReg;
                     -- In the GCM Header Phase, there's no writeback either, but it has to be checked in the Writeback state
                     -- whether there is another block to process
@@ -518,8 +551,7 @@ end procedure;
                     -- check if computation is complete
                     if (unsigned(dataSize) - unsigned(dataCount)) <= to_unsigned(16, dataSize'LENGTH) then
                         if chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal /= GCM_PHASE_FINAL then
-                            pulse_RegMemWrite <= '1';
-                            state <= SaveReg;
+                            ChangeStateToSaveReg(ADDR_SUSPR0, BLOCK_SIZE);
                         else
                            ChangeToIdleAndMarkAsComplete;
                         end if;           
@@ -536,15 +568,25 @@ end procedure;
                         state <= Fetch;
                     else
                         -- channel interrupted: start SaveReg
-                        pulse_RegMemWrite <= '1';
-                        state <= SaveReg;
+                        if chainingModeSignal = CHAINING_MODE_ECB then
+                            ChangeStateToSaveReg(ADDR_DATAPROCESSEDSIZE, 4);
+                        elsif chainingModeSignal = CHAINING_MODE_CBC then
+                            ChangeStateToSaveReg(ADDR_IVR0, BLOCK_SIZE+4);
+                        elsif chainingModeSignal = CHAINING_MODE_CTR then
+                            ChangeStateToSaveReg(ADDR_IVR3, 4 + 4);
+                        else -- GCM
+                            ChangeStateToSaveReg(ADDR_IVR3, 4 + 4 + BLOCK_SIZE);
+                        end if;
                     end if;    
                 end if;
             
             when SaveReg =>
                 if M_RM_ready = '1' then
-                   -- Check for special case GCM mode if the channel work is complete 
-                   if chainingModeSignal = CHAINING_MODE_GCM and dataSize = dataCount then
+                    M_RM_valid <= '0';
+                   -- Check for special case GCM mode if the channel work is complete,
+                   -- for other modi the channel was interrupted 
+                   if chainingModeSignal = CHAINING_MODE_GCM and 
+                     (GCMPhaseSignal = GCM_PHASE_INIT or GCMPhaseSignal = GCM_PHASE_FINAL or dataSize = dataCount) then
                         ChangeToIdleAndMarkAsComplete;
                    else
                         state <= Idle;
@@ -587,82 +629,6 @@ if rising_edge(Clock) then
                 RDERR(channel) <= RDERR(channel) or M_RM_error;
             end if;
        end if; 
-    end if;
-end if;
-end process;
-
--- RM port process, driving RM_valid, RM_write, RM_addr and RM_length
-process(Clock)
-variable addrOffsetVar : integer;
-begin
-if rising_edge(Clock) then
-    if Resetn = '0' then
-        RM_valid <= '0';
-    else
-        -- deassert RM_valid when transaction is finished
-        if M_RM_ready = '1' then
-            RM_valid <= '0';
-        end if;
-    
-        if pulse_RegMemRead = '1' then 
-            RM_write <= '0';
-            RM_valid <= '1';
-            RM_addr <= std_logic_vector(unsigned(baseAddr) + (channel * REGSET_SIZE));
-            
-            -- How many registers need to be loaded depends on the mode
-            if ChMode(channel) = CHAINING_MODE_GCM then
-                -- In GCM mode, all registers have to be loaded
-                RM_length <= std_logic_vector(to_unsigned((ADDR_HR3+4)/4, RM_length'LENGTH));
-            else
-                -- ECB, CBC, CTR
-                if isChannelInterrupted(channel) = '1' then
-                        -- load up until dataprocessedsize
-                        RM_length <= std_logic_vector(to_unsigned((ADDR_DATAPROCESSEDSIZE+4)/4, RM_length'LENGTH));
-                else
-                    if ChMode(channel) = CHAINING_MODE_ECB then
-                        -- only need to load up until key
-                        RM_length <= std_logic_vector(to_unsigned((ADDR_KEYR3+4)/4, RM_length'LENGTH));
-                    else -- CBC or CTR mode: Load up until IV
-                        RM_length <=  std_logic_vector(to_unsigned((ADDR_IVR3+4)/4, RM_length'LENGTH));
-                    end if;
-                end if;
-            end if;
-        elsif pulse_RegMemWrite = '1' then
-            RM_write <= '1';
-            RM_valid <= '1';
-
-            -- Calculate length (and maybe the addr) depending on the mode
-            if chainingModeSignal = CHAINING_MODE_GCM then
-                if GCMPhaseSignal = GCM_PHASE_INIT then
-                    -- GCM Init Phase has completed: only need to write back H
-                    addrOffsetVar := ADDR_HR0;
-                    RM_length <= std_logic_vector(to_unsigned(BLOCK_SIZE/4, RM_length'LENGTH));
-                elsif dataSize = dataCount then
-                    -- GCM channel has finished:  only need to write back Susp
-                    addrOffsetVar := ADDR_SUSPR0;
-                    RM_length <= std_logic_vector(to_unsigned(BLOCK_SIZE/4, RM_length'LENGTH));
-                else                 
-                    -- GCM channel was interrupted: write back last word of IV, DataProcessedSize and Susp
-                    addrOffsetVar := ADDR_IVR3;
-                    RM_length <= std_logic_vector(to_unsigned((4 + 4 + BLOCK_SIZE)/4, RM_length'LENGTH));
-                end if;
-            elsif chainingModeSignal = CHAINING_MODE_ECB then
-                -- only write back dataProcessedSize
-                addrOffsetVar := ADDR_DATAPROCESSEDSIZE;
-                RM_length <= std_logic_vector(to_unsigned(4/4, RM_length'LENGTH));
-            elsif chainingModeSignal = CHAINING_MODE_CBC then
-                -- write back IV and dataProcessedSize
-                addrOffsetVar := ADDR_IVR0;
-                RM_length <= std_logic_vector(to_unsigned((4 + BLOCK_SIZE)/4, RM_length'LENGTH));
-            else -- CTR mode
-                -- write back last word of IV and dataProcessedSize
-                addrOffsetVar := ADDR_IVR3;
-                RM_length <= std_logic_vector(to_unsigned((4 + 4)/4, RM_length'LENGTH));
-            end if;
-            
-            RM_addr <= std_logic_vector(unsigned(baseAddr) + (channel * REGSET_SIZE) + addrOffsetVar);
-            startMemIdx <= addrOffsetVar/4; 
-        end if;
     end if;
 end if;
 end process;
@@ -845,10 +811,12 @@ if rising_edge(Clock) then
         end if;
         
         -- Write Port 3 : from RegMem Port
-        if pulse_RegMemRead = '1' then
+        -- Prepare to read M_RM_RdData into memory once RM_valid is asserted
+        if RM_Valid = '1' and RM_RdReady = '0' then
             read_index <= (others => '0');
             RM_RdReady <= '1';
         elsif RM_RdReady = '1' and M_RM_RdValid = '1' then
+            -- at every Read-Handshake, read the data into memory
             read_index <= std_logic_vector(unsigned(read_index) + 1);
             mem(to_integer(unsigned(read_index))) <= M_RM_RdData;
         end if;
