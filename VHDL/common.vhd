@@ -47,8 +47,9 @@ constant ADDR_CHANNEL_BITS : integer := ADDR_WIDTH - ADDR_REGISTER_BITS;
 constant MAX_CHANNELS : integer := 2**ADDR_CHANNEL_BITS; 
 subtype num_channels_range is integer range 1 to MAX_CHANNELS;
 
-
 constant NUM_PRIORITY_BITS : integer := ADDR_CHANNEL_BITS;
+
+constant REGSET_SIZE : integer := 84;
 
 end package;
 
@@ -63,12 +64,12 @@ constant ADDR_KEYR1 : integer := 16#14#;
 constant ADDR_KEYR2 : integer := 16#18#;
 constant ADDR_KEYR3: integer := 16#1c#;
 
-constant ADDR_DATAPROCESSEDSIZE : integer := 16#20#;
+constant ADDR_IVR0 : integer := 16#20#;
+constant ADDR_IVR1 : integer := 16#24#;
+constant ADDR_IVR2 : integer := 16#28#;
+constant ADDR_IVR3 : integer := 16#2c#;
 
-constant ADDR_IVR0 : integer := 16#24#;
-constant ADDR_IVR1 : integer := 16#28#;
-constant ADDR_IVR2 : integer := 16#2c#;
-constant ADDR_IVR3 : integer := 16#30#;
+constant ADDR_DATAPROCESSEDSIZE : integer := 16#30#;
 
 constant ADDR_SUSPR0 : integer := 16#34#;
 constant ADDR_SUSPR1 : integer := 16#38#;
@@ -82,14 +83,6 @@ constant ADDR_HR3 : integer := 16#50#;
 constant ADDR_SR : integer := 16#54#;
 constant ADDR_BASEADDR : integer := 16#58#;
 
-end package;
-
-package regset is
-constant REGSET_SIZE : integer := 84;
-constant REGSET_ADDR_DATAPROCESSEDSIZE : integer :=  32;
-constant REGSET_ADDR_IV : integer := 36;
-constant REGSET_ADDR_SUSP : integer := 52;
-constant REGSET_ADDR_H : integer := 68;
 end package;
 
 package register_bit_positions is
