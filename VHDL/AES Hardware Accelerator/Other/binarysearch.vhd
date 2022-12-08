@@ -14,7 +14,7 @@ use work.common.ALL;
 -- arithmetic functions with Signed or Unsigned values
 --use IEEE.NUMERIC_STD.ALL;
 
-entity Binary_Search is
+entity BinarySearch is
     generic (
         NUM_CHANNELS : natural := 8;
         SIZE_IS_POWER_OF_2 : boolean := false
@@ -30,9 +30,9 @@ entity Binary_Search is
         Clock : in std_logic;
         Resetn : in std_logic
            );
-end Binary_Search;
+end BinarySearch;
 
-architecture Behavioral of Binary_Search is
+architecture Behavioral of BinarySearch is
 
 -- log2 that rounds up
 function log2( i : natural) return integer is

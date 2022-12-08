@@ -95,7 +95,7 @@ end ControlLogic_3;
 
 architecture Behavioral of ControlLogic_3 is
 
-component Binary_Search is
+component BinarySearch is
     generic (
         NUM_CHANNELS : natural := 8;
         SIZE_IS_POWER_OF_2 : boolean := false
@@ -313,7 +313,7 @@ prevEn <= En when rising_edge(Clock);
 prevCCF <= CCF when rising_edge(Clock);
 
 -- instantitate binary search component
-BinSearch: Binary_Search
+BinSearch: BinarySearch
     generic map(
         NUM_CHANNELS => 2**log2(NUM_CHANNELS),
         SIZE_IS_POWER_OF_2 => true)
@@ -447,7 +447,7 @@ end procedure;
            when LoadReg =>
                 -- wait until RegMem port transaction is finished
                 if M_RM_ready = '1' then
-                    M_RM_valid <= '0';    
+                    RM_valid <= '0';    
                     -- copy configuration signals
                     configReg := mem(ADDR_CR/4); 
                     -- if mode is decryption but the channel has changed, the keyexpansion data aren't valid anymore 
@@ -582,7 +582,7 @@ end procedure;
             
             when SaveReg =>
                 if M_RM_ready = '1' then
-                    M_RM_valid <= '0';
+                    RM_valid <= '0';
                    -- Check for special case GCM mode if the channel work is complete,
                    -- for other modi the channel was interrupted 
                    if chainingModeSignal = CHAINING_MODE_GCM and 
