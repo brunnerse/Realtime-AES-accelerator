@@ -55,22 +55,16 @@ s32 AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr)
 void AES_SetKey(AES *InstancePtr, u32 channel, u8 key[BLOCK_SIZE])
 {
 	memcpy(&InstancePtr->Registers[channel].Key, key, BLOCK_SIZE);
-   	for (u32 i = 0; i < BLOCK_SIZE; i+=4)
-        AES_Write(InstancePtr, channel, AES_KEYR0_OFFSET+i, *(u32*)(key+i));
 }
 
 void AES_SetIV(AES* InstancePtr, u32 channel, u8 *IV, u32 IVLen)
 {
 	memcpy(&InstancePtr->Registers[channel].IV, IV, IVLen);
-	for (u32 i = 0; i < IVLen; i+=4)
-		AES_Write(InstancePtr, channel, AES_IVR0_OFFSET+i, *(u32*)(IV+i));
 }
 
 void AES_SetSusp(AES* InstancePtr, u32 channel, u8 Susp[BLOCK_SIZE*2])
 {
 	memcpy(&InstancePtr->Registers[channel].Susp, Susp, BLOCK_SIZE*2);
-	for (u32 i = 0; i < BLOCK_SIZE*2; i+=4)
-		AES_Write(InstancePtr, channel, AES_SUSPR0_OFFSET+i, *(u32*)(Susp+i));
 }
 
 /**
@@ -98,7 +92,8 @@ void AES_Setup(AES* InstancePtr, u32 channel, Mode mode, ChainingMode chainMode,
     setBits(&cr, enabled, EN_POS, EN_LEN);
 
 	InstancePtr->Registers[channel].CR = cr;
-    AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
+	if (enabled)
+		AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
 }
 
 void AES_SetDataParameters(AES* InstancePtr, u32 channel, volatile u8* source, volatile u8* dest, u32 size)
@@ -106,9 +101,6 @@ void AES_SetDataParameters(AES* InstancePtr, u32 channel, volatile u8* source, v
 	InstancePtr->Registers[channel].DinAddr = (u32)source;
 	InstancePtr->Registers[channel].DoutAddr = (u32)dest;
 	InstancePtr->Registers[channel].DataSize = size;
-	AES_Write(InstancePtr, channel, AES_DINR_ADDR_OFFSET, (u32)source);
-	AES_Write(InstancePtr, channel, AES_DOUTR_ADDR_OFFSET, (u32)dest);
-	AES_Write(InstancePtr, channel, AES_DATASIZE_OFFSET, size);
 }
 
 
@@ -117,7 +109,6 @@ void AES_SetMode(AES *InstancePtr, u32 channel, Mode mode)
     u32 cr = InstancePtr->Registers[channel].CR;
     setBits(&cr, (u32)mode, MODE_POS, MODE_LEN);
 	InstancePtr->Registers[channel].CR = cr;
-    AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
 }
 
 
@@ -126,7 +117,6 @@ void AES_SetChainingMode(AES* InstancePtr, u32 channel, ChainingMode chainMode)
     u32 cr = InstancePtr->Registers[channel].CR;
     setBits(&cr, (u32)chainMode & 0x3, CHAIN_MODE_POS, CHAIN_MODE_LEN);
 	InstancePtr->Registers[channel].CR = cr;
-    AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
 }
 
 void AES_SetGCMPhase(AES* InstancePtr, u32 channel, GCMPhase gcmPhase)
@@ -134,7 +124,6 @@ void AES_SetGCMPhase(AES* InstancePtr, u32 channel, GCMPhase gcmPhase)
     u32 cr = InstancePtr->Registers[channel].CR;
     setBits(&cr, (u32)gcmPhase, GCM_PHASE_POS, GCM_PHASE_LEN);
 	InstancePtr->Registers[channel].CR = cr;
-    AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
 }
 
 void AES_SetPriority(AES* InstancePtr, u32 channel, u32 priority)
@@ -143,7 +132,6 @@ void AES_SetPriority(AES* InstancePtr, u32 channel, u32 priority)
 	u32 cr = InstancePtr->Registers[channel].CR;
     setBits(&cr, priority, PRIORITY_POS, PRIORITY_LEN);
 	InstancePtr->Registers[channel].CR = cr;
-    AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
 }
 /**
  * @brief Enable or disable interrupts
@@ -156,7 +144,6 @@ void AES_SetInterruptEnabled(AES* InstancePtr, u32 channel, u32 en)
 	u32 cr = InstancePtr->Registers[channel].CR;
     setBits(&cr, en, CCFIE_POS, CCFIE_LEN);
 	InstancePtr->Registers[channel].CR = cr;
-    AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
 }
 
 /**
@@ -293,16 +280,13 @@ void AES_startComputationGCM(AES* InstancePtr, u32 channel, int encrypt, u8* hea
 	*(u32*)&InstancePtr->Registers[channel].IV[12] = MODE_GCM_IV_INIT;
 	// Start Init phase
 	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_INIT);
+	// TODO SetDataParameters? Wird in Hardware Datasize in Phase Init berücksichtigt?
 	// During init phase, reset the Susp register to 0 (only Susp though, clearing H is unnecessary and would result in an error, as the init phase writes to it)
-	for (u32 i = 0; i < BLOCK_SIZE; i+=4)
-	{
-		AES_Write(InstancePtr, channel, AES_SUSPR0_OFFSET + i, 0);
-	}
+	memset(InstancePtr->Registers[channel].Susp, 0, BLOCK_SIZE);
 	AES_waitUntilCompleted(InstancePtr, channel);
 	
 	// Process Header
-	AES_Write(InstancePtr, channel, AES_DINR_ADDR_OFFSET, (u32)header);
-	AES_Write(InstancePtr, channel, AES_DATASIZE_OFFSET, headerLen);
+	AES_SetDataParameters(InstnacePtr, channel, header, NULL, headerLen);
 	// enable with Phase Header
 	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_HEADER);
 	AES_waitUntilCompleted(InstancePtr, channel);
@@ -321,7 +305,6 @@ void AES_calculateTagGCM(AES* InstancePtr, u32 channel, u32 headerLen, u32 paylo
     //AES_SetIV(InstancePtr, channel, IV, 12);
 	// Write last word of the IV manually
 	*(u32*)(&InstancePtr->Registers[channel].IV[12]) = MODE_GCM_IV_FINAL;
-	AES_Write(InstancePtr, channel, AES_IVR0_OFFSET+12, MODE_GCM_IV_FINAL);
 	// Use headerLen (64 bit) ||  payloadLen(64 bit) as data block in final round
 	u8 finalData[BLOCK_SIZE];
 	*(u32*)finalData = 0;
