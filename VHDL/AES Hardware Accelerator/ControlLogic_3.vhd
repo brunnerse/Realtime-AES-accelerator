@@ -31,6 +31,7 @@ use work.binary_search_types.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use ieee.std_logic_misc.or_reduce;
 
+
 entity ControlLogic_3 is
   Generic (
     LITTLE_ENDIAN : boolean := true;
@@ -216,8 +217,7 @@ ATTRIBUTE X_INTERFACE_INFO of M_RM_WrValid: SIGNAL is
 
 -- Define registers as array out of words with DATA_WIDTH bits
 -- For each register, there is 2**ADDR_REGISTER_BITS ( = 2**7 = 128) bytes of memory, i.e. 128/4 words per channel
--- TODO kleiner machen?
-type mem_type is array (0 to (2**ADDR_REGISTER_BITS) / DATA_WIDTH_BYTES - 1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+type mem_type is array (0 to (REGSET_SIZE / DATA_WIDTH_BYTES - 1)) of std_logic_vector(DATA_WIDTH-1 downto 0);
 signal mem : mem_type;
 
 signal baseAddr : std_logic_vector(31 downto 0);
@@ -346,7 +346,6 @@ process(Clock)
 variable configReg : std_logic_vector(DATA_WIDTH-1 downto 0);
 variable destAddrVar, sourceAddrVar, dataCountVar : std_logic_vector(DATA_WIDTH-1 downto 0);
 
--- TODO necessary or just hardcode instead?
 procedure UpdateCoreSignals is 
 begin
 for i in 3 downto 0 loop
@@ -767,7 +766,7 @@ if rising_edge(Clock) then
 end if;
 end process;
 
--- write process driving interruptClear
+-- write process driving clearInterrupt
 process (Clock)
 variable channelIdx : integer;
 begin
