@@ -795,21 +795,7 @@ if rising_edge(Clock) then
         end loop;
         RM_RdReady <= '0';
     else 
-          
-        -- Write port 1 (from the Interface)
-        if WrEn1 = '1' then
-            -- TODO forward WritePort1 to memory or just ignore it always?
-            channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
-            --TODO ignore certain registers like baseaddr?
-            if channelIdx = channel then
-                -- TODO simplify by ignoring WrStrb?
-                for i in 3 downto 0 loop
-                    if WrStrb1(i) = '1' then
-                        mem(to_integer(unsigned(WrAddr1(addr_register_range))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
-                    end if;
-               end loop;
-           end if;  
-        end if;         
+                 
         -- Write port 2 (from the AES Core)
         if WrEn2 = '1' then
             -- write four words, i.e. 128 bit
