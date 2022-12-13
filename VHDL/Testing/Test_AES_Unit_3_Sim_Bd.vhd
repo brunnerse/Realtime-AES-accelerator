@@ -7,6 +7,8 @@ use work.common.ALL;
 use work.addresses.ALL;
 use work.register_bit_positions.ALL;
 
+use IEEE.NUMERIC_STD.ALL;
+
 entity Test_AES_Unit_3_Sim_Bd is 
 generic (
     NUM_CHANNELS : integer := 16;
@@ -43,6 +45,8 @@ port (
   S_ReadWritePort_wrdata : in STD_LOGIC_VECTOR (31 downto 0);
   S_ReadWritePort_wren : in STD_LOGIC;
   S_ReadWritePort_wrstrb : in STD_LOGIC_VECTOR (3 downto 0);
+  dOut : out STD_LOGIC_VECTOR(127 downto 0);
+  EnO : out STD_LOGIC;
   aes_introut_0 : out STD_LOGIC
 );
 end component AES_Unit_3_Sim_Bd;
@@ -74,6 +78,10 @@ signal CHANNEL_CR : channel_cr_type;
 
 signal channel : channel_range;
 
+signal doutCore : std_logic_vector(127 downto 0);
+signal EnOCore : std_logic;
+
+
 begin
 
 DUT: component AES_Unit_3_Sim_Bd port map (
@@ -86,6 +94,8 @@ DUT: component AES_Unit_3_Sim_Bd port map (
   S_ReadWritePort_wrdata => wrdata,
   S_ReadWritePort_wren => wren,
   S_ReadWritePort_wrstrb => wrstrb,
+  dOut => dOutCore,
+  EnO => EnOCore,
   aes_introut_0 => aes_introut_0
 );
 
@@ -111,7 +121,13 @@ Clock <= not Clock after 5ns;
 Resetn <= '1' after 50ns;
 
 
+process (Clock)
+begin
+if rising_edge(Clock) and EnOCore = '1' then
+    report "[INFO] Core finished: Result is " & to_hstring(to_bitvector(dOutCore));
+end if;
 
+end process;
 
 process 
 procedure activateChannel(ch: channel_range) is
@@ -159,7 +175,6 @@ begin
 wait until Resetn = '1' and rising_edge(Clock);
 -- write baseaddr
 setBaseAddr(START_ADDR);
-
 -- Setup channel 1
 channel <= 1;
 wait for 0ns; -- set signal 

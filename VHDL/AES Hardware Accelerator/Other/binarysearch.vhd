@@ -79,7 +79,6 @@ if rising_edge(Clock) then
                 idx1 := channelIdx(i*2);
                 idx2 := channelIdx(i*2+1);
             end if;
-            report integer'image(i) & " = testing " & integer'image(idx1) & " and " & integer'image(idx2);
             
             -- Check if channel idx2 is enabled and has a higher priority than channel idx1
             -- If either idx1 or idx2 equals avoidChannelIdx, choose the other one as the winner
@@ -95,7 +94,6 @@ if rising_edge(Clock) then
         -- update sizeInternal: set to size/2 on start, then always to sizeInternal/2 in every cycle
         if EnI = '1' then
              -- Round up size to next power of 2
-            report "log2 of " & integer'image(to_integer(unsigned(size))) & " gives " & integer'image(log2(to_integer(unsigned(size))));
             if SIZE_IS_POWER_OF_2 then
                 sizeInternal <= '0' & size(size'HIGH downto 1);
             else
