@@ -221,6 +221,7 @@ type mem_type is array (0 to (2**ADDR_REGISTER_BITS) / DATA_WIDTH_BYTES - 1) of 
 signal mem : mem_type;
 
 signal baseAddr : std_logic_vector(31 downto 0);
+signal channelBaseAddr: std_logic_vector(31 downto 0);
 
 -- The current channel
 signal channel : channel_range;
@@ -329,6 +330,14 @@ BinSearch: BinarySearch
         Resetn => Resetn
     );
     
+
+BaseAddrCalc: process (Clock)
+begin
+if rising_edge(Clock) then
+    channelBaseAddr <= std_logic_vector(unsigned(baseAddr) + (channel * REGSET_SIZE));
+end if;
+end process;
+
     
  -- process that handles the data fetching, computing and writing back
  -- this process drives the Control signals and channel
@@ -369,19 +378,19 @@ begin
     -- start the RegMem port read transaction
     RM_write <= '0';
     RM_valid <= '1';
-    RM_addr <= std_logic_vector(unsigned(baseAddr) + (channel * REGSET_SIZE));
+    RM_addr <= std_logic_vector(unsigned(baseAddr) + (highestChannel * REGSET_SIZE));
     
     -- How many registers need to be loaded depends on the mode
-    if ChMode(channel) = CHAINING_MODE_GCM then
+    if ChMode(highestChannel) = CHAINING_MODE_GCM then
         -- In GCM mode, all registers have to be loaded
         RM_length <= std_logic_vector(to_unsigned((ADDR_HR3+4)/4, RM_length'LENGTH));
     else
         -- ECB, CBC, CTR
-        if isChannelInterrupted(channel) = '1' then
+        if isChannelInterrupted(highestChannel) = '1' then
                 -- load up until dataprocessedsize
                 RM_length <= std_logic_vector(to_unsigned((ADDR_DATAPROCESSEDSIZE+4)/4, RM_length'LENGTH));
         else
-            if ChMode(channel) = CHAINING_MODE_ECB then
+            if ChMode(highestChannel) = CHAINING_MODE_ECB then
                 -- only need to load up until key
                 RM_length <= std_logic_vector(to_unsigned((ADDR_KEYR3+4)/4, RM_length'LENGTH));
             else -- CBC or CTR mode: Load up until IV
@@ -397,7 +406,7 @@ begin
     state <= SaveReg;
     RM_write <= '1';
     RM_valid <= '1';
-    RM_addr <= std_logic_vector(unsigned(baseAddr) + (channel * REGSET_SIZE) + addrOffset);
+    RM_addr <= std_logic_vector(unsigned(channelBaseAddr) + addrOffset);
     RM_length <= std_logic_vector(to_unsigned(length/4, RM_length'LENGTH));
     startMemIdx <= addrOffset/4; 
 end procedure;
