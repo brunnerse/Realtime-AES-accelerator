@@ -130,7 +130,7 @@ int AES_compareTags(u8 tag1[BLOCK_SIZE], u8 tag2[BLOCK_SIZE]);
 // returns 1 if most recent computation has completed, otherwise 0
 int AES_isComputationCompleted(AES* InstancePtr, u32 channel);
 // blocks until computation is completed
-void AES_waitUntilCompleted(AES* InstancePtr, u32 channel);
+void AES_waitUntilCompleted(AES* InstancePtr, u32 channel){};
 u32 AES_GetError(AES* InstancePtr, u32 channel);
 
 void AES_clearCompletedStatus(AES* InstancePtr, u32 channel);
