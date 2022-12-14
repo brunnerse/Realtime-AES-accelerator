@@ -236,7 +236,7 @@ type ChModeArrayType is array(natural range<>) of std_logic_vector(CHMODE_LEN-1 
 signal ChMode : ChModeArrayType(channel_range);
 
 -- signals for the highestChannel search process
-signal runSearch, waitForSearchEnd : boolean;
+signal isSearchRunning, waitForSearchEnd : boolean;
 
 -- signals for binary search
 signal EnISearch, ENOSearch : std_logic;
@@ -824,42 +824,59 @@ end process;
 -- if no channel is enabled, channel 0 is selected
 process(Clock)
 
+procedure restartSearch is
+begin
+    isSearchRunning <= true;
+    EnISearch <= '1';
+end procedure;
+
 variable channelIdx: channel_range;
 
 begin
 if rising_edge(Clock) then
     EnISearch <= '0';
+
     if Resetn = '0' then
         highestChannel <= channel_range'LOW;
         nextHighestChannel <= channel_range'HIGH; -- choose a random channel different from highestChannel
-        runSearch <= false;
+        isSearchRunning <= false;
         waitForSearchEnd <= false;
     else
-         -- Check if highestChannel is completed, in that case set highestChannel to the next highest Channel
-         -- if the search is still running, assert waitForSearchEnd and wait until the search has finished
-        if CCF(highestChannel) = '1' or waitForSearchEnd then
-            if runSearch then
-                -- search is currently running
-                waitForSearchEnd <= true;
-            else 
-                -- search is finished; set highestChannel to nextHighestChannel, then restart the search
-                 highestChannel <= nextHighestChannel;
-                 -- set nextHighestChannel to a disabled channel; highestChannel is good for this, as En is set to 0 in this cycle by another process
-                 nextHighestChannel <= highestChannel; 
-                 -- start new search
-                 runSearch <= true; 
-                 EnISearch <= '1';
-                 waitForSearchEnd <= false;
-            end if;
-        end if;
 
         if EnOSearch = '1' then
             nextHighestChannel <= resultSearch;
-            runSearch <= false;
+            isSearchRunning <= false;
         end if;
 
+        -- If nextHighestChannel completes (i.e. because it blocked highestChannel), restart search for nextHighestChannel
+        if CCF(nextHighestChannel) = '1' then
+            restartSearch;
+        end if;
+
+         -- Check if highestChannel is completed, in that case set highestChannel to the next highest Channel
+         -- if the search is still running, assert waitForSearchEnd and wait until the search has finished
+        if CCF(highestChannel) = '1' or waitForSearchEnd then
+            if isSearchRunning then
+                -- check if search ended in just this cycle
+                if EnOSearch = '1' then
+                    highestChannel <= resultSearch;
+                    restartSearch;
+                else    
+                    -- search is currently running; call this block again in the next cycle
+                    waitForSearchEnd <= true;
+                end if;
+            -- search for nextHighestChannel was completed
+            else 
+                waitForSearchEnd <= false;
+                --set highestChannel to nextHighestChannel, then restart the search
+                 highestChannel <= nextHighestChannel;
+                 restartSearch;
+            end if;
+        end if;
+
+
         -- check if a new write to CR happened
-        --  WriteStrobes other than 1111 for the CR register have to be prevented in the driver, otherwise this code must become more complex
+        -- WriteStrobes other than 1111 for the CR register have to be prevented in the driver
         if WrEn1 = '1' and WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH)(addr_register_range)) then
                 channelIdx := to_integer(unsigned(WrAddr1(addr_channel_range)));
                 -- Update highest Channel if the update channel has a higher priority than the current one 
@@ -867,22 +884,26 @@ if rising_edge(Clock) then
                 if WrData1(CR_POS_EN) = '1' then
                     -- Make this channel the highest channel if it has a higher priority,
                     -- or if there's no other channel enabled (highestChannel and nextHighestChanel both disabled)
-                    if unsigned(WrData1(CR_RANGE_PRIORITY)) > unsigned(Priority(highestChannel)) or (En(highestChannel) = '0' and En(nextHighestChannel) = '0') then
-                        highestChannel <= channelIdx;
+                    if unsigned(WrData1(CR_RANGE_PRIORITY)) > unsigned(Priority(highestChannel)) 
+                            or (En(highestChannel) = '0' and En(nextHighestChannel) = '0') then
+                        highestChannel <= channelIdx; 
                         -- abort any running search
                         waitForSearchEnd <= false;
                         -- restart search for next highest channel
-                        runSearch <= true;
-                        EnISearch <= '1';
+                        restartSearch;
                     -- compare channelIdx to nextHighestChannel; if it is higher, replace nextHighestChannel with channelIdx             
-                    elsif unsigned(WrData1(CR_RANGE_PRIORITY)) > unsigned(Priority(nextHighestChannel)) or En(nextHighestChannel) = '0' or nextHighestChannel = highestChannel then 
-                        -- if search is currently running and process isn't waiting for the result, restart the search, as it is not definite that channelIdx is really the nextHighestChannel
-                        -- the "not waitForSearchEnd" makes sure the search doesn't restart while a new channel is searched, so the search time is fixed
-                        if runSearch and not waitForSearchEnd then
-                             EnISearch <= '1';
+                    elsif unsigned(WrData1(CR_RANGE_PRIORITY)) > unsigned(Priority(nextHighestChannel)) 
+                            or En(nextHighestChannel) = '0' or nextHighestChannel = highestChannel then 
+                        -- if search is currently running, restart the search,
+                        -- as it is not definite that channelIdx is really the nextHighestChannel
+                        if isSearchRunning then
+                            -- Check waitForSearchEnd so we dont restart a running search while the process is waiting for the result
+                            if not waitForSearchEnd then
+                                restartSearch;
+                            end if;
                         -- if search is not running, this channel is definitely the next highest one
                         else
-                            nextHighestChannel <= channelIdx;  -- TODO??
+                            nextHighestChannel <= channelIdx;
                         end if;
                     -- if channelIdx is lower than nextHighestChannel, we don't need to restart the search, as nextHighestChannel stays the same
                     end if;
