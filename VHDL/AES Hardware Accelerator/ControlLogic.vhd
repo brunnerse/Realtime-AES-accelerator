@@ -81,18 +81,30 @@ end ControlLogic;
 
 architecture Behavioral of ControlLogic is
 -- helper function, must be at the beginning because it is used in the constants
+-- log2 that rounds up
 function log2( i : natural) return integer is
-    variable temp    : integer := i;
+    variable temp    : integer := 1;
     variable ret_val : integer := 0; 
   begin					
-    while temp > 1 loop
+    while temp < i loop
       ret_val := ret_val + 1;
-      temp    := temp / 2;     
+      temp    := temp * 2;     
     end loop;
     
     return ret_val;
-  end function;
-  
+end function;
+
+function SwapEndian(x : std_logic_vector) return std_logic_vector is
+variable r : std_logic_vector(x'RANGE);
+variable idx : integer;
+begin
+for i in x'LENGTH/8-1 downto 0 loop
+    idx := (x'LENGTH/8-1-i)*8;
+    r(idx+7 downto idx) := x(i*8+7 downto i*8);
+end loop;
+return r;
+end function;  
+ 
   
   -- define constants
 constant DATA_WIDTH_BYTES : integer := DATA_WIDTH/8;
@@ -105,7 +117,7 @@ subtype addr_channel_range is integer range ADDR_WIDTH-1 downto ADDR_REGISTER_BI
 subtype addr_register_range is integer range ADDR_REGISTER_BITS-1 downto log2(DATA_WIDTH_BYTES);
 
  
- function GetChannelAddr(channel : channel_range; addr : integer) return integer is
+function GetChannelAddr(channel : channel_range; addr : integer) return integer is
     variable totalAddr : unsigned(addr_range);
     variable addrInt : integer;
     begin
@@ -183,6 +195,8 @@ signal runSearch, waitForSearchEnd : boolean;
 signal WRERR, RDERR, CCF : std_logic_vector(channel_range);
 signal prevCCF : std_logic_vector(channel_range);
 
+signal isChannelInterrupted : std_logic_vector(channel_range);
+
 type state_type is (Idle, Fetch, Computing, Writeback);
 signal state : state_type;
 
@@ -241,6 +255,22 @@ for i in 3 downto 0 loop
     H(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(ch, ADDR_SUSPR4 + i*4));
 end loop;
 end procedure;
+
+procedure ChangeStateToComputing(ch: channel_range) is
+begin
+    UpdateCoreSignals(ch);
+    EnICore <= '1';
+    state <= Computing;
+end procedure;
+
+procedure ChangeToIdleAndMarkAsComplete is
+begin
+    CCF(channel) <= '1';
+    interrupt(channel) <= CCFIE; -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0
+    isChannelInterrupted(channel) <= '0';
+    state <= Idle;
+end procedure;
+
  
  begin
  if rising_edge(Clock) then
@@ -252,6 +282,7 @@ end procedure;
         RW_valid <= '0';
         channel <= 0;
         interrupt <= (others => '0');
+        isChannelInterrupted <= (others => '0');
         CCF <= (others => '0');
         for i in channel_range loop
             dataCount(i) <= (others => '0');
@@ -274,11 +305,8 @@ end procedure;
                 configReg := mem(GetChannelAddr(highestChannel, ADDR_CR)); 
                 -- switch channel to highestChannel
                 channel <= highestChannel;
-                -- update core signals
-                UpdateCoreSignals(highestChannel);
                 -- start if the Enable signal switched to high or the channel changed
-                if En(highestChannel) = '1' and (prevEn(highestChannel) = '0' or channel /= highestChannel) then
-                
+                if En(highestChannel) = '1' and (prevEn(highestChannel) = '0' or channel /= highestChannel) then  
                     -- copy configuration signals
                     
                     -- if mode is decryption but the channel has changed, the keyexpansion data aren't valid anymore 
@@ -291,36 +319,36 @@ end procedure;
                     chainingModeSignal <= configReg(CR_RANGE_CHMODE);
                     GCMPhaseSignal <= configReg(CR_RANGE_GCMPHASE);
                     CCFIE <= configReg(CR_POS_CCFIE);
+                    
+                    -- Read addresses and datasize from memory register depending on Endianness
+                    if not LITTLE_ENDIAN then 
+                        destAddrVar     := mem(GetChannelAddr(highestChannel, ADDR_DOUTADDR));
+                        sourceAddrVar   := mem(GetChannelAddr(highestChannel, ADDR_DINADDR));
+                        dataSize        <= mem(GetChannelAddr(highestChannel, ADDR_DATASIZE));
+                    else
+                        destAddrVar := SwapEndian(mem(GetChannelAddr(highestChannel, ADDR_DOUTADDR)));
+                        sourceAddrVar := SwapEndian(mem(GetChannelAddr(highestChannel, ADDR_DINADDR)));
+                        dataSize <= SwapEndian(mem(GetChannelAddr(highestChannel, ADDR_DATASIZE)));
+                    end if;
+                     -- Make sure dataCounter is divisible by 16
+                    dataSize(3 downto 0) <= (others => '0');
+                    
+                    -- add dataCount to addresses, reset dataCount if necessary
+                    if isChannelInterrupted(highestChannel) = '1' then
+                        destAddrVar := std_logic_vector(unsigned(destAddrVar) + unsigned(dataCount(highestChannel)));
+                        sourceAddrVar := std_logic_vector(unsigned(sourceAddrVar) + unsigned(dataCount(highestChannel)));
+                    else
+                        dataCount(highestChannel) <= (others => '0');
+                    end if;
+                    destAddress <= destAddrVar;
+                    sourceAddress <= sourceAddrVar;
 
                     -- If mode is keyexpansion or the GCM init mode, start the AES Core immediately, no data reading required
                     -- need to read from configReg instead of the signals, as the signals only update after the process
                     if configReg(CR_RANGE_MODE) = MODE_KEYEXPANSION or (configReg(CR_RANGE_CHMODE) = CHAINING_MODE_GCM and configReg(CR_RANGE_GCMPHASE) = GCM_PHASE_INIT) then
-                        EnICore <= '1';
-                        state <= Computing;
+                        ChangeStateToComputing(highestChannel);
                     else
-                        -- start read data transaction;  
-                        -- Read addresses and datasize from memory register depending on Endianness
-                        if not LITTLE_ENDIAN then 
-                            destAddrVar     := mem(GetChannelAddr(highestChannel, ADDR_DOUTADDR));
-                            sourceAddrVar   := mem(GetChannelAddr(highestChannel, ADDR_DINADDR));
-                            dataSize        <= mem(GetChannelAddr(highestChannel, ADDR_DATASIZE));
-                        else
-                            for i in 3 downto 0 loop
-                                destAddrVar(i*8+7 downto i*8)   := mem(GetChannelAddr(highestChannel, ADDR_DOUTADDR))((3-i)*8+7 downto (3-i)*8);
-                                sourceAddrVar(i*8+7 downto i*8) := mem(GetChannelAddr(highestChannel, ADDR_DINADDR))((3-i)*8+7 downto (3-i)*8);
-                                dataSize(i*8+7 downto i*8)      <= mem(GetChannelAddr(highestChannel, ADDR_DATASIZE))((3-i)*8+7 downto (3-i)*8);
-                            end loop;
-                        end if;
-                         -- Make sure dataCounter is divisible by 16
-                        dataSize(3 downto 0) <= (others => '0');
-                        
-                        -- add dataCount to addresses
-                        destAddrVar := std_logic_vector(unsigned(destAddrVar) + unsigned(dataCount(highestChannel)));
-                        sourceAddrVar := std_logic_vector(unsigned(sourceAddrVar) + unsigned(dataCount(highestChannel)));
-                        destAddress <= destAddrVar;
-                        sourceAddress <= sourceAddrVar;
-                        
-                        -- perform the read request
+                        -- start read data transaction
                         -- set RW addr to source address
                         RW_addr         <= sourceAddrVar; -- set RW_addr to sourceAddress
                         RW_write        <= '0';
@@ -335,9 +363,7 @@ end procedure;
                     RW_valid <= '0';
                     -- start the core
                     DIN <= M_RW_rdData;
-                    EnICore <= '1';
-                    UpdateCoreSignals(channel);
-                    state <= Computing;
+                    ChangeStateToComputing(channel);
                 end if;
             when Computing =>
                 -- write back once the core has finished
@@ -349,10 +375,9 @@ end procedure;
                     -- In KeyExpansion mode or in GCM Phase Init, no writeback is required
                     if modeSignal = MODE_KEYEXPANSION or 
                         (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT ) then
-                        -- set signals that computation has finished
-                        CCF(channel) <= '1';
-                        interrupt(channel) <= CCFIE; -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0;
-                        state <= Idle;
+                        
+                        ChangeToIdleAndMarkAsComplete;
+                        
                     -- In the GCM Header Phase, there's no writeback either, but it has to be checked in the Writeback state
                     -- whether there is another block to process
                     elsif chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_HEADER then
@@ -375,17 +400,10 @@ end procedure;
                     -- increment dataCount of this channel
                     dataCount(channel) <= std_logic_vector(unsigned(dataCount(channel)) + to_unsigned(BLOCK_SIZE, RW_addr'LENGTH));
                     
-                    -- Change to Idle per default,
-                    --  unless the following evaluation show that the channel is still the highestChannel and there are more data to process
-                    state <= Idle; 
-                    
                     -- check if computation is complete
-                    if (unsigned(dataSize) - unsigned(dataCount(channel))) <= to_unsigned(16, dataSize'LENGTH) then
-                        -- Computation complete;  set interrupt and CCF, reset dataCount
-                        dataCount(channel) <= (others => '0');
-                        CCF(channel) <= '1';
-                        interrupt(channel) <= CCFIE;  -- interrupt is set to 1 when CCFIE is 1 (i.e. enabled), otherwise it stays 0
-                                  
+                    if (unsigned(dataSize) - unsigned(dataCount(channel))) <= to_unsigned(BLOCK_SIZE, dataSize'LENGTH) then
+                        -- Computation complete;  set interrupt and CCF
+                        ChangeToIdleAndMarkAsComplete;                        
                     -- if there are more datablocks to process and the channel still has the highest priority, continue with fetch
                     elsif channel = highestChannel then
                         -- Not complete; Fetch next data block
@@ -397,6 +415,10 @@ end procedure;
                         RW_valid <= '1'; -- new memory request
                         RW_write <= '0';
                         state <= Fetch;
+                    -- Channel is being interrupted
+                    else
+                        isChannelInterrupted(channel) <= '1';
+                        state <= Idle;
                     end if;    
                 end if;
             when others =>
