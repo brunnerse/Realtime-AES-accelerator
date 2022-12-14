@@ -373,7 +373,7 @@ end procedure;
                          
                     RW_valid <= '0';
                     -- increment dataCount of this channel
-                    dataCount(channel) <= std_logic_vector(unsigned(dataCount(channel)) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
+                    dataCount(channel) <= std_logic_vector(unsigned(dataCount(channel)) + to_unsigned(BLOCK_SIZE, RW_addr'LENGTH));
                     
                     -- Change to Idle per default,
                     --  unless the following evaluation show that the channel is still the highestChannel and there are more data to process
@@ -390,10 +390,10 @@ end procedure;
                     elsif channel = highestChannel then
                         -- Not complete; Fetch next data block
                         -- increment addresses
-                        destAddress <= std_logic_vector(unsigned(destAddress) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
-                        sourceAddress <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
+                        destAddress <= std_logic_vector(unsigned(destAddress) + to_unsigned(BLOCK_SIZE, RW_addr'LENGTH));
+                        sourceAddress <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(BLOCK_SIZE, RW_addr'LENGTH));
                         -- set RW_addr to new source address
-                        RW_addr <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));           
+                        RW_addr <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(BLOCK_SIZE, RW_addr'LENGTH));           
                         RW_valid <= '1'; -- new memory request
                         RW_write <= '0';
                         state <= Fetch;
