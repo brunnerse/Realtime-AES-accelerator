@@ -445,11 +445,6 @@ end procedure;
                 -- start if the Enable signal switched to high or the channel changed
                 if En(highestChannel) = '1' and (prevEn(highestChannel) = '0' or channel /= highestChannel) then
                     ChangeStateToLoadReg;               
-                    
-                    -- set isChannelInterrupted signal if channel is Enabled and not already finished
-                    if En(channel) = '1' and CCF(channel) = '0' and channel /= highestChannel then
-                        isChannelInterrupted(channel) <= '1';
-                    end if;      
                 end if;
                  
            when LoadReg =>
@@ -557,7 +552,7 @@ end procedure;
                     dataCount <= std_logic_vector(unsigned(dataCount) + to_unsigned(BLOCK_SIZE, RW_addr'LENGTH));
                     
                     -- check if computation is complete
-                    if (unsigned(dataSize) - unsigned(dataCount)) <= to_unsigned(16, dataSize'LENGTH) then
+                    if (unsigned(dataSize) - unsigned(dataCount)) <= to_unsigned(BLOCK_SIZE, dataSize'LENGTH) then
                         if chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal /= GCM_PHASE_FINAL then
                             ChangeStateToSaveReg(ADDR_SUSPR0, BLOCK_SIZE);
                         else
@@ -575,7 +570,8 @@ end procedure;
                         RW_write <= '0';
                         state <= Fetch;
                     else
-                        -- channel interrupted: start SaveReg
+                        -- channel interrupted: set isChannelInterrupted, start SaveReg
+                        isChannelInterrupted(channel) <= '1';
                         if chainingModeSignal = CHAINING_MODE_ECB then
                             ChangeStateToSaveReg(ADDR_DATAPROCESSEDSIZE, 4);
                         elsif chainingModeSignal = CHAINING_MODE_CBC then
