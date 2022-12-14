@@ -252,8 +252,6 @@ end procedure;
         RW_valid <= '0';
         channel <= 0;
         interrupt <= (others => '0');
-        WRERR <= (others => '0');
-        RDERR <= (others => '0');
         CCF <= (others => '0');
         for i in channel_range loop
             dataCount(i) <= (others => '0');
@@ -267,11 +265,6 @@ end procedure;
             end if;
             if clearInterrupt(i) = '1' then
                 interrupt(i) <= '0';
-            end if;
-           -- Clear error signals when channel is enabled
-            if (En(i) = '1' and prevEn(i) = '0') then
-                RDERR(i) <= '0';
-                WRERR(i) <= '0';
             end if;
         end loop;
              
@@ -340,7 +333,6 @@ end procedure;
                 if M_RW_ready = '1' then
                     -- reset valid signal
                     RW_valid <= '0';
-                    RDERR(channel) <= RDERR(channel) or M_RW_error;
                     -- start the core
                     DIN <= M_RW_rdData;
                     EnICore <= '1';
@@ -380,7 +372,6 @@ end procedure;
                          (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_HEADER) then
                          
                     RW_valid <= '0';
-                    WRERR(channel) <= WRERR(channel) or M_RW_error;         
                     -- increment dataCount of this channel
                     dataCount(channel) <= std_logic_vector(unsigned(dataCount(channel)) + to_unsigned(KEY_SIZE/8, RW_addr'LENGTH));
                     
@@ -413,6 +404,35 @@ end procedure;
     end if;
 end if;
 end process;
+
+-- Error process
+process(Clock)
+begin
+if rising_edge(Clock) then
+    if Resetn = '0' then
+        RDERR <= (others => '0');
+        WRERR <= (others => '0');
+    else
+       for i in channel_range loop
+            -- Clear error signals when channel is enabled
+            if (En(i) = '1' and prevEn(i) = '0') then
+                RDERR(i) <= '0';
+                WRERR(i) <= '0';
+            end if;
+       end loop;
+       -- update error when a transaction is complete
+       if RW_valid = '1' and M_RW_ready = '1' then
+            if RW_write = '1' then
+                WRERR(channel) <= WRERR(channel) or M_RW_error;
+            else
+                RDERR(channel) <= RDERR(channel) or M_RW_error;
+            end if;
+       end if;
+    end if;
+end if;
+end process;
+
+
 
 -- read process
 process (Clock)
