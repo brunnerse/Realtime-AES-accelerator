@@ -565,13 +565,13 @@ if rising_edge(Clock) then
     else
 
         -- If nextHighestChannel completes (i.e. because it blocked highestChannel), restart search for nextHighestChannel
-        if CCF(nextHighestChannel) = '1' then
+        if CCF(nextHighestChannel) = '1' and prevCCF(nextHighestChannel) = '0' then
             restartSearch;
         end if;
         
-         -- Check if highestChannel is completed, in that case set highestChannel to the next highest Channel
+         -- Check if highestChannel has just completed, in that case set highestChannel to the next highest Channel
          -- if the search is still running, assert waitForSearchEnd and wait until the search has finished
-        if CCF(highestChannel) = '1' or waitForSearchEnd then
+        if (CCF(highestChannel) = '1' and prevCCF(highestChannel) = '0') or waitForSearchEnd then
             if isSearchRunning then
                 -- search is currently running
                 waitForSearchEnd <= true;
