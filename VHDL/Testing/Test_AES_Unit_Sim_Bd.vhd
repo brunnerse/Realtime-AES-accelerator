@@ -10,7 +10,7 @@ use work.register_bit_positions.ALL;
 
 entity Test_AES_Unit_Sim_Bd is 
 generic (
-    NUM_CHANNELS : integer := 8;
+    NUM_CHANNELS : integer := 4;
     LITTLE_ENDIAN : boolean := true
     );
 end Test_AES_Unit_Sim_Bd;
@@ -52,9 +52,21 @@ port (
 );
 end component AES_Unit_Sim_Bd;
 
+
+constant key : std_logic_vector(KEY_SIZE-1 downto 0) := x"000102030405060708090a0b0c0d0e0f";
+constant plaintext1 : std_logic_vector(KEY_SIZE-1 downto 0) := x"00102030011121310212223203132333";
+constant plaintext2 : std_logic_vector(KEY_SIZE-1 downto 0) := x"000102030405060708090a0b0c0d0e0f";
+constant plaintext3 : std_logic_vector(KEY_SIZE-1 downto 0) := x"affedeadbeefdadcabbeadbeec0cabad";
+
+constant testIV : std_logic_vector(KEY_SIZE-1 downto 0) := x"f0e0d0c0b0a090807060504030201000";
+
+constant plainAddr : integer := 16#560#;
+constant cipherAddr : integer := 16#2000#;
+
+
 signal Clock : STD_LOGIC := '0';
-signal EnO : STD_LOGIC := '0';
-signal Resetn : STD_LOGIC := '1';
+signal EnOCore : STD_LOGIC := '0';
+signal Resetn : STD_LOGIC := '0';
 signal rdaddr : STD_LOGIC_VECTOR (9 downto 0);
 signal rddata : STD_LOGIC_VECTOR (31 downto 0);
 signal rden : STD_LOGIC;
@@ -63,7 +75,7 @@ signal wrdata : STD_LOGIC_VECTOR (31 downto 0);
 signal wren : STD_LOGIC;
 signal wrstrb : STD_LOGIC_VECTOR (3 downto 0) := "1111";
 signal aes_introut_0 : STD_LOGIC;
-signal dOut : STD_LOGIC_VECTOR (127 downto 0);
+signal dOutCore : STD_LOGIC_VECTOR (127 downto 0);
 
 
 subtype channel_range is integer range NUM_CHANNELS-1 downto 0;
@@ -79,7 +91,7 @@ begin
 
 DUT: component AES_Unit_Sim_Bd port map (
   Clock => Clock,
-  EnO => EnO,
+  EnO => EnOCore,
   Resetn => Resetn,
   S_ReadWritePort_0_rdaddr => rdaddr,
   S_ReadWritePort_0_rddata => rddata,
@@ -89,7 +101,7 @@ DUT: component AES_Unit_Sim_Bd port map (
   S_ReadWritePort_0_wren => wren,
   S_ReadWritePort_0_wrstrb => wrstrb,
   aes_introut_0 => aes_introut_0,
-  dOut => dOut
+  dOut => dOutCore
 );
 
 
@@ -117,6 +129,15 @@ end generate;
 
 
 
+process (Clock)
+begin
+if rising_edge(Clock) and EnOCore = '1' then
+    report "[INFO] Core finished: Result is " & to_hstring(to_bitvector(dOutCore));
+end if;
+end process;
+
+
+
 process 
 procedure activateChannel(ch: channel_range) is
 begin
@@ -124,6 +145,48 @@ wraddr <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_OFFSET(ch)
 wrdata <= CHANNEL_CR(ch);
 wren <= '1';
 wait for 10ns;
+wren <= '0';
+end procedure;
+
+procedure configureChannel(ch: channel_range) is
+variable longval : std_logic_vector(KEY_SIZE-1 downto 0);
+begin
+wren <= '1';
+-- set source addr
+wraddr <= std_logic_vector(to_unsigned(ADDR_DINADDR, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
+wrdata <= SwapEndian(std_logic_vector(to_unsigned(plainAddr + ((ch+1)*ch/2)*BLOCK_SIZE, 32)));
+wait for 10ns;
+report "Set as sourceaddr for channel " & integer'image(ch) & ": " & to_hstring(to_bitvector(wrdata));
+-- set dest addr
+wraddr <= std_logic_vector(to_unsigned(ADDR_DOUTADDR, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
+wrdata <= SwapEndian(std_logic_vector(to_unsigned(cipherAddr + (ch/2*(ch+1))*BLOCK_SIZE, 32)));
+wait for 10ns;
+-- set size
+wraddr <= std_logic_vector(to_unsigned(ADDR_DATASIZE, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
+wrdata <= SwapEndian(std_logic_vector(to_unsigned((ch+1)*BLOCK_SIZE, 32)));
+wait for 10ns;
+-- set key
+longval := key;
+longval(127 downto 120) := std_logic_vector(to_unsigned(ch, 8));
+for i in 0 to 3 loop
+    wren <= '1';
+    wraddr <= std_logic_vector(to_unsigned(ADDR_KEYR0, ADDR_WIDTH) + i*4 + CHANNEL_OFFSET(ch));
+    wrdata <= longval(127-i*32 downto 96-i*32);
+    wait for 10ns;
+end loop;
+-- set IV
+longval := testIV;
+longval(127 downto 120) := std_logic_vector(to_unsigned(ch, 8));
+-- set last word to 0 if in CTR Mode
+if CHANNEL_CR(ch)(CR_RANGE_CHMODE) = CHAINING_MODE_CTR then
+    longval(31 downto 0) := (others => '0');
+end if;
+for i in 0 to 3 loop
+    wren <= '1';
+    wraddr <= std_logic_vector(to_unsigned(ADDR_IVR0, ADDR_WIDTH) + i*4 + CHANNEL_OFFSET(ch));
+    wrdata <= longval(127-i*32 downto 96-i*32);
+    wait for 10ns;
+end loop;
 wren <= '0';
 end procedure;
 
@@ -154,11 +217,14 @@ begin
 -- wait until reset is deasserted
 wait until Resetn = '1' and rising_edge(Clock);
 
--- TODO Write Channel Configuration data to mem
+--  Write Channel Configuration data to mem
+for i in channel_range loop
+    ConfigureChannel(i);
+end loop;
+
+report "[INFO] Configured all channels.";
 
 
--- Setup channel 1
-wait for 0ns; -- set signal 
 
 activateChannel(0);
 wait for 10ns;
@@ -174,6 +240,8 @@ activateChannel(3);
 
 -- wait until CCF of channel 1 is set
 waitUntilCCF(1);
+
+wait;
 end process;
 
 
