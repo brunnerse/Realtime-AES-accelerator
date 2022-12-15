@@ -663,17 +663,20 @@ if rising_edge(Clock) then
         if RM_valid = '1' and RM_valid_prev = '0' and RM_write = '1' then
             -- init WrData and WrValid at start of transaction
             RM_WrValid <= '1';
-            write_index <= (others => '0');
+            write_index <= std_logic_vector(to_unsigned(1, write_index'LENGTH));
             AssignWrData(startMemIdx);  
         -- go to next data at each handshake    
         elsif RM_WrValid = '1' and M_RM_WrReady = '1' then
-            write_index <= std_logic_vector(unsigned(write_index) + 1); 
-            -- At each Write Handshake, set WrData to next data register
-            AssignWrData(startMemIdx + to_integer(unsigned(write_index)) + 1);
-            -- check if WrValid can be deactivated, which is when the next write index equals RM_length/4
-            if unsigned(write_index) + 1 = unsigned(RM_length) then
+            -- check if WrValid can be deactivated, which is after we wrote RM_length times
+            if unsigned(write_index) = unsigned(RM_length) then
                 RM_WrValid <= '0';
+            else
+                -- At each Write Handshake, set WrData to next data register
+                AssignWrData(startMemIdx + to_integer(unsigned(write_index)));
             end if;    
+            
+            -- always update write_index (for simplicity)
+            write_index <= std_logic_vector(unsigned(write_index) + 1); 
         end if;    
     end if;
 end if;
@@ -849,13 +852,13 @@ if rising_edge(Clock) then
         end if;
 
         -- If nextHighestChannel completes (i.e. because it blocked highestChannel), restart search for nextHighestChannel
-        if CCF(nextHighestChannel) = '1' then
+        if CCF(nextHighestChannel) = '1' and prevCCF(nextHighestChannel) = '0' then
             restartSearch;
         end if;
 
          -- Check if highestChannel is completed, in that case set highestChannel to the next highest Channel
          -- if the search is still running, assert waitForSearchEnd and wait until the search has finished
-        if CCF(highestChannel) = '1' or waitForSearchEnd then
+        if (CCF(highestChannel) = '1' and prevCCF(highestChannel) = '0') or waitForSearchEnd then
             if isSearchRunning then
                 -- check if search ended in just this cycle
                 if EnOSearch = '1' then
