@@ -141,6 +141,7 @@ int main()
         AES_SetGCMPhase(&aes, channel, GCM_PHASE_PAYLOAD);
         AES_Write(&aes, channel, ADDR_IV+12, 0x02000000);
         AES_SetDataParameters(&aes, channel, plaintextAddr, ciphertextAddr, BLOCK_SIZE*3);
+        testData[0] = channel;
         memcpy((uint)buf + plaintextAddr, testData, BLOCK_SIZE*3);
 
         AES_startComputation(&aes, channel);

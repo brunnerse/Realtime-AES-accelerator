@@ -150,7 +150,7 @@ header = data + data3
 payload = data + data + data2
 
 
-numChannels = 1
+numChannels = 2
 for channel in range(0, numChannels):
     print("=====\n CHANNEL %d\n===="%(channel))
 
