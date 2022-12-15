@@ -59,14 +59,11 @@ signal sizeInternal : std_logic_vector(size'HIGH downto 0);
   
 begin
 
-
-highestChannel <= channelIdx(0);
-
 -- process that initializes a new search and does one search step per cycle.
 -- If EnI = '1' while a search is running, the search will be aborted and a new search will be started
 process(Clock)
 
-variable idx1, idx2, channelIdx1, channelIdx2 : integer;
+variable idx1, idx2, channelIdx1, channelIdx2, winnerIdx : integer range NUM_CHANNELS-1 downto 0;
 variable prio1, prio2 : std_logic_vector(NUM_PRIORITY_BITS-1 downto 0);
 variable en1, en2 : std_logic;
 
@@ -79,6 +76,7 @@ if rising_edge(Clock) then
             channelIdx(i) <= i;
         end loop;
         sizeInternal <= (others => '0');
+        highestChannel <= 0;
     else
 
         for i in NUM_CHANNELS/2-1 downto 0 loop
@@ -103,13 +101,24 @@ if rising_edge(Clock) then
 
             if not (avoidChannelIdx = channelIdx2 or en2 = '0') and
                     (avoidChannelIdx = channelIdx1 or en1 = '0' or unsigned(prio2) > unsigned(prio1)) then
+                winnerIdx := channelIdx2;
                 channelIdx(i) <= channelIdx2;
                 InterPriority(i) <= prio2;
                 InterEn(i) <= en2;
             else
+                winnerIdx := channelIdx1;
                 channelIdx(i) <= channelIdx1;
                 InterPriority(i) <= prio1;
                 InterEn(i) <= en1;
+            end if;
+            
+            -- Set highestChannel if finished
+            if i = 0 then
+                -- check if a search has finished
+                if (EnI = '1' and unsigned(size) <= to_unsigned(2, size'LENGTH)) or
+                        unsigned(sizeInternal) = to_unsigned(2, sizeInternal'LENGTH) then
+                    highestChannel <= winnerIdx;
+                end if;
             end if;
         end loop;
 
@@ -127,12 +136,10 @@ if rising_edge(Clock) then
             sizeInternal <= '0' & sizeInternal(sizeInternal'HIGH downto 1);
         end if;
         
-        -- check if a search has finished
-        -- if the search only had one or two elements, we can finish immediately
-        if EnI = '1' and unsigned(size) <= to_unsigned(2, size'LENGTH) then
-            EnO <= '1';
-        -- check if a search longer than one cycle has finished
-        elsif unsigned(sizeInternal) = to_unsigned(2, sizeInternal'LENGTH) then
+         -- set EnO when a search has finished
+         -- This is done outside of the for loop in case of NUM_CHANNELS = 1
+        if (EnI = '1' and unsigned(size) <= to_unsigned(2, size'LENGTH)) or
+                unsigned(sizeInternal) = to_unsigned(2, sizeInternal'LENGTH) then
             EnO <= '1';
         end if;
     end if;
