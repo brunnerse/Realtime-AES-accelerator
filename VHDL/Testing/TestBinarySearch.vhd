@@ -40,9 +40,9 @@ end TestBinarySearch;
 
 architecture Behavioral of TestBinarySearch is
 
-constant NUM_CHANNELS : integer := 1024;
+constant NUM_CHANNELS : integer := 128;
 
-component Binary_Search is
+component BinarySearch is
     generic (
         NUM_CHANNELS : natural := 8
     );
@@ -65,7 +65,7 @@ signal Clock : std_logic := '1';
 signal Priority : PrioArrayType(NUM_CHANNELS-1 downto 0);
 signal ChannelEn : std_logic_vector(NUM_CHANNELS-1 downto 0);
 signal highestChannel, avoidChannel : integer;
-signal size :  std_logic_vector(ADDR_CHANNEL_BITS downto 0);
+signal size :  std_logic_vector(ADDR_CHANNEL_BITS downto 0) := (others => '0');
 
 
 begin
@@ -74,45 +74,49 @@ Clock <= not Clock after 5ns;
 Resetn <= '1' after 20ns;
 avoidChannel <= 7;
 
-search : Binary_Search 
+search : BinarySearch 
     generic map (NUM_CHANNELS => NUM_CHANNELS)
     port map(
         EnI => EnIBS, EnO => EnOBS, ChannelPriority => Priority, ChannelEn => ChannelEn, highestChannel => highestChannel,
         avoidChannelIdx => avoidChannel,
         size => size, Clock => Clock, Resetn => Resetn);
 
--- process to set En and Priority to defaults        
-process(Resetn)
- begin
- if Resetn = '0' then
+-- generate Priority to defaults
+GenPrio:        
+for i in NUM_CHANNELS-1 downto 0 generate
+    Priority(i) <= std_logic_vector(to_unsigned(NUM_CHANNELS-i, NUM_PRIORITY_BITS)) when i/= 31 else 
+                   (others => '0');
+end generate;
+
+
+-- process to start the binary search
+process
+procedure adjustEn(size: std_logic_vector(size'LENGTH-1 downto 0)) is
+begin
     for i in 0 to NUM_CHANNELS-1 loop
-        if i < 14 then
+        if i < to_integer(unsigned(size)) and i < 68 then
             ChannelEn(i) <= '1';
         else
             ChannelEn(i) <= '0';
         end if;
-        Priority(i) <= std_logic_vector(to_unsigned(i, NUM_PRIORITY_BITS));
-    end loop;
- end if;
- end process;     
+     end loop;
+end procedure;
 
--- process to start the binary search
-process
+
 begin
-if Resetn = '0' then
-    size <= (others => '1');
-end if;
+
 EnIBS <= '0';
 wait for 30ns;
 -- adjust size
-if and_reduce(size) = '1' then
-    size <= (others => '0');
-elsif unsigned(size) = 0 then
+if unsigned(size) = 0 then
     size <= std_logic_vector(to_unsigned(1, size'LENGTH));
 else
     -- multiply size by 2
     size <= std_logic_vector(to_unsigned(to_integer(unsigned(size)*2), size'LENGTH));
 end if;
+wait for 0ns;
+adjustEn(size);
+
 EnIBS <= '1';
 wait for 10ns;
 EnIBS <= '0';
