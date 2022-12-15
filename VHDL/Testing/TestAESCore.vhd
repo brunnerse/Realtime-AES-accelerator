@@ -60,6 +60,11 @@ component AES_Core is
            );
 end component;
 
+constant key : std_logic_vector(KEY_SIZE-1 downto 0) := x"000102030405060708090a0b0c0d0e0f";
+constant plaintext1 : std_logic_vector(KEY_SIZE-1 downto 0) := x"00102030011121310212223203132333";
+constant plaintext2 : std_logic_vector(KEY_SIZE-1 downto 0) := x"000102030405060708090a0b0c0d0e0f";
+constant plaintext3 : std_logic_vector(KEY_SIZE-1 downto 0) := x"affedeadbeefdadcabbeadbeec0cabad";
+
 signal Clock : std_logic := '1';
 signal Resetn : std_logic := '0';
 
@@ -76,13 +81,12 @@ signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0) := CHAINING_MODE_
 begin
 
 
---testPlaintext <= x"00102030011121310212223203132333";
-testKey <= x"000102030405060708090a0b0c0d0e0f";
+testKey <= key;
 
 
 -- Set GCM signals H, Susp and GCMPhase to dummy values
 core: AES_Core 
-    generic map(ADDR_IV => ADDR_IVR0, ADDR_SUSP => ADDR_SUSPR0, ADDR_H => ADDR_SUSPR4)
+    generic map(ADDR_IV => ADDR_IVR0, ADDR_SUSP => ADDR_SUSPR0, ADDR_H => ADDR_HR0)
     port map (testKey, testIV, H, Susp, WrEn, WrAddr, WrData, testPlaintext, testCiphertext, EnCoreI, EnCoreO, mode, chaining_mode, "00", Clock, Resetn);
 
 
@@ -99,17 +103,17 @@ end process;
 process begin
 EnCoreI <= '0'; wait for 40ns; -- Wait until Resetn is over
 EnCoreI <= '1'; 
-testPlaintext <= x"00102030011121310212223203132333";
+testPlaintext <= plaintext1;
 wait for 10 ns;
 EnCoreI <= '0';
 wait for 1000 ns; -- Wait at least until key expansion is finished is over
 EnCoreI <= '1'; 
-testPlaintext <= testKey;
+testPlaintext <= plaintext2;
 wait for 10 ns;
 EnCoreI <= '0';
 wait for 1000 ns; -- Wait at least until key expansion is finished is over
 EnCoreI <= '1'; 
-testPlaintext <= x"affedeadbeefdadcabbeadbeec0cabad";
+testPlaintext <= plaintext3;
 wait for 10 ns;
 EnCoreI <= '0'; 
 wait;

@@ -33,7 +33,7 @@ entity AES_Core is
     generic (
         ADDR_IV : integer := ADDR_IVR0;
         ADDR_SUSP : integer := ADDR_SUSPR0;
-        ADDR_H  : integer := ADDR_SUSPR4
+        ADDR_H  : integer := ADDR_HR0
         );
     Port ( Key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);

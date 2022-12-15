@@ -252,7 +252,7 @@ for i in 3 downto 0 loop
     key(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(ch, ADDR_KEYR0 + i*4));
     IV (127-i*32 downto 96-i*32) <= mem(GetChannelAddr(ch, ADDR_IVR0 + i*4));
     Susp(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(ch, ADDR_SUSPR0 + i*4));
-    H(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(ch, ADDR_SUSPR4 + i*4));
+    H(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(ch, ADDR_HR0 + i*4));
 end loop;
 end procedure;
 
