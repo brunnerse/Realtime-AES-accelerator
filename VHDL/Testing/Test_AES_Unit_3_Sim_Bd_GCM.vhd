@@ -43,6 +43,8 @@ port (
   S_ReadWritePort_wrdata : in STD_LOGIC_VECTOR (31 downto 0);
   S_ReadWritePort_wren : in STD_LOGIC;
   S_ReadWritePort_wrstrb : in STD_LOGIC_VECTOR (3 downto 0);
+  dOut : out STD_LOGIC_VECTOR(127 downto 0);
+  EnO : out STD_LOGIC;
   aes_introut_0 : out STD_LOGIC
 );
 end component AES_Unit_3_Sim_Bd;
@@ -74,6 +76,10 @@ signal CHANNEL_CR : channel_cr_type;
 
 signal channel : channel_range;
 
+signal doutCore : std_logic_vector(127 downto 0);
+signal EnOCore : std_logic;
+
+
 begin
 
 DUT: component AES_Unit_3_Sim_Bd port map (
@@ -86,6 +92,8 @@ DUT: component AES_Unit_3_Sim_Bd port map (
   S_ReadWritePort_wrdata => wrdata,
   S_ReadWritePort_wren => wren,
   S_ReadWritePort_wrstrb => wrstrb,
+  dOut => dOutCore,
+  EnO => EnOCore,
   aes_introut_0 => aes_introut_0
 );
 
@@ -97,10 +105,8 @@ signal gcmphase : std_logic_vector(1 downto 0);
 begin
     CHANNEL_OFFSET(i) <= i * 128;
     chmode <= CHAINING_MODE_GCM; -- when i mod 3 = 2 else
-    --priority <= to_unsigned(0, priority'LENGTH) when i /= 2 else
-    --            to_unsigned(1, priority'LENGTH);
     gcmphase <= std_logic_vector(to_unsigned(i, 2));
-    priority <= to_unsigned(0, priority'LENGTH);
+    priority <= to_unsigned(i, priority'LENGTH);
     CHANNEL_CR(i)(31 downto CR_RANGE_PRIORITY'HIGH+1) <= (others => '0');
     CHANNEL_CR(i)(CR_RANGE_PRIORITY) <= std_logic_vector(priority);        
     CHANNEL_CR(i)(15 downto 0) <= '0' & gcmphase & "000" & "0" & "00" & chmode & MODE_ENCRYPTION & "00" & '1';
@@ -111,6 +117,12 @@ Clock <= not Clock after 5ns;
 Resetn <= '1' after 50ns;
 
 
+process (Clock)
+begin
+if rising_edge(Clock) and EnOCore = '1' then
+    report "[INFO] Core finished: DOUT is " & to_hstring(to_bitvector(dOutCore));
+end if;
+end process;
 
 
 process 
@@ -164,20 +176,12 @@ setBaseAddr(START_ADDR);
 wait for 0ns; -- set signal channel
 activateChannel(0);
 
+wait for 50ns;
+activateChannel(3);
+
 -- Wait, then setup channel 2
 wait for 100ns;
 activateChannel(1);
-
--- wait until CCF of channel 0 is set
-waitUntilCCF(0);
-
-wait for 50ns;
--- clear CCF of first channel
-clearCCF(0);
-
-waitUntilCCF(1);
-clearCCF(1);
-
 activateChannel(2);
 wait;
 end process;
