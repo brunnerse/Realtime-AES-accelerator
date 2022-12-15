@@ -51,14 +51,25 @@ function log2( i : natural) return integer is
 subtype channel_range is integer range NUM_CHANNELS-1 downto 0;
 
 signal channelIdx : IdxArrayType(NUM_CHANNELS-1 downto 0);
+signal InterPriority : PrioArrayType(NUM_CHANNELS-1 downto 0);
+signal InterEn : std_logic_vector(NUM_CHANNELS-1 downto 0);
+
+
 signal sizeInternal : std_logic_vector(size'HIGH downto 0);
   
 begin
 
+
+highestChannel <= channelIdx(0);
+
 -- process that initializes a new search and does one search step per cycle.
 -- If EnI = '1' while a search is running, the search will be aborted and a new search will be started
 process(Clock)
-variable idx1, idx2, winnerIdx : integer;
+
+variable idx1, idx2, channelIdx1, channelIdx2 : integer;
+variable prio1, prio2 : std_logic_vector(NUM_PRIORITY_BITS-1 downto 0);
+variable en1, en2 : std_logic;
+
 begin
 if rising_edge(Clock) then
     EnO <= '0';
@@ -69,32 +80,43 @@ if rising_edge(Clock) then
         end loop;
         sizeInternal <= (others => '0');
     else
-        -- Do one search step per cycle
+
         for i in NUM_CHANNELS/2-1 downto 0 loop
-            -- If new search is triggered, start with the initial indices
+            idx1 := i*2;
+            idx2 := i*2+1;
+            -- use Port Input values during Initialization, else use the Intermediate results
             if EnI = '1' then
-                idx1 := i*2;
-                idx2 := i*2+1;
+                channelIdx1 := idx1;
+                channelidx2 := idx2;
+                en1 := ChannelEn(idx1);
+                en2 := ChannelEn(idx2);
+                prio1 := ChannelPriority(idx1);
+                prio2 := ChannelPriority(idx2);
             else
-                idx1 := channelIdx(i*2);
-                idx2 := channelIdx(i*2+1);
+                channelIdx1 := channelIdx(idx1);
+                channelidx2 := channelIdx(idx2);
+                en1 := InterEn(idx1);
+                en2 := InterEn(idx2);
+                prio1 := InterPriority(idx1);
+                prio2 := InterPriority(idx2);
             end if;
-            
-            -- Check if channel idx2 is enabled and has a higher priority than channel idx1
-            -- If either idx1 or idx2 equals avoidChannelIdx, choose the other one as the winner
-            if avoidChannelIdx = idx1 or 
-                    (avoidChannelIdx /= idx2 and ChannelEn(idx2) = '1' and 
-                        (ChannelEn(idx1) = '0' or ChannelPriority(idx2) > ChannelPriority(idx1))) then
-                winnerIdx := idx2;
+
+            if not (avoidChannelIdx = channelIdx2 or en2 = '0') and
+                    (avoidChannelIdx = channelIdx1 or en1 = '0' or unsigned(prio2) > unsigned(prio1)) then
+                channelIdx(i) <= channelIdx2;
+                InterPriority(i) <= prio2;
+                InterEn(i) <= en2;
             else
-                winnerIdx := idx1;
+                channelIdx(i) <= channelIdx1;
+                InterPriority(i) <= prio1;
+                InterEn(i) <= en1;
             end if;
-            channelIdx(i) <= winnerIdx;
         end loop;
+
         -- update sizeInternal: set to size/2 on start, then always to sizeInternal/2 in every cycle
         if EnI = '1' then
              -- Round up size to next power of 2
-            if SIZE_IS_POWER_OF_2 then
+            if SIZE_IS_POWER_OF_2 then -- not necessary when size is already a power of 2
                 sizeInternal <= '0' & size(size'HIGH downto 1);
             else
                 -- sizeInternal = 2**log2(size) / 2
@@ -106,22 +128,12 @@ if rising_edge(Clock) then
         end if;
         
         -- check if a search has finished
-        if EnI = '1' then
-             -- check if search contained only one or two elements: set EnO immediately
-            if unsigned(size) <= to_unsigned(2, size'LENGTH) then
-                EnO <= '1';
-                if unsigned(size) = to_unsigned(2, size'LENGTH) then
-                    highestChannel <= winnerIdx;
-                else
-                    -- search contained only one element, i.e. the first
-                    highestChannel <= 0;
-                end if;
-            end if;
+        -- if the search only had one or two elements, we can finish immediately
+        if EnI = '1' and unsigned(size) <= to_unsigned(2, size'LENGTH) then
+            EnO <= '1';
         -- check if a search longer than one cycle has finished
         elsif unsigned(sizeInternal) = to_unsigned(2, sizeInternal'LENGTH) then
             EnO <= '1';
-            -- Best Channel is the winner of the comparison for position 0, i.e. the last loop iteration
-            highestChannel <= winnerIdx;
         end if;
     end if;
 end if;
