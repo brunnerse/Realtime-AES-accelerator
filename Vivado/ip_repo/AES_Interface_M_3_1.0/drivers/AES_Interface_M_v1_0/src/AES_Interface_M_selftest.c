@@ -49,10 +49,10 @@ XStatus AES_Mem_SelfTest(void * baseaddr_p)
 	xil_printf("   - write pattern to local BRAM and read back\n\r");
 	
 
-	for (offset = 0; offset < (1 << ADDR_REGISTER_BITS); offset += 4)
+	for (offset = 0; offset < sizeof(RegisterSet); offset += 4)
 	{
 		// ignore status register addresses
-		if ((offset & ((1<<ADDR_REGISTER_BITS)-1))  == AES_SR_OFFSET)
+		if (offset == AES_SR_OFFSET)
 		{
 			continue;
 		}
@@ -60,10 +60,10 @@ XStatus AES_Mem_SelfTest(void * baseaddr_p)
 	}
 
 
-	for ( offset = 0; offset < (1 << ADDR_REGISTER_BITS); offset += 4)
+	for ( offset = 0; offset < sizeof(RegisterSet); offset += 4)
 	{
 		// ignore status register addresses
-		if ((offset & ((1<<ADDR_REGISTER_BITS)-1))  == AES_SR_OFFSET)
+		if (offset == AES_SR_OFFSET)
 		{
 			continue;
 		}

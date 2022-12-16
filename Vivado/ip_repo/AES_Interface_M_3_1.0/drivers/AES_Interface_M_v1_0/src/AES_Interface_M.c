@@ -15,8 +15,8 @@
 /**************************   Private variables **********************/
 AES_Config config =
 {
-		XPAR_AES_INTERFACE_M_0_DEVICE_ID,
-		XPAR_AES_INTERFACE_M_0_S_AXI_BASEADDR,
+		0, //TODO!XPAR_AES_INTERFACE_M_3_0_DEVICE_ID,
+		XPAR_AES_INTERFACE_M_3_0_S_AXI_BASEADDR,
 		AES_NUM_CHANNELS
 };
 
@@ -43,7 +43,7 @@ s32 AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr)
 		InstancePtr->CallbackFn[i] = NULL;
 		InstancePtr->CallbackRef[i] = NULL;
 		InstancePtr->Registers[i].CR = 0;
-		InstancePtr->Registers[i].Datasize = 0;
+		InstancePtr->Registers[i].DataSize = 0;
 		memset(InstancePtr->Registers[i].Susp, 0, BLOCK_SIZE);
 	}
 	// Tell the hardware the Baseaddr of the RegisterSet 
@@ -235,6 +235,33 @@ void AES_PerformKeyExpansion(AES *InstancePtr, u32 channel)
 	AES_SetMode(InstancePtr, channel, prevMode);
 }
 
+/*
+ * Start the Computation in Chaining mode chmode.
+ * @param chmode   The chaining mode. Only ECB, CBC and CTR are supported
+ * @param IV       The initialization vector. In ECB, it is ignored, in CTR mode, the last 4 bytes are ignored
+*/
+void AES_startComputationMode(AES* InstancePtr, u32 channel, ChainingMode chmode, int encrypt, u8* data, u8* outData, u32 size, u8 IV[BLOCK_SIZE],
+ AES_CallbackFn callbackFn, void* callbackRef)
+{
+	Xil_AssertVoid(chmode != CHAINING_MODE_GCM);
+
+	InstancePtr->CallbackFn[channel] = callbackFn;
+	InstancePtr->CallbackRef[channel] = callbackRef;
+
+	if (chmode == CHAINING_MODE_CBC)
+	{
+		AES_SetIV(InstancePtr, channel, IV, BLOCK_SIZE);
+	}
+	else if (chmode == CHAINING_MODE_CTR)
+	{
+		AES_SetIV(InstancePtr, channel, IV, 12);
+		// Write last word of the IV manually
+		AES_Write(InstancePtr, channel, AES_IVR0_OFFSET+12, MODE_CTR_IV_INIT);
+	}
+
+	AES_SetDataParameters(InstancePtr, channel, data, outData, size);
+	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_DECRYPTION, chmode, 1, GCM_PHASE_INIT);
+}
 
 void AES_startComputationECB(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size, AES_CallbackFn callbackFn, void* callbackRef)
 {	
@@ -242,8 +269,9 @@ void AES_startComputationECB(AES* InstancePtr, u32 channel, int encrypt, u8* dat
 	InstancePtr->CallbackRef[channel] = callbackRef;
 	
 	AES_SetDataParameters(InstancePtr, channel, data, outData, size);
-	// Setup Data and set Enable = 1 to start the encryption
-	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_KEYEXPANSION_AND_DECRYPTION, CHAINING_MODE_ECB, 1, GCM_PHASE_INIT);
+	// Setup Config and set Enable = 1 to start the encryption/decryption
+	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_DECRYPTION, CHAINING_MODE_ECB, 1, GCM_PHASE_INIT);
+
 }
 
 void AES_startComputationCBC(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size, u8 IV[BLOCK_SIZE], AES_CallbackFn callbackFn, void* callbackRef)
@@ -253,8 +281,9 @@ void AES_startComputationCBC(AES* InstancePtr, u32 channel, int encrypt, u8* dat
 	
 	AES_SetIV(InstancePtr, channel, IV, BLOCK_SIZE);
 	AES_SetDataParameters(InstancePtr, channel, data, outData, size);
-	// Setup Control and set Enable = 1 to start the encryption
-	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_KEYEXPANSION_AND_DECRYPTION, CHAINING_MODE_CBC, 1, GCM_PHASE_INIT);
+	// Setup Config and set Enable = 1 to start the encryption/decryption
+	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_DECRYPTION, CHAINING_MODE_CBC, 1, GCM_PHASE_INIT);
+
 }
 
 void AES_startComputationCTR(AES* InstancePtr, u32 channel, u8* data, u8* outData, u32 size, u8 IV[12], AES_CallbackFn callbackFn, void* callbackRef)
@@ -266,7 +295,7 @@ void AES_startComputationCTR(AES* InstancePtr, u32 channel, u8* data, u8* outDat
 	// Write last word of the IV manually
 	*(u32*)&InstancePtr->Registers[channel].IV[12] = MODE_CTR_IV_INIT;
 	AES_SetDataParameters(InstancePtr, channel, data, outData, size);
-	// Setup Control and set Enable = 1 to start the encryption
+	// Setup Config and set Enable = 1 to start the encryption/decryption
 	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_CTR, 1, GCM_PHASE_INIT);
 }
 
@@ -280,13 +309,12 @@ void AES_startComputationGCM(AES* InstancePtr, u32 channel, int encrypt, u8* hea
 	*(u32*)&InstancePtr->Registers[channel].IV[12] = MODE_GCM_IV_INIT;
 	// Start Init phase
 	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_INIT);
-	// TODO SetDataParameters? Wird in Hardware Datasize in Phase Init berücksichtigt?
 	// During init phase, reset the Susp register to 0 (only Susp though, clearing H is unnecessary and would result in an error, as the init phase writes to it)
 	memset(InstancePtr->Registers[channel].Susp, 0, BLOCK_SIZE);
 	AES_waitUntilCompleted(InstancePtr, channel);
 	
 	// Process Header
-	AES_SetDataParameters(InstnacePtr, channel, header, NULL, headerLen);
+	AES_SetDataParameters(InstancePtr, channel, header, NULL, headerLen);
 	// enable with Phase Header
 	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_HEADER);
 	AES_waitUntilCompleted(InstancePtr, channel);
@@ -297,20 +325,26 @@ void AES_startComputationGCM(AES* InstancePtr, u32 channel, int encrypt, u8* hea
 	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_DECRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_PAYLOAD);
 }
 
-void AES_calculateTagGCM(AES* InstancePtr, u32 channel, u32 headerLen, u32 payloadLen, u8 IV[12], u8 outTag[BLOCK_SIZE])
+void AES_calculateTagGCM(AES* InstancePtr, u32 channel, u32 headerLen, u32 payloadLen, u8 outTag[BLOCK_SIZE])
 {
 	AES_SetGCMPhase(InstancePtr, channel, GCM_PHASE_FINAL);
 	// Set the IV in the final round:  First 12 bytes are the Nonce, last 4 bytes are 0x000000001
-	// No need to write the Nonce again, as it is already there from the payload phase
+	// No need to write the Nonce again, as it is already there from the payload phase: Only need to write last word
     //AES_SetIV(InstancePtr, channel, IV, 12);
 	// Write last word of the IV manually
 	*(u32*)(&InstancePtr->Registers[channel].IV[12]) = MODE_GCM_IV_FINAL;
 	// Use headerLen (64 bit) ||  payloadLen(64 bit) as data block in final round
 	u8 finalData[BLOCK_SIZE];
 	*(u32*)finalData = 0;
-	*(u32*)(finalData+4) = headerLen*8;  // TODO swapEndian?
 	*(u32*)(finalData+8) = 0;
+
+#ifdef LITTLE_ENDIAN
+	*(u32*)(finalData+4) = Xil_EndianSwap32(headerLen*8);
+	*(u32*)(finalData+12) = Xil_EndianSwap32(payloadLen*8);
+#else
+	*(u32*)(finalData+4) = headerLen*8;
 	*(u32*)(finalData+12) = payloadLen*8;
+#endif
 
 	AES_SetDataParameters(InstancePtr, channel, finalData, outTag, BLOCK_SIZE);
 	AES_startComputation(InstancePtr, channel);
@@ -340,7 +374,7 @@ void AES_processDataGCM(AES* InstancePtr, u32 channel, int encrypt, u8* header, 
 {
 	AES_startComputationGCM(InstancePtr, channel, encrypt, header, headerLen, payload, outProcessedPayload, payloadLen, IV, NULL, NULL);
 	AES_waitUntilCompleted(InstancePtr, channel);
-	AES_calculateTagGCM(InstancePtr, channel, headerLen, payloadLen, IV, outTag);
+	AES_calculateTagGCM(InstancePtr, channel, headerLen, payloadLen, outTag);
 }
 
 int AES_compareTags(u8 tag1[BLOCK_SIZE], u8 tag2[BLOCK_SIZE])
@@ -431,13 +465,14 @@ void AES_IntrHandler(void *HandlerRef)
 		if (Irq != 0)
 		{
 			irqReceived = 1;
+			// TODO remove interrupt marks in final version
 			xil_printf("[INTERRUPT] Received Irq from channel %d\r\n", i);
 			// Clear interrupt by writing the Status register back
 			AES_Write(InstancePtr, 0, AES_SR_OFFSET, SR);
 			// Call Callback function of channel if it was set
 			if (InstancePtr->CallbackFn[i])
 			{
-				xil_printf("[Interrupt] Calling CbFunction at %p\r\n", (void*)(&(InstancePtr->CallbackFn[i])));
+				xil_printf("[INTERRUPT] Calling CbFunction at %p\r\n", (void*)(&(InstancePtr->CallbackFn[i])));
 				(InstancePtr->CallbackFn[i])(InstancePtr->CallbackRef[i]);
 				// Set CallbackFn to NULL so it isn't called later unintentionally
 				InstancePtr->CallbackFn[i] = NULL;
