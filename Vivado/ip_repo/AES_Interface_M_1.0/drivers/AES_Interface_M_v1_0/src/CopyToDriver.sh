@@ -1,5 +1,5 @@
 #!/bin/sh
-path=~/Git_Repositories/_MasterCode/Vitis/aes_zedboard_platform/
+path=~/Git_Repositories/_MasterCode/Vitis/aes_phase2_plat/
 
 for file in $(ls)
 do
