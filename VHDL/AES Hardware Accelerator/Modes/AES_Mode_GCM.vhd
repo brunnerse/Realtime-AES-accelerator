@@ -110,6 +110,7 @@ end function;
 signal  dIn1XOR1, dIn2XOR1, dIn1XOR2,dIn2XOR2, dOutXOR1, dOutXOR2, dInMul, dOutMul: std_logic_vector(KEY_SIZE-1 downto 0);
 signal  EnIXOR1, EnIXOR2, EnOXOR1, EnOXOR2, EnIMul, EnOMul, WrEnSignal : std_logic;
 signal WrAddrSignal : std_logic_vector(ADDR_WIDTH-1 downto 0);
+signal prevEnI : std_logic;
 
 signal lastIdx : integer; -- used for the multiplication process
 
@@ -150,11 +151,12 @@ dInAEA <=   IV when GCMPhase /= GCM_PHASE_INIT else
 
 dOut <= dOutXOR1;
 EnO <=  EnOXOR1 when GCMPhase = GCM_PHASE_FINAL or (GCMPhase = GCM_PHASE_PAYLOAD and encrypt = '0') else -- final phase and payload phase, decryption
-        WrEnSignal when (GCMPhase = GCM_PHASE_INIT and EnI = '0') or GCMPhase = GCM_PHASE_HEADER else -- init phase, header phase
+        WrEnSignal when (GCMPhase = GCM_PHASE_INIT and prevEnI = '0') or GCMPhase = GCM_PHASE_HEADER else -- init phase (ignore first write to Susp), header phase
         -- during payload phase with encryption:  EnO = WrEnSignal, however the first write to the IV should be ignored
-        WrEnSignal when WrAddrSignal = std_logic_vector(to_unsigned(ADDR_SUSP, ADDR_WIDTH)) else
+        WrEnSignal when (GCMPhase = GCM_PHASE_PAYLOAD and prevEnI = '0')  else
         '0';
-        
+ 
+prevEnI <= EnI when rising_edge(Clock);        
 
 WrEn <= WrEnSignal;
 WrAddr <= WrAddrSignal;
