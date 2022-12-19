@@ -42,9 +42,8 @@ s32 AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr)
 	{
 		InstancePtr->CallbackFn[i] = NULL;
 		InstancePtr->CallbackRef[i] = NULL;
+		// Set all CRs to zero, as the functions only modify certain bits and never set the whole word
 		InstancePtr->Registers[i].CR = 0;
-		InstancePtr->Registers[i].DataSize = 0;
-		memset(InstancePtr->Registers[i].Susp, 0, BLOCK_SIZE);
 	}
 	// Tell the hardware the Baseaddr of the RegisterSet 
 	AES_Write(InstancePtr, 0, AES_BASEADDR_OFFSET, (u32)InstancePtr->Registers); 
@@ -309,8 +308,6 @@ void AES_startComputationGCM(AES* InstancePtr, u32 channel, int encrypt, u8* hea
 	*(u32*)&InstancePtr->Registers[channel].IV[12] = MODE_GCM_IV_INIT;
 	// Start Init phase
 	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_INIT);
-	// During init phase, reset the Susp register to 0 (only Susp though, clearing H is unnecessary and could result in an error, as the init phase writes to it)
-	memset(InstancePtr->Registers[channel].Susp, 0, BLOCK_SIZE);
 	// Process Header
 	if (headerLen > 0)
 	{

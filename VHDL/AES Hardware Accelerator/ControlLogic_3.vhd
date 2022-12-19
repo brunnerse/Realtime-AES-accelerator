@@ -527,7 +527,7 @@ end procedure;
                         ChangeToIdleAndMarkAsComplete;
                     -- In GCM Phase Init, no writeback is required, but a SaveReg is
                     elsif (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT ) then
-                        ChangeStateToSaveReg(ADDR_HR0, BLOCK_SIZE);
+                        ChangeStateToSaveReg(ADDR_SUSPR0, BLOCK_SIZE*2);
                         state <= SaveReg;
                     -- In the GCM Header Phase, there's no writeback either, but it has to be checked in the Writeback state
                     -- whether there is another block to process
