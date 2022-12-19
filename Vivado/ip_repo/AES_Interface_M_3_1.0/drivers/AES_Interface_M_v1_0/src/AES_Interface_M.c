@@ -309,20 +309,26 @@ void AES_startComputationGCM(AES* InstancePtr, u32 channel, int encrypt, u8* hea
 	*(u32*)&InstancePtr->Registers[channel].IV[12] = MODE_GCM_IV_INIT;
 	// Start Init phase
 	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_INIT);
-	// During init phase, reset the Susp register to 0 (only Susp though, clearing H is unnecessary and would result in an error, as the init phase writes to it)
+	// During init phase, reset the Susp register to 0 (only Susp though, clearing H is unnecessary and could result in an error, as the init phase writes to it)
 	memset(InstancePtr->Registers[channel].Susp, 0, BLOCK_SIZE);
-	AES_waitUntilCompleted(InstancePtr, channel);
-	
 	// Process Header
-	AES_SetDataParameters(InstancePtr, channel, header, NULL, headerLen);
-	// enable with Phase Header
-	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_HEADER);
-	AES_waitUntilCompleted(InstancePtr, channel);
-	
+	if (headerLen > 0)
+	{
+		// wait until Init Phase is complete
+		AES_waitUntilCompleted(InstancePtr, channel);
+		AES_SetDataParameters(InstancePtr, channel, header, NULL, headerLen);
+		// enable with Phase Header
+		AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_HEADER);
+	}
 	// Process Payload
-	AES_SetDataParameters(InstancePtr, channel, payload ,outProcessedPayload, payloadLen);
-	// enable with Phase Payload
-	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_DECRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_PAYLOAD);
+	if (payloadLen > 0)
+	{
+		// wait until Init / Header Phase is complete
+		AES_waitUntilCompleted(InstancePtr, channel);
+		AES_SetDataParameters(InstancePtr, channel, payload, outProcessedPayload, payloadLen);
+		// enable with Phase Payload
+		AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_DECRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_PAYLOAD);
+	}
 }
 
 void AES_calculateTagGCM(AES* InstancePtr, u32 channel, u32 headerLen, u32 payloadLen, u8 outTag[BLOCK_SIZE])
