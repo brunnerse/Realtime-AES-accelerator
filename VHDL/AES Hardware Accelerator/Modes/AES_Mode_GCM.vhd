@@ -150,7 +150,7 @@ dInAEA <=   IV when GCMPhase /= GCM_PHASE_INIT else
 
 dOut <= dOutXOR1;
 EnO <=  EnOXOR1 when GCMPhase = GCM_PHASE_FINAL or (GCMPhase = GCM_PHASE_PAYLOAD and encrypt = '0') else -- final phase and payload phase, decryption
-        WrEnSignal when GCMPhase = GCM_PHASE_INIT or GCMPhase = GCM_PHASE_HEADER else -- init phase, header phase
+        WrEnSignal when (GCMPhase = GCM_PHASE_INIT and EnI = '0') or GCMPhase = GCM_PHASE_HEADER else -- init phase, header phase
         -- during payload phase with encryption:  EnO = WrEnSignal, however the first write to the IV should be ignored
         WrEnSignal when WrAddrSignal = std_logic_vector(to_unsigned(ADDR_SUSP, ADDR_WIDTH)) else
         '0';
@@ -164,7 +164,11 @@ process(Clock)
 begin
 if rising_edge(Clock) then
     WrEnSignal <= '0';
-    if EnOAEA = '1' and GCMPhase = GCM_PHASE_INIT then
+    if EnI = '1' and GCMPhase = GCM_PHASE_INIT then
+        WrAddrSignal <= std_logic_vector(to_unsigned(ADDR_SUSP, ADDR_WIDTH));
+        WrData <= (others => '0');
+        WrEnSignal <= '1';
+    elsif EnOAEA = '1' and GCMPhase = GCM_PHASE_INIT then
         WrAddrSignal <= std_logic_vector(to_unsigned(ADDR_H, ADDR_WIDTH));
         WrData <= dOutAEA;
         WrEnSignal <= '1';
