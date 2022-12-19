@@ -306,12 +306,6 @@ void AES_startComputationGCM(AES* InstancePtr, u32 channel, int encrypt, u8* hea
 	AES_Write(InstancePtr, channel, AES_IVR0_OFFSET+12, MODE_GCM_IV_INIT);
 	// Start Init phase
 	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_INIT);
-	// During init phase, reset the Susp register to 0 (only Susp though, clearing H is unnecessary and would result in an error, as the init phase writes to it)
-	for (u32 i = 0; i < BLOCK_SIZE; i+=4)
-	{
-		AES_Write(InstancePtr, channel, AES_SUSPR0_OFFSET + i, 0);
-	}
-
 	// Process Header
 	if (headerLen > 0)
 	{
