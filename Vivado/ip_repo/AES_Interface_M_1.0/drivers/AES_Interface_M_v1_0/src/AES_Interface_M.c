@@ -311,19 +311,25 @@ void AES_startComputationGCM(AES* InstancePtr, u32 channel, int encrypt, u8* hea
 	{
 		AES_Write(InstancePtr, channel, AES_SUSPR0_OFFSET + i, 0);
 	}
-	AES_waitUntilCompleted(InstancePtr, channel);
-	
+
 	// Process Header
-	AES_Write(InstancePtr, channel, AES_DINR_ADDR_OFFSET, (u32)header);
-	AES_Write(InstancePtr, channel, AES_DATASIZE_OFFSET, headerLen);
-	// enable with Phase Header
-	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_HEADER);
-	AES_waitUntilCompleted(InstancePtr, channel);
-	
+	if (headerLen > 0)
+	{
+		// wait until Init Phase is complete
+		AES_waitUntilCompleted(InstancePtr, channel);
+		AES_SetDataParameters(InstancePtr, channel, header, NULL, headerLen);
+		// enable with Phase Header
+		AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_HEADER);
+	}
 	// Process Payload
-	AES_SetDataParameters(InstancePtr, channel, payload ,outProcessedPayload, payloadLen);
-	// enable with Phase Payload
-	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_DECRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_PAYLOAD);
+	if (payloadLen > 0)
+	{
+		// wait until Init / Header Phase is complete
+		AES_waitUntilCompleted(InstancePtr, channel);
+		AES_SetDataParameters(InstancePtr, channel, payload, outProcessedPayload, payloadLen);
+		// enable with Phase Payload
+		AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_DECRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_PAYLOAD);
+	}
 }
 
 void AES_calculateTagGCM(AES* InstancePtr, u32 channel, u32 headerLen, u32 payloadLen, u8 outTag[BLOCK_SIZE])
