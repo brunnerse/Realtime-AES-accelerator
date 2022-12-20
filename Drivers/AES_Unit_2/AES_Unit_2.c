@@ -14,8 +14,8 @@
 /**************************   Private variables **********************/
 AES_Config config =
 {
-		XPAR_AES_INTERFACE_M_0_DEVICE_ID,
-		XPAR_AES_INTERFACE_M_0_S_AXI_BASEADDR,
+		XPAR_AES_UNIT_2_0_DEVICE_ID,
+		XPAR_AES_UNIT_2_0_S_AXI_BASEADDR,
 		AES_NUM_CHANNELS
 };
 

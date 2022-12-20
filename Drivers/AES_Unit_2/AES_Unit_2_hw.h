@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include "AES_Interface_M.h"
+#include "AES_Unit_2.h"
 
 // Comment this line on Big Endian systems
 #define LITTLE_ENDIAN
