@@ -1,8 +1,8 @@
 
 
 /***************************** Include Files *******************************/
-#include "AES_Interface_M.h"
-#include "AES_Interface_M_hw.h"
+#include "AES_Unit_2.h"
+#include "AES_Unit_2_hw.h"
 #include "xparameters.h"
 #include "xdebug.h"
 #include "xil_assert.h"
