@@ -3,8 +3,6 @@
 #include "xgpiops.h"
 #include "xscugic.h"
 
-#include "xaxicdma.h"
-
 #include "xil_cache.h"
 #include "xil_assert.h"
 #include "xil_printf.h"
@@ -12,7 +10,7 @@
 #include <string.h>
 
 
-#include "AES_Interface_M.h"
+#include "AES_Unit_2.h"
 #define AES_IVR0_OFFSET 0x20
 
 //#define SETUP_INTERRUPT_SYSTEM
@@ -86,7 +84,7 @@ int main()
 
 	Xil_DCacheDisable();
 
-    xil_printf("Running file %s\n\r", __FILE__);
+    xil_printf("Running AES_Unit_2 test file %s\n\r", __FILE__);
 
 
 
@@ -125,44 +123,12 @@ int main()
 	}
 	XScuGic_Enable(&IntCtrl, IntrId);
 
-
-	XAxiCdma AxiCdmaInstance;
-	IntrId = XPAR_FABRIC_AXI_CDMA_0_CDMA_INTROUT_INTR;
-	XScuGic_SetPriorityTriggerType(&IntCtrl, IntrId, 0xA0, 0x1);
-
-	status = XScuGic_Connect(&IntCtrl, IntrId, (Xil_InterruptHandler)XAxiCdma_IntrHandler,
-					&AxiCdmaInstance);
-	if (status != XST_SUCCESS) {
-		return status;
-	}
-	XScuGic_Enable(&IntCtrl, IntrId);
-
-
-	// Test interrupt on CDMA
-	u16 DeviceId = XPAR_AXICDMA_0_DEVICE_ID;
-	XAxiCdma_Config *CfgPtr;
-	CfgPtr = XAxiCdma_LookupConfig(DeviceId);
-	status = XAxiCdma_CfgInitialize(&AxiCdmaInstance, CfgPtr,
-		CfgPtr->BaseAddress);
-	XAxiCdma_IntrEnable(&AxiCdmaInstance, XAXICDMA_XR_IRQ_ALL_MASK);
-
-	status = XAxiCdma_SimpleTransfer(&AxiCdmaInstance, (UINTPTR)block1,
-		(UINTPTR)DestBuffer, 1, (XAxiCdma_CallBackFn)onInterrupt, (void*)1337);
-
-	if (status != XST_SUCCESS) {
-			xil_printf("===== Error during SimpleTransfer: %d! =======\n\r", status);
-			return XST_FAILURE;
-	}
-	while (XAxiCdma_IsBusy(&AxiCdmaInstance))
-		;
-	xil_printf("Tested simple transfer on CDMA, interrupt should have been called");
-
 #endif
 
 
 	// Set up the AES unit
 
-    AES_Config *aesConfigPtr = AES_LookupConfig(XPAR_AES_INTERFACE_M_0_DEVICE_ID);
+    AES_Config *aesConfigPtr = AES_LookupConfig(XPAR_AES_UNIT_2_0_DEVICE_ID);
     status = AES_CfgInitialize(&aes, aesConfigPtr);
     Xil_AssertNonvoid(status == XST_SUCCESS);
     status = AES_Mem_SelfTest((void*)(aes.BaseAddress));
@@ -375,6 +341,10 @@ int main()
 #ifdef TEST_GCM
 	xil_printf("\n================== GCM =====================\n\r");
 
+	const u32 headerLen = BLOCK_SIZE*2;
+	const u32 payloadLen = BLOCK_SIZE*3;
+
+
 	u8 testData[BLOCK_SIZE*3], testHeader[BLOCK_SIZE*2];
 	// setup header =  block1 | block3
     memcpy(testHeader, block1, BLOCK_SIZE);
@@ -413,21 +383,21 @@ int main()
 		u8* ciphertextAddr = baseAddrCiphertext + BLOCK_SIZE * 6 * channel;
 		u8* tagAddr = baseAddrCiphertext + BLOCK_SIZE * 6 * channel + BLOCK_SIZE*5;
 
-
 		memcpy(headerAddr, testHeader, BLOCK_SIZE*2);
 		memcpy(plaintextAddr, testData, BLOCK_SIZE*3);
+
 
 
 		u8 Susp[BLOCK_SIZE*2];
 
 		// TODO for this, the case len(header) = 0 or len(payload) = 0 has to be handled
-		AES_startComputationGCM(&aes, channel, 1, headerAddr, BLOCK_SIZE*2, NULL, NULL, 0, IV, NULL, NULL);
+		AES_startComputationGCM(&aes, channel, 1, headerAddr, headerLen, NULL, NULL, 0, IV, NULL, NULL);
 		AES_waitUntilCompleted(&aes, channel);
 		AES_GetSusp(&aes, channel, Susp);
 		printf("Susp after header phase: \r\n");
 		hexToStdOut(Susp, BLOCK_SIZE*2);
 
-		AES_startComputationGCM(&aes, channel, 1, headerAddr, BLOCK_SIZE*2, plaintextAddr, ciphertextAddr, BLOCK_SIZE*3, IV, NULL, NULL);
+		AES_startComputationGCM(&aes, channel, 1, headerAddr, headerLen, plaintextAddr, ciphertextAddr, payloadLen, IV, NULL, NULL);
 		AES_waitUntilCompleted(&aes, channel);
 
 		AES_GetSusp(&aes, channel, Susp);
@@ -437,14 +407,14 @@ int main()
 		// TODO make another process with higher priority that interrupts the GCM process
 
 		// Make test with in-place decryption afterwards
-		AES_processDataGCM(&aes, channel, 1, headerAddr, 2*BLOCK_SIZE, plaintextAddr, ciphertextAddr, 3*BLOCK_SIZE, IV, tagAddr);
+		AES_processDataGCM(&aes, channel, 1, headerAddr, headerLen, plaintextAddr, ciphertextAddr, payloadLen, IV, tagAddr);
 		printf("Ciphertext:\r\n");
 		hexToStdOut(ciphertextAddr, BLOCK_SIZE*3);
-		xil_printf("Tag after encryption:\n\r\t");
+		xil_printf("Tag after encryption:\n\r");
 		hexToStdOut(tagAddr, 16);
 		// decryption
 		u8 decryptTag[16];
-		AES_processDataGCM(&aes, channel, 0, headerAddr, 2*BLOCK_SIZE, ciphertextAddr, ciphertextAddr, 3*BLOCK_SIZE, IV, decryptTag);
+		AES_processDataGCM(&aes, channel, 0, headerAddr, headerLen, ciphertextAddr, ciphertextAddr, payloadLen, IV, decryptTag);
 		xil_printf("Deciphered Ciphertext:\n\r");
 		hexToStdOut(ciphertextAddr, 16*3);
 		xil_printf("Tag after decryption:\n\r");
