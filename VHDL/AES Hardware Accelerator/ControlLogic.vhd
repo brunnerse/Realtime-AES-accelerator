@@ -24,6 +24,8 @@ use IEEE.STD_LOGIC_1164.ALL;
 use work.common.ALL;
 use work.addresses.ALL;
 use work.register_bit_positions.ALL;
+use work.binary_search_types.ALL;
+
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
@@ -104,7 +106,25 @@ for i in x'LENGTH/8-1 downto 0 loop
 end loop;
 return r;
 end function;  
- 
+
+
+component BinarySearch is
+    generic (
+        NUM_CHANNELS : natural := 8;
+        SIZE_IS_POWER_OF_2 : boolean := false
+    );
+    Port (
+        EnI : in std_logic;
+        EnO : out std_logic;
+        size : in std_logic_vector(ADDR_CHANNEL_BITS downto 0);
+        ChannelPriority: in PrioArrayType(NUM_CHANNELS-1 downto 0);
+        ChannelEn : in std_logic_vector(NUM_CHANNELS-1 downto 0);
+        avoidChannelIdx : in integer range NUM_CHANNELS-1 downto 0;
+        highestChannel : out integer range NUM_CHANNELS -1 downto 0;
+        Clock : in std_logic;
+        Resetn : in std_logic
+           );
+end component; 
   
   -- define constants
 constant DATA_WIDTH_BYTES : integer := DATA_WIDTH/8;
@@ -183,13 +203,16 @@ signal channel : channel_range;
 -- The channel with the highest priority that is active
 signal highestChannel, nextHighestChannel: channel_range;
 -- the priorities of each channel
-type priority_arr_type is array (channel_range) of std_logic_vector(NUM_PRIORITY_BITS-1 downto 0);
-signal Priority : priority_arr_type;
+signal Priority : PrioArrayType(channel_range);
 -- the enable signals of each channel
 signal En, prevEn : std_logic_vector(channel_range);
 
 -- signals for the highestChannel search process
 signal isSearchRunning, waitForSearchEnd : boolean;
+
+-- signals for binary search
+signal EnISearch, ENOSearch : std_logic;
+signal resultSearch : channel_range;
 
 -- status signals for each channel
 signal WRERR, RDERR, CCF : std_logic_vector(channel_range);
@@ -238,6 +261,24 @@ aes_introut <= or_reduce(interrupt);
 -- store the En and CCF signal of the last cycle for each channel, so processes can check if it changed
 prevEn <= En when rising_edge(Clock);
 prevCCF <= CCF when rising_edge(Clock);
+
+-- instantitate binary search component
+BinSearch: BinarySearch
+    generic map(
+        NUM_CHANNELS => 2**log2(NUM_CHANNELS),
+        SIZE_IS_POWER_OF_2 => true)
+    port map(
+        EnI => EnISearch,
+        EnO => EnOSearch, 
+        size => std_logic_vector(to_unsigned(2**log2(NUM_CHANNELS), ADDR_CHANNEL_BITS+1)),
+        ChannelPriority => Priority,
+        ChannelEn => En,
+        avoidChannelIdx => highestChannel,
+        highestChannel => resultSearch,
+        Clock => Clock,
+        Resetn => Resetn
+    );
+
 
  -- process that handles the data fetching, computing and writing back
  -- this process drives the Control signals and channel
@@ -545,24 +586,29 @@ end process;
 -- if no channel is enabled, channel 0 is selected
 process(Clock)
 
-variable channelIdx, checkedChannel, nextHighestChannelVar : channel_range;
-
-constant CHECK_CHANNELS_PER_CYCLE : integer := 2;
-
 procedure restartSearch is
 begin
     isSearchRunning <= true;
-    checkedChannel := channel_range'LOW;
+    EnISearch <= '1';
 end procedure;
+
+variable channelIdx : channel_range;
 
 begin
 if rising_edge(Clock) then
+    EnISearch <= '0';
+    
     if Resetn = '0' then
         highestChannel <= channel_range'LOW;
         nextHighestChannel <= channel_range'HIGH; -- choose a random channel different from highestChannel
         isSearchRunning <= false;
         waitForSearchEnd <= false;
     else
+    
+        if EnOSearch = '1' then
+            nextHighestChannel <= resultSearch;
+            isSearchRunning <= false;
+        end if;
 
         -- If nextHighestChannel completes (i.e. because it blocked highestChannel), restart search for nextHighestChannel
         if CCF(nextHighestChannel) = '1' and prevCCF(nextHighestChannel) = '0' then
@@ -572,39 +618,22 @@ if rising_edge(Clock) then
          -- Check if highestChannel has just completed, in that case set highestChannel to the next highest Channel
          -- if the search is still running, assert waitForSearchEnd and wait until the search has finished
         if (CCF(highestChannel) = '1' and prevCCF(highestChannel) = '0') or waitForSearchEnd then
-            if isSearchRunning then
-                -- search is currently running
-                waitForSearchEnd <= true;
+           if isSearchRunning then
+                -- check if search ended in just this cycle
+                if EnOSearch = '1' then
+                    highestChannel <= resultSearch;
+                    restartSearch;
+                else    
+                    -- search is currently running; call this block again in the next cycle
+                    waitForSearchEnd <= true;
+                end if;
+            -- search for nextHighestChannel was completed
             else 
                 waitForSearchEnd <= false;
-                -- search is finished; set highestChannel to nextHighestChannel, then restart the search
-                highestChannel <= nextHighestChannel;
-                -- restart search
-                restartSearch;
+                --set highestChannel to nextHighestChannel, then restart the search
+                 highestChannel <= nextHighestChannel;
+                 restartSearch;
             end if;
-        end if;
-        
-        -- TODO Synthesize this with just 1 channel to check whether the for loop is correctly synthesized away
-        -- search; check the next CHECK_CHANNELS_PER_CYCLE channels if they are the next highest channel
-        if isSearchRunning then
-            -- use a variable for nextHighestChannel so we can search multiple channels per cycle
-            nextHighestChannelVar := nextHighestChannel;
-            for i in 0 to CHECK_CHANNELS_PER_CYCLE-1 loop
-            -- continuously search for the second highest channel, one check per cycle
-                if checkedChannel /= highestChannel and En(checkedChannel) = '1' then
-                    if ( unsigned(Priority(checkedChannel)) > unsigned(Priority(nextHighestChannelVar))) or En(nextHighestChannelVar) = '0' then
-                        nextHighestChannelVar := checkedChannel;
-                    end if;
-                end if;
-                nextHighestChannel <= nextHighestChannelVar;
-                -- increment checkedChannel
-                -- if checkedChannel is at the highest of its range, the search is finished
-                if checkedChannel = channel_range'HIGH then
-                    isSearchRunning <= false;
-                else
-                    checkedChannel := checkedChannel + 1;
-                end if;
-            end loop;
         end if;
 
         -- check if a new write to CR happened
