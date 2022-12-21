@@ -21,22 +21,6 @@ entity AES_Interface_v1_0 is
 		C_S_AXI_BUSER_WIDTH	: integer	:= 0
 	);
 	port (
-		
-        -- Ports of AHB Lite Slave Interface                    
-         s_ahb_hsel        : in  std_logic;
-           
-         s_ahb_haddr       : in  std_logic_vector(31 downto 0); 
-         s_ahb_hprot       : in  std_logic_vector(3 downto 0); -- Protection control is ignored
-         s_ahb_htrans      : in  std_logic_vector(1 downto 0); 
-         s_ahb_hsize       : in  std_logic_vector(2 downto 0); 
-         s_ahb_hwrite      : in  std_logic; 
-         s_ahb_hburst      : in  std_logic_vector(2 downto 0 );
-         s_ahb_hwdata      : in  std_logic_vector(31 downto 0 );
-         s_ahb_hready      : out  std_logic; 
-                          
-         s_ahb_hrdata      : out std_logic_vector(31 downto 0 );
-         s_ahb_hresp       : out std_logic;
-
 		-- Ports of Axi Slave Bus Interface S_AXI
 		clk	: in std_logic;
 		resetn	: in std_logic;

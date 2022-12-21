@@ -20,7 +20,7 @@ entity AES_Unit is
     C_S_AXI_ARUSER_WIDTH	: integer	:= 0;
     C_S_AXI_WUSER_WIDTH	: integer	:= 0;
     C_S_AXI_RUSER_WIDTH	: integer	:= 0;
-    C_S_AXI_BUSER_WIDTH	: integer	:= 0;
+    C_S_AXI_BUSER_WIDTH	: integer	:= 0
   );
   Port ( 
 	-- Ports of Axi Slave Bus Interface S_AXI
@@ -78,6 +78,7 @@ end AES_Unit;
 architecture Behavioral of AES_Unit is
 
 signal IWrAddr, IRdAddr, WrAddrCore : std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
+signal IWrData, IRdData : std_logic_vector(31 downto 0);
 signal WrDataCore : std_logic_vector(KEY_SIZE-1 downto 0);
 signal IWrEn, IRdEn, WrEnCore : std_logic;
 signal IWrStrb : std_logic_vector(3 downto 0);
@@ -103,7 +104,7 @@ i_AES_Interface : entity work.AES_Interface_v1_0(arch_imp)
         C_S_AXI_ARUSER_WIDTH => C_S_AXI_ARUSER_WIDTH,	
         C_S_AXI_WUSER_WIDTH	=> C_S_AXI_WUSER_WIDTH,	
         C_S_AXI_RUSER_WIDTH	=> C_S_AXI_RUSER_WIDTH,	
-        C_S_AXI_BUSER_WIDTH	=> C_S_AXI_BUSER_WIDTH,	
+        C_S_AXI_BUSER_WIDTH	=> C_S_AXI_BUSER_WIDTH)
     port map (
         RdEn => IRdEn,
         RdAddr => IRdAddr,
@@ -113,8 +114,8 @@ i_AES_Interface : entity work.AES_Interface_v1_0(arch_imp)
         WrData => IWrData,
         WrStrb => IWrStrb,
         -- Slave AXI port
-        s_axi_aclk => s_axi_aclk,
-		s_axi_aresetn => s_axi_aresetn,
+        clk => s_axi_aclk,
+		resetn => s_axi_aresetn,
 		s_axi_awid => s_axi_awid,
 		s_axi_awaddr => s_axi_awaddr,
 		s_axi_awlen => s_axi_awlen,
@@ -158,7 +159,7 @@ i_AES_Interface : entity work.AES_Interface_v1_0(arch_imp)
 		s_axi_rlast => s_axi_rlast,
 		s_axi_ruser => s_axi_ruser,
 		s_axi_rvalid => s_axi_rvalid,
-		s_axi_rready => s_axi_rready,
+		s_axi_rready => s_axi_rready
      );
 
 
@@ -195,7 +196,7 @@ i_Core : entity work.AES_Core(Behavioral)
     generic map (
         ADDR_IV => ADDR_IVR0,
         ADDR_SUSP => ADDR_SUSPR0,
-        ADDR_H => ADDR_HR0)
+        ADDR_H => ADDR_SUSPR4)
     port map (
         key => key,
         IV => IV,
