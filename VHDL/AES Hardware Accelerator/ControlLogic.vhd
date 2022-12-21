@@ -188,13 +188,12 @@ ATTRIBUTE X_INTERFACE_INFO of M_RW_error: SIGNAL is
 
 -- Define registers as array out of words with DATA_WIDTH bits
 -- For each register, there is 2**ADDR_REGISTER_BITS ( = 2**7 = 128) bytes of memory, i.e. 128/4 words per channel
-type mem_type is array (0 to (2**ADDR_REGISTER_BITS) * NUM_CHANNELS / DATA_WIDTH_BYTES - 1) of std_logic_vector(DATA_WIDTH-1 downto 0);
-signal mem : mem_type;
+--type mem_type is array (0 to (2**ADDR_REGISTER_BITS) * NUM_CHANNELS / DATA_WIDTH_BYTES - 1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+--signal mem : mem_type;
 
--- TODO test this
---type single_mem_type is array (0 to 84/4-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
---type multi_mem_type is array (channel_range) of single_mem_type;
---signal multi_mem : multi_mem_type;
+type single_mem_type is array (0 to 84/4-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+type multi_mem_type is array (channel_range) of single_mem_type;
+signal mem : multi_mem_type;
 
 -- The current channel
 signal channel : channel_range;
@@ -288,10 +287,10 @@ variable destAddrVar, sourceAddrVar : std_logic_vector(DATA_WIDTH-1 downto 0);
 procedure UpdateCoreSignals(ch : channel_range) is 
 begin
 for i in 3 downto 0 loop
-    key(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(ch, ADDR_KEYR0 + i*4));
-    IV (127-i*32 downto 96-i*32) <= mem(GetChannelAddr(ch, ADDR_IVR0 + i*4));
-    Susp(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(ch, ADDR_SUSPR0 + i*4));
-    H(127-i*32 downto 96-i*32) <= mem(GetChannelAddr(ch, ADDR_HR0 + i*4));
+    key(127-i*32 downto 96-i*32) <= mem(ch)(ADDR_KEYR0 + i*4);
+    IV (127-i*32 downto 96-i*32) <= mem(ch)(ADDR_IVR0 + i*4);
+    Susp(127-i*32 downto 96-i*32) <= mem(ch)(ADDR_SUSPR0 + i*4);
+    H(127-i*32 downto 96-i*32) <= mem(ch)(ADDR_HR0 + i*4);
 end loop;
 end procedure;
 
@@ -330,7 +329,7 @@ end procedure;
         -- Check all channels if the status flags should be cleared
         for i in channel_range loop
             -- Check if CCF  should be cleared, either because the user flag is set or the channel was just enabled
-            if mem(GetChannelAddr(i, ADDR_CR))(CR_POS_CCFC) = '1' or (En(i) = '1' and prevEn(i) = '0') then
+            if mem(i)(ADDR_CR)(CR_POS_CCFC) = '1' or (En(i) = '1' and prevEn(i) = '0') then
                 CCF(i) <= '0';
             end if;
             if clearInterrupt(i) = '1' then
@@ -341,7 +340,7 @@ end procedure;
         case state is
             when Idle =>
                 -- Read CR register of highest channel
-                configReg := mem(GetChannelAddr(highestChannel, ADDR_CR)); 
+                configReg := mem(highestChannel)(ADDR_CR); 
                 -- switch channel to highestChannel
                 channel <= highestChannel;
                 -- start if the Enable signal switched to high or the channel changed
@@ -361,13 +360,13 @@ end procedure;
                     
                     -- Read addresses and datasize from memory register depending on Endianness
                     if not LITTLE_ENDIAN then 
-                        destAddrVar     := mem(GetChannelAddr(highestChannel, ADDR_DOUTADDR));
-                        sourceAddrVar   := mem(GetChannelAddr(highestChannel, ADDR_DINADDR));
-                        dataSize        <= mem(GetChannelAddr(highestChannel, ADDR_DATASIZE));
+                        destAddrVar     := mem(highestChannel)(ADDR_DOUTADDR);
+                        sourceAddrVar   := mem(highestChannel)(ADDR_DINADDR);
+                        dataSize        <= mem(highestChannel)(ADDR_DATASIZE);
                     else
-                        destAddrVar := SwapEndian(mem(GetChannelAddr(highestChannel, ADDR_DOUTADDR)));
-                        sourceAddrVar := SwapEndian(mem(GetChannelAddr(highestChannel, ADDR_DINADDR)));
-                        dataSize <= SwapEndian(mem(GetChannelAddr(highestChannel, ADDR_DATASIZE)));
+                        destAddrVar := SwapEndian(mem(highestChannel)(ADDR_DOUTADDR));
+                        sourceAddrVar := SwapEndian(mem(highestChannel)(ADDR_DINADDR));
+                        dataSize <= SwapEndian(mem(highestChannel)(ADDR_DATASIZE));
                     end if;
                      -- Make sure dataCounter is divisible by 16
                     dataSize(3 downto 0) <= (others => '0');
@@ -510,7 +509,8 @@ if rising_edge(Clock) then
             RdData(SR_POS_RDERR+RDERR'HIGH downto SR_POS_RDERR) <= RDERR;
             RdData(SR_POS_WRERR+WRERR'HIGH downto SR_POS_WRERR) <= WRERR;
         else
-            RdData <= mem(to_integer(unsigned(RdAddr(addr_range))));
+            channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
+            RdData <= mem(channelIdx)(to_integer(unsigned(RdAddr(addr_range))));
         end if;
     end if;
 end if;
@@ -527,8 +527,10 @@ if rising_edge(Clock) then
     clearInterrupt <= (others => '0');
     
     if Resetn = '0' then
-        for i in mem'RANGE loop 
-            mem(i) <= (others => '0');
+        for i in mem'RANGE loop
+            for j in mem(i)'RANGE loop 
+                mem(i)(j) <= (others => '0');
+            end loop;
         end loop;
         for i in channel_range loop
             En(i) <= '0';
@@ -538,20 +540,21 @@ if rising_edge(Clock) then
         -- Check if channel is finished: Reset the enable bit and reset the susp register
         if CCF(channel) = '1' and prevCCF(channel) = '0' then
             -- Set En to 0 and write back to memory
-            mem(GetChannelAddr(channel, ADDR_CR))(CR_POS_EN) <= '0';
+            mem(channel)(ADDR_CR)(CR_POS_EN) <= '0';
             En(channel) <= '0';
         end if;
         
         -- Write port 1 (from the Interface)
         if WrEn1 = '1' then
+            channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
             for i in 3 downto 0 loop
                 if WrStrb1(i) = '1' then
-                    mem(to_integer(unsigned(WrAddr1(addr_range))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
+                    mem(channelIdx)(to_integer(unsigned(WrAddr1(addr_range))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
                 end if;
            end loop;
            -- Set enable and priority signals if it was a write to the CR register
            if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH)(addr_register_range)) then
-                channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
+
                 -- WriteStrobe ignored for simplicity; 
                 -- Because of that, WriteStrobes other than 1111 for the CR register have to be prevented in the driver
                 --if WrStrb1(0) = '1' then
@@ -571,7 +574,7 @@ if rising_edge(Clock) then
             -- write four words, i.e. 128 bit
             for i in 0 to 3 loop
                 -- Write to WrAddr2 register of current channel
-                mem(GetChannelAddr(channel, to_integer(unsigned(WrAddr2)))+i) <= WrData2(127-i*32 downto 96-i*32);
+                mem(channel)(to_integer(unsigned(WrAddr2))+i) <= WrData2(127-i*32 downto 96-i*32);
             end loop;
         end if;
     end if;
