@@ -44,11 +44,12 @@ signal Clock : std_logic := '1';
 signal Resetn : std_logic := '0';
 
 signal testPlaintext, testIV, testKey, testCiphertext, Susp, H, keyOut, din : std_logic_vector(KEY_SIZE-1 downto 0);
-signal EnICore, EnOCore, RdEnAHB, WrEnAHB, WrEnCore : std_logic;
-signal WrDataAHB, RdDataAHB, WrAddrAHB, RdAddrAHB, WrAddrCore : std_logic_vector(DATA_WIDTH-1 downto 0);
+signal EnICore, EnOCore, IRdEn, IWrEn, WrEnCore : std_logic;
+signal IWrData, IRdData : std_logic_vector(DATA_WIDTH-1 downto 0);
+signal IWrAddr, IRdAddr, WrAddrCore :  std_logic_vector(ADDR_WIDTH-1 downto 0);
 signal WrDataCore : std_logic_vector(KEY_SIZE-1 downto 0);
 
-
+signal aes_introut : std_logic;
 
 
 signal mode : std_logic_vector(MODE_LEN-1 downto 0) := MODE_KEYEXPANSION_AND_DECRYPTION;
@@ -62,11 +63,32 @@ testPlaintext <= x"00102030011121310212223203132333";
 testKey <= x"000102030405060708090a0b0c0d0e0f";
 
 
-i_ControlLogic : entity work.ControlLogic(Behavioral)
-    port map(
-        Clock, Resetn, RdEnAHB, RdAddrAHB, RdDataAHB, 
-        WrEnAHB, WrAddrAHB, WrDataAHB, "1111", WrEnCore, WrAddrCore, WrDataCore,
-        keyOut, testIV, H, Susp, din, testCiphertext, EnICore, EnOCore, mode, chaining_mode, GCMPhase
+i_ControlLogic : entity work.ControlLogic(Behavioral) 
+port map(
+        RdEn => IRdEn,
+        RdAddr => IRdAddr,
+        RdData => IRdData, 
+        WrEn1 => IWrEn,
+        WrAddr1 => IWrAddr,
+        WrData1 => IWrData,
+        WrStrb1 => "1111",
+        WrEn2 => WrEnCore,
+        WrAddr2 => WrAddrCore,
+        WrData2 => WrDataCore, 
+        key => keyOut,
+        IV => testIV,
+        H => H,
+        Susp => Susp,
+        DIN => din,
+        DOUT => testCiphertext,
+        EnOCore => EnOCore,
+        EnICore => EnICore,
+        mode => mode,
+        chaining_mode => chaining_mode,
+        GCMPhase => GCMPhase,
+        interrupt => aes_introut,
+        Clock => Clock,
+        Resetn => Resetn
     );
 
 core: entity work.AES_Core (Behavioral) 
@@ -86,39 +108,39 @@ end process;
 process begin
 -- write to ControlLogic
 wait until Resetn = '1';
-WrEnAHB <= '1';
+IWrEn <= '1';
 -- set control
-WrDataAHB <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1'; -- TODO Chaining mode definition needs downto?
-WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
+IWrData <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1'; -- TODO Chaining mode definition needs downto?
+IWrAddr <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
 wait for 10 ns;
-WrEnAHB <= '0';
+IWrEn <= '0';
 wait for 10ns;
 for i in 3 downto 0 loop
-    WrEnAHB <= '1';
-    WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_DINR, ADDR_WIDTH));
-    WrDataAHB <= testPlaintext((i+1)*32-1 downto i*32);
+    IWrEn <= '1';
+    IWrAddr <= std_logic_vector(to_unsigned(ADDR_DINR, ADDR_WIDTH));
+    IWrData <= testPlaintext((i+1)*32-1 downto i*32);
     wait for 10ns;
 end loop;
-WrEnAHB <= '0';
-RdEnAHB <= '1';
-RdAddrAHB <= std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH));
-wait until RdDataAHB(0) = '1'; -- wait until CCF is set
+IWrEn <= '0';
+IRdEn <= '1';
+IRdAddr <= std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH));
+wait until IRdData(0) = '1'; -- wait until CCF is set
 -- clear CCF
-WrEnAHB <= '1';
-WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
-WrDataAHB <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1';
-WrDataAHB(7) <= '1';
+IWrEn <= '1';
+IWrAddr <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
+IWrData <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1';
+IWrData(7) <= '1';
 --wait for 10ns;
 for i in 7 downto 0 loop -- 3!
-    RdAddrAHB <= std_logic_vector(to_unsigned(ADDR_DOUTR, ADDR_WIDTH));
+    IRdAddr <= std_logic_vector(to_unsigned(ADDR_DOUTR, ADDR_WIDTH));
     wait for 10ns;
 end loop;
-RdEnAHB <= '0';
-WrEnAHB <= '0'; -- TODO stop write process earlier?
+IRdEn <= '0';
+IWrEn <= '0'; -- TODO stop write process earlier?
 -- disable
-WrEnAHB <= '1';
-WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
-WrDataAHB <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1';
+IWrEn <= '1';
+IWrAddr <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
+IWrData <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1';
 wait;
 end process;
 
