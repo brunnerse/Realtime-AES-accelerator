@@ -5,7 +5,7 @@ use ieee.numeric_std.all;
 entity AES_Interface_v1_0 is
 	generic (
 		-- Users to add parameters here
-        LittleEndian : boolean;
+        LITTLE_ENDIAN : boolean;
 		-- User parameters ends
 		-- Do not modify the parameters beyond this line
 
@@ -238,13 +238,13 @@ AES_Interface_v1_0_S_AXI_inst : AES_Interface_v1_0_S_AXI
 
     DataForwardingBigEndian:
         -- Big Endian case
-        if not LittleEndian generate
+        if not LITTLE_ENDIAN generate
             WrData <= WrDataSignal;
             RdDataSignal <= RdData;
             WrStrb <= S_AXI_WSTRB;
         end generate;
     DataForwardingLittleEndian:
-        if LittleEndian generate
+        if LITTLE_ENDIAN generate
             loopGen: 
             for i in 3 downto 0 generate
                 WrData(i*8+7 downto i*8) <= WrDataSignal((3-i)*8+7 downto (3-i)*8);
