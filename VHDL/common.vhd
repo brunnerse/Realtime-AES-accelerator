@@ -49,6 +49,7 @@ constant MAX_CHANNELS : integer := 2**ADDR_CHANNEL_BITS;
 subtype num_channels_range is integer range 1 to MAX_CHANNELS;
 
 constant NUM_PRIORITY_BITS : integer := 3;
+type PrioArrayType is array(natural range<>) of std_logic_vector(NUM_PRIORITY_BITS-1 downto 0);
 
 end package;
 
@@ -98,13 +99,4 @@ constant SR_POS_CCF : integer := 8;
 constant SR_POS_RDERR : integer := 16;
 constant SR_POS_WRERR : integer := 24;
 
-end package;
-
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use work.common.ALL;
-
-package binary_search_types is
-type IdxArrayType is array(natural range<>) of integer range MAX_CHANNELS-1 downto 0;
-type PrioArrayType is array(natural range<>) of std_logic_vector(NUM_PRIORITY_BITS-1 downto 0);
 end package;

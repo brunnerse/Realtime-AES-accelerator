@@ -24,8 +24,6 @@ use IEEE.STD_LOGIC_1164.ALL;
 use work.common.ALL;
 use work.addresses.ALL;
 use work.register_bit_positions.ALL;
-use work.binary_search_types.ALL;
-
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values

@@ -3,7 +3,6 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
 use work.common.ALL;
-use work.binary_search_types.ALL;
 
 entity BinarySearch is
     generic (
@@ -40,6 +39,7 @@ function log2( i : natural) return integer is
   end function;
   
 subtype channel_range is integer range NUM_CHANNELS-1 downto 0;
+type IdxArrayType is array(natural range<>) of integer range MAX_CHANNELS-1 downto 0;
 
 signal channelIdx : IdxArrayType(NUM_CHANNELS-1 downto 0);
 signal InterPriority : PrioArrayType(NUM_CHANNELS-1 downto 0);

@@ -15,7 +15,7 @@ extern "C" {
 /**************************** Type Definitions *****************************/
 #define BLOCK_SIZE 16
 
-#define AES_NUM_CHANNELS 4
+#define AES_NUM_CHANNELS 8
 #define ADDR_REGISTER_BITS 7
 
 #define AES_MAX_PRIORITY (AES_NUM_CHANNELS-1)
