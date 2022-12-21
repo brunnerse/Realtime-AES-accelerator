@@ -1,6 +1,6 @@
 
-#ifndef AES_INTERFACE_H
-#define AES_INTERFACE_H
+#ifndef AES_UNIT_0_H
+#define AES_UNIT_0_H
 
 
 /****************** Include Files ********************/
