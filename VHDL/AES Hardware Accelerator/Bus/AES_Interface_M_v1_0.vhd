@@ -11,24 +11,24 @@ entity AES_Interface_M_v1_0 is
 
 
 		-- Parameters of Axi Slave Bus Interface S_AXI
-		C_S_AXI_ID_WIDTH	: integer	:= 0;
+		C_S_AXI_ID_WIDTH	: integer	:= 1;
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
 		C_S_AXI_ADDR_WIDTH	: integer	:= 10;
-		C_S_AXI_AWUSER_WIDTH	: integer	:= 0;
-		C_S_AXI_ARUSER_WIDTH	: integer	:= 0;
-		C_S_AXI_WUSER_WIDTH	: integer	:= 0;
-		C_S_AXI_RUSER_WIDTH	: integer	:= 0;
-		C_S_AXI_BUSER_WIDTH	: integer	:= 0;
+		C_S_AXI_AWUSER_WIDTH	: integer	:= 1;
+		C_S_AXI_ARUSER_WIDTH	: integer	:= 1;
+		C_S_AXI_WUSER_WIDTH	: integer	:= 1;
+		C_S_AXI_RUSER_WIDTH	: integer	:= 1;
+		C_S_AXI_BUSER_WIDTH	: integer	:= 1;
 
 		-- Parameters of Axi Master Bus Interface M_AXI
-		C_M_AXI_ID_WIDTH	: integer	:= 0;
+		C_M_AXI_ID_WIDTH	: integer	:= 1;
 		C_M_AXI_ADDR_WIDTH	: integer	:= 32;
 		C_M_AXI_DATA_WIDTH	: integer	:= 32;
-		C_M_AXI_AWUSER_WIDTH	: integer	:= 0;
-		C_M_AXI_ARUSER_WIDTH	: integer	:= 0;
-		C_M_AXI_WUSER_WIDTH	: integer	:= 0;
-		C_M_AXI_RUSER_WIDTH	: integer	:= 0;
-		C_M_AXI_BUSER_WIDTH	: integer	:= 0
+		C_M_AXI_AWUSER_WIDTH	: integer	:= 1;
+		C_M_AXI_ARUSER_WIDTH	: integer	:= 1;
+		C_M_AXI_WUSER_WIDTH	: integer	:= 1;
+		C_M_AXI_RUSER_WIDTH	: integer	:= 1;
+		C_M_AXI_BUSER_WIDTH	: integer	:= 1
 	);
 	port (
 		-- Users to add ports here
@@ -283,6 +283,41 @@ architecture arch_imp of AES_Interface_M_v1_0 is
 		M_AXI_RREADY	: out std_logic
 		);
 	end component AES_Interface_M_v1_0_M_AXI;
+	
+	-- Give the interface ports attributes so Vivado recognizes them as interfaces
+	ATTRIBUTE X_INTERFACE_INFO : STRING;
+	
+	ATTRIBUTE X_INTERFACE_INFO of WrEn: SIGNAL is
+    "xilinx.com:user:ReadWritePort:1.0 M_ReadWritePort WrEn";
+    ATTRIBUTE X_INTERFACE_INFO of RdEn: SIGNAL is
+    "xilinx.com:user:ReadWritePort:1.0 M_ReadWritePort RdEn";
+    ATTRIBUTE X_INTERFACE_INFO of WrData: SIGNAL is
+    "xilinx.com:user:ReadWritePort:1.0 M_ReadWritePort WrData";
+    ATTRIBUTE X_INTERFACE_INFO of WrAddr: SIGNAL is
+    "xilinx.com:user:ReadWritePort:1.0 M_ReadWritePort WrAddr";
+    ATTRIBUTE X_INTERFACE_INFO of WrStrb: SIGNAL is
+    "xilinx.com:user:ReadWritePort:1.0 M_ReadWritePort WrStrb";
+    ATTRIBUTE X_INTERFACE_INFO of RdData: SIGNAL is
+    "xilinx.com:user:ReadWritePort:1.0 M_ReadWritePort RdData";
+    ATTRIBUTE X_INTERFACE_INFO of RdAddr: SIGNAL is
+    "xilinx.com:user:ReadWritePort:1.0 M_ReadWritePort RdAddr";
+
+
+
+	ATTRIBUTE X_INTERFACE_INFO of S_RW_addr: SIGNAL is
+    "xilinx.com:user:ReadyValid_RW_Port:1.0 S_DataPort Addr";
+    ATTRIBUTE X_INTERFACE_INFO of S_RW_wrData: SIGNAL is
+    "xilinx.com:user:ReadyValid_RW_Port:1.0 S_DataPort WrData";
+    ATTRIBUTE X_INTERFACE_INFO of S_RW_rdData: SIGNAL is
+    "xilinx.com:user:ReadyValid_RW_Port:1.0 S_DataPort RdData";
+    ATTRIBUTE X_INTERFACE_INFO of S_RW_ready: SIGNAL is
+    "xilinx.com:user:ReadyValid_RW_Port:1.0 S_DataPort ready";
+    ATTRIBUTE X_INTERFACE_INFO of S_RW_valid: SIGNAL is
+    "xilinx.com:user:ReadyValid_RW_Port:1.0 S_DataPort valid";
+    ATTRIBUTE X_INTERFACE_INFO of S_RW_write: SIGNAL is
+    "xilinx.com:user:ReadyValid_RW_Port:1.0 S_DataPort write";
+    ATTRIBUTE X_INTERFACE_INFO of S_RW_error: SIGNAL is
+    "xilinx.com:user:ReadyValid_RW_Port:1.0 S_DataPort error";
 
 	-- signals to forward the RdData and WrData Signals
     signal WrDataSignal, RdDataSignal : std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
