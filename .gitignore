@@ -8,6 +8,7 @@
 *.ui
 */bd/*
 *.bak
+*.exe
 bd/
 __pycache__
 
@@ -15,3 +16,5 @@ tiny-AES-c
 Questa_Projects
 Vitis
 Vivado
+!Vivado/ip_repo/*/hdl
+!Vivado/ip_repo/*/drivers

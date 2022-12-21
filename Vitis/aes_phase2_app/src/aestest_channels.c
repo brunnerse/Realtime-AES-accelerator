@@ -114,7 +114,7 @@ int main()
 		return XST_FAILURE;
 	}
 
-	u32 IntrId =  XPAR_FABRIC_AXI_CDMA_0_CDMA_INTROUT_INTR-1;
+	u32 IntrId =  XPS_FPGA0_INT_ID;
 	XScuGic_SetPriorityTriggerType(&IntCtrl, IntrId, 0xA0, 0x1);
 	status = XScuGic_Connect(&IntCtrl, IntrId, (Xil_InterruptHandler)AES_IntrHandler,
 					&aes);
