@@ -1,14 +1,12 @@
 
 /***************************** Include Files *******************************/
-#include "AES_Interface_M.h"
+#include "AES_Unit_3.h"
+#include "AES_Unit_3_hw.h"
 #include "xparameters.h"
 #include "stdio.h"
 #include "xil_io.h"
 
 /************************** Constant Definitions ***************************/
-#define READ_WRITE_MUL_FACTOR 0x10
-#define AES_SR_OFFSET 0x04
-#define AES_SUSPR0_OFFSET 0x40
 /************************** Function Definitions ***************************/
 /**
  *

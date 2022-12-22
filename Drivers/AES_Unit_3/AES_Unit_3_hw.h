@@ -1,11 +1,11 @@
-#ifndef AES_INTERFACE_M_HW_H_
-#define AES_INTERFACE_M_HW_H_
+#ifndef AES_UNIT_3_HW_H
+#define AES_UNIT_3_HW_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "AES_Interface_M.h"
+#include "AES_Unit_3.h"
 
 // Comment this line on Big Endian systems
 #define LITTLE_ENDIAN
