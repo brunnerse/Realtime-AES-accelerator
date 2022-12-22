@@ -112,19 +112,19 @@ dOut <=     dOutXOR when chaining_mode = CHAINING_MODE_CTR or (chaining_mode = C
 EnIAEA <=   EnOXOR when chaining_mode = CHAINING_MODE_CBC and encrypt = '1' and mode /= MODE_KEYEXPANSION else
             EnI;
           
--- TODO this can be simplified by setting the EnIXOR signal anyway and just ignoring the output EnO. Should I do it?
 EnIXOR <=   EnI when chaining_mode = CHAINING_MODE_CBC and encrypt = '1' else
             EnOAEA when (chaining_mode = CHAINING_MODE_CBC and encrypt = '0') or chaining_mode = CHAINING_MODE_CTR else
             '0'; -- XOR unit is unused in other modes
             
 
-EnO <=  EnOXOR when chaining_mode = CHAINING_MODE_CTR or (chaining_mode = CHAINING_MODE_CBC and encrypt = '0') else
-        EnOAEA; -- CHAINING_MODE_ECB | CHAINING_MODE_CBC
+EnO <=  EnOAEA when chaining_mode = CHAINING_MODE_ECB else
+        WrEnSignal when (chaining_mode = CHAINING_MODE_CBC and encrypt = '1') else  -- wait until IV has been written until EnO is set
+        EnOXOR;  -- CTR mode, CBC with decryption
+
 
 
 
 -- update IV
--- TODO Das Schreiben erfolgt einen Takt nachdem das EnO Signal ausgegeben wird. EnO verz�gern?
 WrAddr <= std_logic_vector(to_unsigned(ADDR_IV, ADDR_WIDTH)); 
 process(Clock)
 begin

@@ -85,7 +85,7 @@ constant ZERO : std_logic_vector(KEY_SIZE-2 downto 0) := (others => '0');
 -- we don't need the x^128 in the polynomial
 constant POLYGF : std_logic_vector(KEY_SIZE-1 downto 0) := x"e1000000000000000000000000000000";
 
-constant MULTIPLICATIONS_PER_CYCLE : integer := 128/4; -- Do 32 calculations per clock cycle. TODO Test the best value!
+constant MULTIPLICATIONS_PER_CYCLE : integer := 128/2; -- Do 64 calculations per clock cycle
 
 function mulGF(val : std_logic_vector(KEY_SIZE-1 downto 0); prod : std_logic_vector(KEY_SIZE-1 downto 0)) return std_logic_vector is
     variable c, v : std_logic_vector(KEY_SIZE-1 downto 0);
@@ -149,8 +149,8 @@ EnO <=  EnOXOR1 when GCMPhase = GCM_PHASE_FINAL else
         WrEnSignal when GCMPhase = GCM_PHASE_INIT or GCMPhase = GCM_PHASE_HEADER else
         EnOAEA when encrypt = '0' else -- payload phase, decryption
         EnOMul; -- payload phase, encryption  
-        -- TODO: Fuer den letzten Fall wird Susp immer noch einen Takt später geschrieben! Sollte aber nichts machen?
-        
+        -- TODO: Fuer den letzten Fall wird Susp immer noch einen Takt spÃ¤ter geschrieben! Sollte aber nichts machen?
+   
 
 WrEn <= WrEnSignal;
                

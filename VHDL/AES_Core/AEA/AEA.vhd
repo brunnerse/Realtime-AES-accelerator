@@ -103,7 +103,7 @@ dInRound <= dOutRound when State = RoundState else  -- loop back the output of t
 dOut <= dOutRound when encrypt = '1' else dOutPreARK;
 
 -- connect enable signals
--- TODO Don't run KeyExp in Decryption only mode? Should not make a performance benefit
+-- Always run KeyExpansion for simplicity;  wouldn't be necessary in Decyption mode, but doesn't change the result
 EnIKeyExp <= EnI; 
 
 EnIPreARK <= '0' when encrypt = '1' and keyExpandFlag = '1' else -- KeyExpansion mode: don't run

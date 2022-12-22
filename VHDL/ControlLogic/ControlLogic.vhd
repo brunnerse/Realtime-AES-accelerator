@@ -69,7 +69,7 @@ architecture Behavioral of ControlLogic is
 
 signal En, prevEn : std_logic;
 
--- status signals TODO anything other than CCF needed?
+-- status signals
 signal BUSY, WRERR, RDERR, CCF : std_logic;
 -- control signals
 signal DMAOUTEN, DMAINEN, ERRIE, CCFIE, ERRC, CCFC : std_logic;
@@ -133,7 +133,7 @@ if rising_edge(Clock) then
             CCF <= '1'; -- Set CCF flag whenever the Core finished a calculation
             interrupt <= '1';
         -- Clear flag when CCFC is set or module is disabled
-        elsif En = '0' or CCFC = '1' then -- TODO or EnICore = '1'
+        elsif En = '0' or CCFC = '1' or EnICore = '1' then 
             CCF <= '0';
         end if;
     end if;
@@ -158,7 +158,7 @@ if rising_edge(Clock) then
                 RdData <= mem(to_integer(unsigned(RdAddr(ADDR_WIDTH-1 downto 2)))); -- divide address by four, as array is indexed word-wise
             end if;
         end if;
-        -- Reset counter when unit is disabled  TODO Always reset for En = '0'?
+        -- Reset counter when unit is disabled
         if En = '0' and prevEn = '1' then
             readCounter <= "00";
         end if;
@@ -211,7 +211,7 @@ if rising_edge(Clock) then
                 mem(to_integer(unsigned(WrAddr2(ADDR_WIDTH-1 downto 2))+i)) <= WrData2(127-i*32 downto 96-i*32);
             end loop;
         end if;
-        -- Reset counter and clear susp register when unit is disabled  TODO always during En = 0?
+        -- Reset counter and clear susp register when unit is disabled
         if En = '0' and prevEn = '1' then
             writeCounter <= "00";
             for i in ADDR_SUSPR0/4 to ADDR_SUSPR3/4 loop

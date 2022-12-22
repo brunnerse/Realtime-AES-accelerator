@@ -82,6 +82,7 @@ int AES_compareTags(u8 tag1[BLOCK_SIZE], u8 tag2[BLOCK_SIZE]);
 void AES_processBlock(AES* InstancePtr, u8 *dataBlock, u8 *outDataBlock);
 
 void AES_waitUntilCompleted(AES* InstancePtr);
+void AES_clearCompletedStatus(AES* InstancePtr);
 
 /**
  *

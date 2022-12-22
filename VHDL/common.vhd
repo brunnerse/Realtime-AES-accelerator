@@ -44,8 +44,6 @@ end package;
 
 package addresses is
 -- Define the addresses according to the specification. 
-constant ADDR_BASE : integer := 16#00#; -- TODO specify correct address
-
 constant ADDR_CR : integer := 16#00#;
 constant ADDR_SR : integer := 16#04#;
 constant ADDR_DINR : integer := 16#08#;

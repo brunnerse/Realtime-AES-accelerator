@@ -99,7 +99,6 @@ void AES_SetSusp(AES* InstancePtr, u8 Susp[BLOCK_SIZE])
 
 void AES_Setup(AES* InstancePtr, Mode mode, ChainingMode chainMode, u32 enabled, GCMPhase gcmPhase)
 {
-	// TODO Kann ich lesen hier vermeiden und gleich mit cr = 0 anfangen?
     u32 cr = AES_Read(InstancePtr, AES_CR_OFFSET);
 
     // Set mode
@@ -273,9 +272,8 @@ void AES_processDataGCM(AES* InstancePtr, int encrypt, u8* header, u32 headerLen
 	}
 	// Final
 	AES_SetGCMPhase(InstancePtr, GCM_PHASE_FINAL);
-	// Set the IV in the final round:  First 12 bytes are the Nonce, last 4 bytes are 0x000000001
-    AES_SetIV(InstancePtr, IV, 12); // TODO remove: This should not be necessary, as the counter is only 32 bits
-	// Write last word of the IV manually
+	// Set the IV in the final round:  First 12 bytes are the Nonce (didn't change, so no need to write again),
+	// last 4 bytes are 0x000000001
 	AES_Write(InstancePtr, AES_IVR0_OFFSET+12, MODE_GCM_IV_FINAL);
 	// Write headerLen (64 bit) ||  payloadLen(64 bit) to DINR;  lengths have to be in bits
 	AES_Write(InstancePtr, AES_DINR_OFFSET, 0);
@@ -327,14 +325,24 @@ void AES_waitUntilCompleted(AES* InstancePtr)
 	do {
 		CCF = getBits(AES_Read(InstancePtr, AES_SR_OFFSET), SR_CCF_POS, SR_CCF_LEN);
 	} while (CCF == 0);
-	// Clear CCF bit
+}
+
+/**
+ * @brief clears the CCF flag, which indicates that the computation has completed.
+ *  This should usually not be necessary, as the flag is cleared automatically when a new computation starts
+ * @param InstancePtr 
+ */
+void AES_clearCompletedStatus(AES* InstancePtr)
+{
+	// Clear CCF bit by setting CCFC flag
     u32 cr = AES_Read(InstancePtr, AES_CR_OFFSET);
     setBits(&cr, 1, CCFC_POS, CCFC_LEN);
     AES_Write(InstancePtr, AES_CR_OFFSET, cr);
-    // TODO need to reset CCFC manually?
+    // reset CCFC flag again
     setBits(&cr, 0, CCFC_POS, CCFC_LEN);
     AES_Write(InstancePtr, AES_CR_OFFSET, cr);
 }
+
 
 // -------------
 // private functions
