@@ -22,9 +22,9 @@
 #define EN_POS 24
 #define MODE_POS 27
 #define CHAIN_MODE_POS 29
-//#define CHAIN_MODE_POS2 8
 #define GCM_PHASE_POS 21
 #define CCFC_POS 31
+#define CCFIE_POS 17
 #define SR_CCF_POS 24
 #define MODE_GCM_IV_INIT 0x02000000
 #define MODE_GCM_IV_FINAL 0x01000000
@@ -33,9 +33,9 @@
 #define EN_POS 0
 #define MODE_POS 3
 #define CHAIN_MODE_POS 5
-//#define CHAIN_MODE_POS2 16
 #define GCM_PHASE_POS 13
 #define CCFC_POS 7
+#define CCFIE_POS 9
 #define SR_CCF_POS 1
 #define MODE_GCM_IV_INIT 0x00000002
 #define MODE_GCM_IV_FINAL 0x00000001
@@ -45,6 +45,7 @@
 #define EN_LEN 1
 #define MODE_LEN 2
 #define CHAIN_MODE_LEN 2
+#define CCFIE_LEN 1
 //#define CHAIN_MODE_LEN2 1
 #define GCM_PHASE_LEN 2
 #define CCFC_LEN 1
@@ -59,8 +60,8 @@ void setBits(u32* ptr, u32 bits, u32 lowestBitIndex, u32 bitLen);
 /*************************** Function definitions **********************/
 AES_Config config =
 {
-		XPAR_AES_INTERFACE_0_DEVICE_ID,
-		XPAR_AES_INTERFACE_0_S_AXI_BASEADDR
+		XPAR_AES_UNIT_0_0_DEVICE_ID,
+		XPAR_AES_UNIT_0_0_S_AXI_BASEADDR
 };
 
 
@@ -72,9 +73,9 @@ AES_Config *AES_LookupConfig(u16 DeviceId)
 		return (void*)0;
 }
 
-int AES_Initialize(AES *InstancePtr, UINTPTR BaseAddr)
+int AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr)
 {
-    InstancePtr->BaseAddress = BaseAddr;
+    InstancePtr->BaseAddress = ConfigPtr->BaseAddress;
     return (XST_SUCCESS);
 }
 
@@ -149,6 +150,13 @@ void AES_SetEnabled(AES* InstancePtr, u32 en)
     AES_Write(InstancePtr, AES_CR_OFFSET, cr);
 }
 
+void AES_SetInterruptEnabled(AES* InstancePtr, u32 en)
+{
+    u32 cr = AES_Read(InstancePtr, AES_CR_OFFSET);
+    setBits(&cr, en, CCFIE_POS, CCFIE_LEN);
+    AES_Write(InstancePtr, AES_CR_OFFSET, cr);
+}
+
 
 void AES_GetKey(AES *InstancePtr, u8 outKey[BLOCK_SIZE])
 {
@@ -181,7 +189,11 @@ u32 AES_GetEnabled(AES* InstancePtr)
 	return getBits(AES_Read(InstancePtr, AES_CR_OFFSET), EN_POS, EN_LEN);
 }
 
-
+void AES_GetSusp(AES *InstancePtr, u8 outSusp[BLOCK_SIZE*2])
+{
+   for (int i = 0; i < BLOCK_SIZE*2; i+=4)
+        *(u32*)(outSusp+i) = AES_Read(InstancePtr, AES_SUSPR0_OFFSET+i);
+}
 
 void AES_PerformKeyExpansion(AES *InstancePtr)
 {
@@ -199,7 +211,7 @@ void AES_processDataECB(AES* InstancePtr, int encrypt, u8* data, u8* outData, u3
 	u32 blockOffset = 0;
 	if (encrypt == 0 && size > 0)
 	{
-		// Perform one decryption with keyexpansion_and_decryption mode, than change to decryption mode
+		// Perform one decryption with keyexpansion_and_decryption mode, then change to decryption mode
 		AES_processBlock(InstancePtr, data, outData);
 		AES_SetMode(InstancePtr, MODE_DECRYPTION);
 		blockOffset = BLOCK_SIZE;
@@ -220,7 +232,7 @@ void AES_processDataCBC(AES* InstancePtr, int encrypt, u8* data, u8* outData, u3
 
 	if (encrypt == 0 && size > 0)
 	{
-		// Perform one decryption with keyexpansion_and_decryption mode, than change to decryption mode
+		// Perform one decryption with keyexpansion_and_decryption mode, then change to decryption mode
 		AES_processBlock(InstancePtr, data, outData);
 		AES_SetMode(InstancePtr, MODE_DECRYPTION);
 		blockOffset = BLOCK_SIZE;
@@ -289,8 +301,9 @@ void AES_processDataGCM(AES* InstancePtr, int encrypt, u8* header, u32 headerLen
 	AES_waitUntilCompleted(InstancePtr);
 	// Read the tag from the DOUT register
     for (u32 i = 0; i < BLOCK_SIZE; i+=4)
+	{
     	*(u32*)(outTag+i) = AES_Read(InstancePtr, AES_DOUTR_OFFSET);
-
+	}
 	// Disable the AES Unit when finished
 	AES_SetEnabled(InstancePtr, 0);
 }

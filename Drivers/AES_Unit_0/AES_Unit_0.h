@@ -45,7 +45,7 @@ typedef struct {
 
 
 AES_Config *AES_LookupConfig(u16 DeviceId);
-int AES_Initialize(AES *InstancePtr, UINTPTR BaseAddr);
+int AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr);
 
 void AES_SetKey(AES *InstancePtr, u8 key[BLOCK_SIZE]);
 
@@ -54,6 +54,7 @@ void AES_SetMode(AES *InstancePtr, Mode mode);
 void AES_SetChainingMode(AES* InstancePtr, ChainingMode chainMode);
 void AES_SetGCMPhase(AES* InstancePtr, GCMPhase gcmPhase);
 void AES_SetEnabled(AES* InstancePtr, u32 en);
+void AES_SetInterruptEnabled(AES* InstancePtr, u32 en);
 void AES_SetIV(AES* InstancePtr, u8 *IV, u32 IVLen);
 void AES_SetSusp(AES* InstancePtr, u8 Susp[BLOCK_SIZE]);
 
@@ -64,6 +65,7 @@ ChainingMode AES_GetChainingMode(AES* InstancePtr);
 void AES_SetGCMPhase(AES* InstancePtr, GCMPhase gcmPhase);
 GCMPhase AES_GetGCMPhase(AES* InstancePtr);
 u32 AES_GetEnabled(AES* InstancePtr);
+void AES_GetSusp(AES *InstancePtr, u8 outSusp[BLOCK_SIZE*2]);
 
 
 void AES_PerformKeyExpansion(AES *InstancePtr);
