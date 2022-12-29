@@ -40,10 +40,20 @@ component AES_Core is
            );
 end component;
 
+-- Give results of Core
+type vector_array is array(natural range<>) of std_logic_vector(127 downto 0);
+constant rH : std_logic_vector := x"c6a13b37878f5b826f4f8162a1c8d879";
+constant rTag : std_logic_vector := x"18688a98a0c1cd11d99a1d6840b7c02f";
+constant rCipher : vector_array := (
+    x"4800b42322580ee21a061204f5cd03c7",
+    x"3f0fda298bbf7eca54091a89229f9a5c",
+    x"54725e39869a7fdee3cca50bd31a825a"
+    );
+    
 signal Clock, Resetn : std_logic;
 
 signal testPlaintext, testIV, testKey, testCiphertext, testSusp, H : std_logic_vector(KEY_SIZE-1 downto 0);
-signal EnCoreI, EnCoreO : std_logic;
+signal EnCoreI, EnCoreO : std_logic := '0';
 
 signal WrEn : std_logic;
 signal WrData : std_logic_vector(KEY_SIZE-1 downto 0);
@@ -71,48 +81,83 @@ Resetn <= '0'; wait for 20 ns;
 Resetn <= '1'; wait;
 end process;
 
+-- Process checking H
+process begin
+wait until rising_edge(Clock) and EnCoreI = '1';
+if GCMPhase /= GCM_PHASE_INIT then
+    report "[Checking] H = " & to_hstring(to_bitvector(rH));
+    assert H = rH
+        report "H is wrong!"
+        severity failure;
+end if;
+end process;
 
+-- Process checking Cipher
+process
+variable idx : integer range rCipher'RANGE := 0;
+begin
+wait until rising_edge(Clock) and EnCoreO = '1';
+if GCMPhase = GCM_PHASE_PAYLOAD then
+    report "[Checking] Ciphertext = " & to_hstring(to_bitvector(rCipher(idx)));
+    assert testCiphertext = rCipher(idx)
+        report "ciphertext is wrong!"
+        severity failure;
+   idx := idx + 1;
+end if;
+end process;
 
+-- Process checking Tag
+process begin
+wait until rising_edge(Clock) and EnCoreO = '1' and GCMPhase = GCM_PHASE_FINAL;
+    report "[Checking] Tag = " & to_hstring(to_bitvector(rTag));   
+    assert testCiphertext = rTag
+        report "Tag is wrong!"
+        severity failure;
+   -- Message that tag check was successful
+   report "[Check] Ran all checks";
+end process;
 -- Set up GCM encryption
 process begin
-EnCoreI <= '0'; wait for 40 ns; -- Wait until Resetn is over
+wait until Resetn = '1'; -- Wait until Resetn is over
+wait for 10ns;
 EnCoreI <= '1'; 
 GCMPhase <= GCM_PHASE_INIT;
 wait for 10 ns;
 EnCoreI <= '0';
-wait until EnCoreO <= '1'; wait for 20ns;
+wait until EnCoreO = '1';
+wait for 20ns;
 -- Enter header phase
 GCMPhase <= GCM_PHASE_HEADER;
 testPlaintext <= x"00102030011121310212223203132333";
 EnCoreI <= '1';
 wait for 10ns;
 EnCoreI <= '0';
-wait until EnCoreO <= '1'; wait for 10ns;
+wait until EnCoreO = '1'; wait for 10ns;
 -- another header
 testPlaintext <= x"affedeadbeefdadcabbeadbeec0cabad";
 EnCoreI <= '1';
 wait for 10ns;
 EnCoreI <= '0';
-wait until EnCoreO <= '1'; wait for 20ns;
+wait until EnCoreO = '1'; wait for 20ns;
 -- Enter payload phase
 GCMPhase <= GCM_PHASE_PAYLOAD;
 EnCoreI <= '1';
 testPlaintext <= x"00102030011121310212223203132333";
 wait for 10ns;
 EnCoreI <= '0';
-wait until EnCoreO <= '1'; wait for 20ns;
+wait until EnCoreO = '1'; wait for 20ns;
 wait for 10ns;
 -- second payload block
 EnCoreI <= '1';
 wait for 10ns;
 EnCoreI <= '0';
-wait until EnCoreO <= '1'; wait for 20ns;
+wait until EnCoreO = '1'; wait for 20ns;
 -- third payload block
 testPlaintext <= testKey;
 EnCoreI <= '1';
 wait for 10ns;
 EnCoreI <= '0';
-wait until EnCoreO <= '1'; wait for 20ns;
+wait until EnCoreO = '1'; wait for 20ns;
 -- enter final phase
 GCMPhase <= GCM_PHASE_FINAL;
 -- gLen(header) & gLen(cipher), length in bits
@@ -131,7 +176,7 @@ begin
 -- initialize IV
 if Resetn = '0' then
     testSusp <= (others => '0');
-    testIV <= x"f0e0d0c0b0a090807060504000000002";
+    testIV <= x"00e0d0c0b0a090807060504000000002";
 -- update IV
 elsif rising_edge(Clock) then
     if WrEn = '1' then
@@ -144,7 +189,7 @@ elsif rising_edge(Clock) then
         end if;
      end if;
      if GCMPhase = GCM_PHASE_FINAL then
-        testIV <=  x"f0e0d0c0b0a090807060504000000001";
+        testIV(31 downto 0) <=  x"00000001";
      end if;
 end if;
 end process;
