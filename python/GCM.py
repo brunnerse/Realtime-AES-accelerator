@@ -1,12 +1,16 @@
 # Adapted from https://jhafranco.com/2013/05/31/aes-gcm-implementation-in-python/
-
+import sys
 from Cryptodome.Cipher import AES
 from functools import reduce
+
+hexEndChar = " "
+if len(sys.argv) > 1:
+    hexEndChar = ""
 
 
 def printAsHex(byteArray):
     for i, b in enumerate(byteArray):
-        print(format(b, "02x"), end=" ")
+        print(format(b, "02x"), end=hexEndChar)
         if i % 16 == 15:
             print()
     print()
@@ -150,7 +154,7 @@ header = data + data3
 payload = data + data + data2
 
 
-numChannels = 1
+numChannels = 2
 for channel in range(0, numChannels):
     print("=====\n CHANNEL %d\n===="%(channel))
 
