@@ -14,11 +14,11 @@ entity AES_Interface_v1_0 is
 		C_S_AXI_ID_WIDTH	: integer	:= 1;
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
 		C_S_AXI_ADDR_WIDTH	: integer	:= 10;
-		C_S_AXI_AWUSER_WIDTH	: integer	:= 0;
-		C_S_AXI_ARUSER_WIDTH	: integer	:= 0;
-		C_S_AXI_WUSER_WIDTH	: integer	:= 0;
-		C_S_AXI_RUSER_WIDTH	: integer	:= 0;
-		C_S_AXI_BUSER_WIDTH	: integer	:= 0
+		C_S_AXI_AWUSER_WIDTH	: integer	:= 1;
+		C_S_AXI_ARUSER_WIDTH	: integer	:= 1;
+		C_S_AXI_WUSER_WIDTH	: integer	:= 1;
+		C_S_AXI_RUSER_WIDTH	: integer	:= 1;
+		C_S_AXI_BUSER_WIDTH	: integer	:= 1
 	);
 	port (
 		-- Ports of Axi Slave Bus Interface S_AXI
