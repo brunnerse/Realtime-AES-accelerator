@@ -39,9 +39,14 @@ end TestCL;
 
 architecture Behavioral of TestCL is
 
+type vector_array is array(natural range<>) of std_logic_vector(127 downto 0);
+
+constant rCipher : std_logic_vector(127 downto 0) := x"37c2539128699009617d4d8935e66c12";
 
 signal Clock : std_logic := '1';
 signal Resetn : std_logic := '0';
+
+
 
 signal testPlaintext, testIV, testKey, testCiphertext, Susp, H, keyOut, din : std_logic_vector(KEY_SIZE-1 downto 0);
 signal EnICore, EnOCore, IRdEn, IWrEn, WrEnCore : std_logic;
@@ -58,8 +63,7 @@ signal GCMPhase : std_logic_vector(1 downto 0) := GCM_PHASE_INIT;
 
 begin
 
-
-testPlaintext <= x"00102030011121310212223203132333";
+testPlaintext <=  x"00102030011121310212223203132333";
 testKey <= x"000102030405060708090a0b0c0d0e0f";
 
 
@@ -105,7 +109,9 @@ Resetn <= '1'; wait;
 end process;
 
 
-process begin
+
+process
+begin
 -- write to ControlLogic
 wait until Resetn = '1';
 IWrEn <= '1';
@@ -131,9 +137,16 @@ IWrAddr <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
 IWrData <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1';
 IWrData(7) <= '1';
 --wait for 10ns;
-for i in 7 downto 0 loop -- 3!
+for i in 3 downto 0 loop
     IRdAddr <= std_logic_vector(to_unsigned(ADDR_DOUTR, ADDR_WIDTH));
+    IRdEn <= '1';
     wait for 10ns;
+    IRdEn <= '0';
+    wait until rising_edge(Clock);
+    report "[Checking] ciphertext = " & to_hstring(to_bitvector(rCipher(i*32+31 downto i*32)));
+    assert IRdData = rCipher(i*32+31 downto i*32)
+        report "IRdData is wrong!"
+        severity failure;
 end loop;
 IRdEn <= '0';
 IWrEn <= '0'; -- TODO stop write process earlier?
