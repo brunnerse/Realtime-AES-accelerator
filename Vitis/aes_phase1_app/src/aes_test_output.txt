@@ -1,0 +1,421 @@
+Running AES_Unit_0 test file ../src/aes_test.c
+Enabling exceptions..
+******************************
+* User Peripheral Self Test
+******************************
+
+User logic memory test...
+   - local memory address is 0x7AA00000
+   - write pattern to local BRAM and read back
+   - write/read memory passed
+
+
+====== Testing Interrupt enable/disable =====
+Starting Encryption with Interrupt enabled...
+Starting KeyExpansion with Interrupt disabled...
+Starting KeyExpansion with Interrupt enabled...
+
+====== Testing simple ECB encryption =====
+Plaintext:
+        00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+Test 0:
+        37 C2 53 91 28 69 90 09 61 7D 4D 89 35 E6 6C 12 
+
+        Encrypt with different key:
+                37 C2 53 91 28 69 90 09 61 7D 4D 89 35 E6 6C 12 
+
+        Decrypt with same key:
+        00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Test 0 successful:  Yes
+Test 1:
+        7F CE C6 AA CF C7 E0 9B AD E3 AA 3E B9 A2 42 40 
+
+        Encrypt with different key:
+                37 C2 53 91 28 69 90 09 61 7D 4D 89 35 E6 6C 12 
+
+        Decrypt with same key:
+        00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Test 1 successful:  Yes
+Test 2:
+        94 A5 46 5F FE AE AF 81 DE A1 1C 34 F4 08 63 A1 
+
+        Encrypt with different key:
+                37 C2 53 91 28 69 90 09 61 7D 4D 89 35 E6 6C 12 
+
+        Decrypt with same key:
+        00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Test 2 successful:  Yes
+Test 3:
+        85 51 01 76 4E F4 7C E9 09 62 D0 1B 0F B6 42 4C 
+
+        Encrypt with different key:
+                37 C2 53 91 28 69 90 09 61 7D 4D 89 35 E6 6C 12 
+
+        Decrypt with same key:
+        00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Test 3 successful:  Yes
+Test 4:
+        D8 43 A0 CD B1 4C 40 0A 67 91 DC F6 50 42 0A F1 
+
+        Encrypt with different key:
+                37 C2 53 91 28 69 90 09 61 7D 4D 89 35 E6 6C 12 
+
+        Decrypt with same key:
+        00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Test 4 successful:  Yes
+Test 5:
+        8E 92 87 E4 6E 09 D7 13 61 60 DE 90 4D 09 BA 57 
+
+        Encrypt with different key:
+                37 C2 53 91 28 69 90 09 61 7D 4D 89 35 E6 6C 12 
+
+        Decrypt with same key:
+        00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Test 5 successful:  Yes
+Test 6:
+        BE 49 74 2A 9D 77 DF D6 B8 33 33 2F F9 68 56 03 
+
+        Encrypt with different key:
+                37 C2 53 91 28 69 90 09 61 7D 4D 89 35 E6 6C 12 
+
+        Decrypt with same key:
+        00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Test 6 successful:  Yes
+Test 7:
+        20 FE 98 3B 01 36 CB 64 B1 9F 61 CD 57 D9 80 86 
+
+        Encrypt with different key:
+                37 C2 53 91 28 69 90 09 61 7D 4D 89 35 E6 6C 12 
+
+        Decrypt with same key:
+        00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Test 7 successful:  Yes
+
+====== Testing different data sizes =====
+Starting encryption...
+        00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        01 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+        8F CD CA 75 61 F0 EB A2 DE B6 FB 2E 62 77 AF 0D 
+        68 D0 10 6B 71 CC 8A 10 39 68 71 E2 89 FF 67 35 
+
+Starting decryption...
+        00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        01 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Size 128 (addresses 0x1000000 -> 0x1000080) successful:  Yes
+Starting encryption...
+        08 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        09 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+        D8 E8 5C 7A 67 11 7D E3 CF E5 24 AC 78 63 38 1B 
+        C8 15 2F 09 D7 94 C1 BE 6D EB 1E 73 67 DE 6A 44 
+
+Starting decryption...
+        08 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        09 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Size 256 (addresses 0x1000000 -> 0x1000100) successful:  Yes
+Starting encryption...
+        18 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        19 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+        19 0E 0E 85 95 82 93 74 68 2E 50 7A 84 82 6C 35 
+        07 98 25 E7 F4 3A 42 19 5D 79 06 B5 64 27 EB 1D 
+
+Starting decryption...
+        18 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        19 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Size 512 (addresses 0x1000000 -> 0x1000200) successful:  Yes
+Starting encryption...
+        38 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        39 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+        FE 03 2C BF DF AF F5 64 9E CF 7E 11 0D 2C 74 2E 
+        68 77 F5 06 8C CF A7 06 0D A7 CD 96 84 AC 16 6D 
+
+Starting decryption...
+        38 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        39 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Size 1024 (addresses 0x1000000 -> 0x1000400) successful:  Yes
+Starting encryption...
+        78 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        79 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+        51 4E 0C 50 C7 12 E2 D1 04 3D C3 06 79 0E C0 AC 
+        EC A8 29 6C 33 CA FD 52 CD 2B DC DB E0 DA 59 11 
+
+Starting decryption...
+        78 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        79 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Size 2048 (addresses 0x1000000 -> 0x1000800) successful:  Yes
+Starting encryption...
+        F8 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+        DE E2 3E 7F 54 FC A0 0B 58 15 C5 C1 6C A5 2D 6F 
+        23 78 F5 6D 10 30 46 8B 0F 82 7E FF 47 D7 30 9E 
+
+Starting decryption...
+        F8 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Size 4096 (addresses 0x1000000 -> 0x1001000) successful:  Yes
+Starting encryption...
+        F8 11 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 11 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+        D2 E8 28 E5 5F E9 8C 25 E0 16 56 CA B1 88 E9 61 
+        69 74 98 68 7B 9B AC C6 03 87 5C 12 5E 66 E3 D1 
+
+Starting decryption...
+        F8 11 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 11 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Size 8192 (addresses 0x1000000 -> 0x1002000) successful:  Yes
+Starting encryption...
+        F8 13 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 13 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+        B0 57 1F 50 06 60 7B DC 3F 2E FF E9 06 49 E3 6E 
+        F9 02 BB 06 CC 19 C3 C8 33 8E 25 12 3D 00 54 20 
+
+Starting decryption...
+        F8 13 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 13 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Size 16384 (addresses 0x1000000 -> 0x1004000) successful:  Yes
+Starting encryption...
+        F8 17 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 17 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+        9E 9D 70 5B 19 EA 61 09 54 2B 2A BB 95 63 B7 01 
+        E1 22 AD A5 D4 20 61 9C 3A 60 0B C2 8A BF F8 9B 
+
+Starting decryption...
+        F8 17 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 17 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Size 32768 (addresses 0x1000000 -> 0x1008000) successful:  Yes
+Starting encryption...
+        F8 1F 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 1F 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+        C5 1A D1 89 29 6A FB 74 A5 09 87 DD F3 3D 98 0E 
+        41 B3 8B D5 8E F3 9C 4B 58 5D F4 73 89 9E 82 64 
+
+Starting decryption...
+        F8 1F 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 1F 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Size 65536 (addresses 0x1000000 -> 0x1010000) successful:  Yes
+Starting encryption...
+        F8 2F 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 2F 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+        21 DF 0B E3 93 5E 7A 39 BD 43 9F 92 EE 4F 6C D6 
+        70 C6 01 42 A4 3C DA 47 41 A6 5A 4B 3E 50 3D E7 
+
+Starting decryption...
+        F8 2F 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 2F 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Size 131072 (addresses 0x1000000 -> 0x1020000) successful:  Yes
+Starting encryption...
+        F8 4F 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 4F 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+        BA A6 A2 98 93 4E 21 A0 AF 64 85 57 46 AB 85 72 
+        13 76 6A 9F D7 02 8F BC B1 11 F1 85 33 46 90 D4 
+
+Starting decryption...
+        F8 4F 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 4F 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Size 262144 (addresses 0x1000000 -> 0x1040000) successful:  Yes
+Starting encryption...
+        F8 8F 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 8F 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+        44 ED 4F 48 3C B2 7E 95 A9 41 1B E0 8A 65 6B 6F 
+        EF 56 B6 12 F0 7D 65 3B F9 C0 32 C7 A1 93 D8 F7 
+
+Starting decryption...
+        F8 8F 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 8F 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Size 524288 (addresses 0x1000000 -> 0x1080000) successful:  Yes
+Starting encryption...
+        F8 0F 21 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 0F 21 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+        73 4A A5 59 F7 A1 D2 CA EC FF 77 4C 6B DD 90 07 
+        0E B2 A0 44 33 D1 0E FB 4C 64 98 8E 42 D7 9F F5 
+
+Starting decryption...
+        F8 0F 21 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 0F 21 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Size 1048576 (addresses 0x1000000 -> 0x1100000) successful:  Yes
+Starting encryption...
+        F8 0F 22 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 0F 22 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+        42 E6 D0 3D BA 12 BF 40 D4 60 96 BA 4A 1A DE 0C 
+        FA D4 6E 8F 9E F2 CB F5 6A F0 A3 E9 E1 A3 B6 54 
+
+Starting decryption...
+        F8 0F 22 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 0F 22 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Size 2097152 (addresses 0x1000000 -> 0x1200000) successful:  Yes
+Starting encryption...
+        F8 0F 24 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 0F 24 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+        74 CF 5D C1 0F E9 2F 5B 1E DA D7 11 99 6B E8 AB 
+        29 93 13 D2 12 BD 12 65 62 43 B2 B3 87 DB FE DA 
+
+Starting decryption...
+        F8 0F 24 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 0F 24 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Size 4194304 (addresses 0x1000000 -> 0x1400000) successful:  Yes
+Starting encryption...
+        F8 0F 28 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 0F 28 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+        58 7E 5D C6 58 C7 2B 85 27 77 D9 16 6C 04 A2 1D 
+        F6 53 83 DE AD 50 53 99 50 B5 83 16 B5 EB 99 55 
+
+Starting decryption...
+        F8 0F 28 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 0F 28 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Size 8388608 (addresses 0x1000000 -> 0x1800000) successful:  Yes
+Starting encryption...
+        F8 0F 30 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 0F 30 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+        B5 86 85 B3 6D FF A6 79 3C 5E 08 90 AC A7 56 5C 
+        9E 13 27 BC 25 35 AD 2E 8D 1A 3E BD CE 96 B0 33 
+
+Starting decryption...
+        F8 0F 30 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        F9 0F 30 30 01 11 21 31 02 12 22 32 03 13 23 33 
+
+[TEST] Size 16777216 (addresses 0x1000000 -> 0x2000000) successful:  Yes
+
+======================= Testing the different modi ====================
+[Mode] 0 Finished encryption:
+        37 C2 53 91 28 69 90 09 61 7D 4D 89 35 E6 6C 12 
+
+[TEST] Mode 0 successful:  Yes
+[Mode] 1 Finished encryption:
+        70 31 20 E5 F3 37 C2 F4 DC 8A 9A E7 6E C1 5C 51 
+        C4 A0 A2 B0 1B 2D 44 72 21 D4 43 9D 06 25 41 07 
+
+[TEST] Mode 1 successful:  Yes
+[Mode] 2 Finished encryption:
+        FF 18 B5 72 FE D9 3C AE 3A 10 C2 5A 62 23 78 D4 
+        27 1D 9D 80 60 E0 CC 06 5E E2 70 E1 78 43 F3 6D 
+        EB 29 1C DA B7 86 3A C9 0C 4F F0 51 9F 88 6F 80 
+
+[TEST] Mode 2 successful:  Yes
+
+Completed Modi tests.
+
+================== GCM =====================
+
+Test 0
+IV:
+        00 E0 D0 C0 B0 A0 90 80 70 60 50 40 30 20 10 00 
+
+Key:
+        00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 
+
+Header:
+        00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        AF FE DE AD BE EF DA DC AB BE AD BE EC 0C AB AD 
+
+Payload:
+        00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 
+
+        5C 58 89 20 43 C9 3C 29 BF B7 1E 68 3C B1 11 53 
+        C6 A1 3B 37 87 8F 5B 82 6F 4F 81 62 A1 C8 D8 79 
+
+Ciphertext:
+        48 00 B4 23 22 58 0E E2 1A 06 12 04 F5 CD 03 C7 
+        3F 0F DA 29 8B BF 7E CA 54 09 1A 89 22 9F 9A 5C 
+        54 72 5E 39 86 9A 7F DE E3 CC A5 0B D3 1A 82 5A 
+
+Tag after encryption:
+        18 68 8A 98 A0 C1 CD 11 D9 9A 1D 68 40 B7 C0 2F 
+
+        5C 58 89 20 43 C9 3C 29 BF B7 1E 68 3C B1 11 53 
+        C6 A1 3B 37 87 8F 5B 82 6F 4F 81 62 A1 C8 D8 79 
+
+Deciphered Ciphertext:
+        00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 
+
+Tag after decryption:
+        18 68 8A 98 A0 C1 CD 11 D9 9A 1D 68 40 B7 C0 2F 
+
+[TEST] Passed: Tags are equal
+
+Test 1
+IV:
+        01 E0 D0 C0 B0 A0 90 80 70 60 50 40 30 20 10 00 
+
+Key:
+        01 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 
+
+Header:
+        01 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        AF FE DE AD BE EF DA DC AB BE AD BE EC 0C AB AD 
+
+Payload:
+        01 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 
+
+        8A B2 66 53 E1 AF DB E6 87 D9 12 70 DA D2 A5 BA 
+        FC 18 B9 18 48 E2 A5 02 81 BC 4F 3B D3 8E DC DD 
+
+Ciphertext:
+        F1 20 80 EA 46 8D C9 F0 B6 01 91 8A 30 69 3D ED 
+        EB 7E 93 77 21 D5 26 1A 72 4F 50 40 99 64 70 14 
+        4D 54 F4 B8 08 54 30 A7 C1 6F 17 74 60 67 E9 10 
+
+Tag after encryption:
+        A7 45 9D AE C1 C2 AC A4 26 7C 50 D3 68 57 45 62 
+
+        8A B2 66 53 E1 AF DB E6 87 D9 12 70 DA D2 A5 BA 
+        FC 18 B9 18 48 E2 A5 02 81 BC 4F 3B D3 8E DC DD 
+
+Deciphered Ciphertext:
+        01 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33 
+        00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 
+
+Tag after decryption:
+        A7 45 9D AE C1 C2 AC A4 26 7C 50 D3 68 57 45 62 
+
+[TEST] Passed: Tags are equal
+Processed all AES tests.
