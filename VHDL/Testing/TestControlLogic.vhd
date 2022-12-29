@@ -115,8 +115,8 @@ begin
 -- write to ControlLogic
 wait until Resetn = '1';
 IWrEn <= '1';
--- set control
-IWrData <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1'; -- TODO Chaining mode definition needs downto?
+-- set CR
+IWrData <= x"00000" & "0010" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1'; -- TODO Chaining mode definition needs downto?
 IWrAddr <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
 wait for 10 ns;
 IWrEn <= '0';

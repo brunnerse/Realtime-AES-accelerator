@@ -78,7 +78,7 @@ end function;
 -- signal definitions
 signal dInXOR1, dInXOR2, dOutXOR: std_logic_vector(KEY_SIZE-1 downto 0);
 signal EnIXOR, EnOXOR : std_logic;
-
+signal WrEnSignal : std_logic;
 
 begin
 
@@ -121,7 +121,7 @@ EnO <=  EnOAEA when chaining_mode = CHAINING_MODE_ECB else
         WrEnSignal when (chaining_mode = CHAINING_MODE_CBC and encrypt = '1') else  -- wait until IV has been written until EnO is set
         EnOXOR;  -- CTR mode, CBC with decryption
 
-
+WrEn <= WrEnSignal;
 
 
 -- update IV
@@ -129,10 +129,10 @@ WrAddr <= std_logic_vector(to_unsigned(ADDR_IV, ADDR_WIDTH));
 process(Clock)
 begin
 if rising_edge(Clock) then 
-    WrEn <= '0';
+    WrEnSignal <= '0';
     -- For chaining mode CBC, write ciphertext once the AEA has finished
     if EnOAEA = '1' and chaining_mode = CHAINING_MODE_CBC then
-        WrEn <= '1';
+        WrEnSignal <= '1';
         if encrypt = '1' then
             WrData <= dOutAEA;
         else
@@ -140,10 +140,10 @@ if rising_edge(Clock) then
         end if;
     -- For chaining mode CTR, write the incremented IV back immediately
     elsif EnI = '1' and chaining_mode = CHAINING_MODE_CTR then
-        WrEn <= '1';
+        WrEnSignal <= '1';
         WrData <= incrementIV(IV);
     else
-        WrEn <= '0';
+        WrEnSignal <= '0';
     end if;
 end if;
 end process;

@@ -86,6 +86,7 @@ signal modeSignal : std_logic_vector(MODE_LEN-1 downto 0);
 signal chainingModeSignal : std_logic_vector(CHMODE_LEN-1 downto 0);
 signal GCMPhaseSignal : std_logic_vector(1 downto 0);
 
+
 begin
 
 -- connect memory addresses
@@ -120,25 +121,6 @@ WRERR <= '0';
 RDERR <= '0';
 
 
--- driver process for CCF status signal
-process (Clock)
-begin
-if rising_edge(Clock) then
-    if Resetn = '0' then 
-        CCF <= '0';
-        interrupt <= '0';
-    else
-        interrupt <= '0';
-        if EnOCore = '1' then
-            CCF <= '1'; -- Set CCF flag whenever the Core finished a calculation
-            interrupt <= '1';
-        -- Clear flag when CCFC is set or module is disabled
-        elsif En = '0' or CCFC = '1' or EnICore = '1' then 
-            CCF <= '0';
-        end if;
-    end if;
-end if;
-end process;
 
 -- read process;
 process (Clock)
@@ -184,8 +166,18 @@ if rising_edge(Clock) then
         end loop;
         writeCounter <= "00";
         EnICore <= '0';
+        CCF <= '0';
+        interrupt <= '0';
     else
         EnICore <= '0';
+        -- For simplicity, we use a rising edge interrupt here, i.e. it is only high for one cycle
+        interrupt <= '0';
+        if EnOCore = '1' then
+            CCF <= '1'; -- Set CCF flag whenever the Core finished a calculation
+            interrupt <= CCFIE;
+        elsif En = '0' or CCFC = '1' then
+            CCF <= '0';
+        end if;
         -- Write port 1 (from the Interface)
         if WrEn1 = '1' then
             for i in 3 downto 0 loop
@@ -201,6 +193,8 @@ if rising_edge(Clock) then
                 if writeCounter = to_unsigned(3,2) then
                     -- All four bytes have been written, enable the AES Core
                     EnICore <= '1';
+                    -- Reset the CCF flag
+                    CCF <= '0';
                 end if;
             end if;
         end if;
