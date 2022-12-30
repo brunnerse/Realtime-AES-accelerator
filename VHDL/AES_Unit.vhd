@@ -18,19 +18,19 @@ Generic (
     C_S_AXI_DATA_WIDTH	: integer	:= 32;
     C_S_AXI_ADDR_WIDTH	: integer	:= 14;
     C_S_AXI_AWUSER_WIDTH	: integer	:= 1;
-    C_S_AXI_ARUSER_WIDTH	: integer	:= 0;
-    C_S_AXI_WUSER_WIDTH	: integer	:= 0;
-    C_S_AXI_RUSER_WIDTH	: integer	:= 0;
-    C_S_AXI_BUSER_WIDTH	: integer	:= 0;
+    C_S_AXI_ARUSER_WIDTH	: integer	:= 1;
+    C_S_AXI_WUSER_WIDTH	: integer	:= 1;
+    C_S_AXI_RUSER_WIDTH	: integer	:= 1;
+    C_S_AXI_BUSER_WIDTH	: integer	:= 1;
     -- Parameters of Axi Master Bus Interface M_AXI
-    C_M_AXI_ID_WIDTH	: integer	:= 0;
+    C_M_AXI_ID_WIDTH	: integer	:= 1;
     C_M_AXI_ADDR_WIDTH	: integer	:= 32;
     C_M_AXI_DATA_WIDTH	: integer	:= 32;
-    C_M_AXI_AWUSER_WIDTH	: integer	:= 0;
-    C_M_AXI_ARUSER_WIDTH	: integer	:= 0;
-    C_M_AXI_WUSER_WIDTH	: integer	:= 0;
-    C_M_AXI_RUSER_WIDTH	: integer	:= 0;
-    C_M_AXI_BUSER_WIDTH	: integer	:= 0
+    C_M_AXI_AWUSER_WIDTH	: integer	:= 1;
+    C_M_AXI_ARUSER_WIDTH	: integer	:= 1;
+    C_M_AXI_WUSER_WIDTH	: integer	:= 1;
+    C_M_AXI_RUSER_WIDTH	: integer	:= 1;
+    C_M_AXI_BUSER_WIDTH	: integer	:= 1
   );
 
   Port ( 
@@ -148,8 +148,8 @@ signal    M_RM_ready : std_logic;
 signal    M_RM_WrReady : std_logic;
 signal    M_RM_RdValid : std_logic;
 signal    M_RM_addr : std_logic_vector(31 downto 0);
-signal    M_RM_wrData : std_logic_vector(KEY_SIZE-1 downto 0);
-signal    M_RM_rdData : std_logic_vector(KEY_SIZE-1 downto 0);
+signal    M_RM_wrData : std_logic_vector(31 downto 0);
+signal    M_RM_rdData : std_logic_vector(31 downto 0);
 signal    M_RM_write : std_logic; 
 signal    M_RM_error : std_logic;
 signal    M_RM_length : std_logic_vector(7 downto 0);
