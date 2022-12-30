@@ -38,11 +38,11 @@ component AES_Unit_3_Sim_Bd is
 port (
   Clock : in STD_LOGIC;
   Resetn : in STD_LOGIC;
-  S_ReadWritePort_rdaddr : in STD_LOGIC_VECTOR (16 downto 0);
-  S_ReadWritePort_rddata : out STD_LOGIC_VECTOR (31 downto 0);
+  S_ReadWritePort_rdaddr : in STD_LOGIC_VECTOR (ADDR_WIDTH-1 downto 0);
+  S_ReadWritePort_rddata : out STD_LOGIC_VECTOR (DATA_WIDTH-1 downto 0);
   S_ReadWritePort_rden : in STD_LOGIC;
-  S_ReadWritePort_wraddr : in STD_LOGIC_VECTOR (16 downto 0);
-  S_ReadWritePort_wrdata : in STD_LOGIC_VECTOR (31 downto 0);
+  S_ReadWritePort_wraddr : in STD_LOGIC_VECTOR (ADDR_WIDTH-1 downto 0);
+  S_ReadWritePort_wrdata : in STD_LOGIC_VECTOR (DATA_WIDTH-1 downto 0);
   S_ReadWritePort_wren : in STD_LOGIC;
   S_ReadWritePort_wrstrb : in STD_LOGIC_VECTOR (3 downto 0);
   dOut : out STD_LOGIC_VECTOR(127 downto 0);
@@ -58,10 +58,10 @@ constant START_ADDR : std_logic_vector(31 downto 0) := x"00000014";
 
 signal Clock : STD_LOGIC := '1';
 signal Resetn : STD_LOGIC := '0';
-signal rdaddr : STD_LOGIC_VECTOR (16 downto 0);
+signal rdaddr : STD_LOGIC_VECTOR (ADDR_WIDTH-1 downto 0);
 signal rddata : STD_LOGIC_VECTOR (31 downto 0);
 signal rden : STD_LOGIC := '0';
-signal wraddr : STD_LOGIC_VECTOR (16 downto 0);
+signal wraddr : STD_LOGIC_VECTOR (ADDR_WIDTH-1  downto 0);
 signal wrdata : STD_LOGIC_VECTOR (31 downto 0);
 signal wren : STD_LOGIC := '0';
 signal wrstrb : STD_LOGIC_VECTOR (3 downto 0) := "1111";
@@ -81,6 +81,28 @@ signal channel : channel_range;
 signal doutCore : std_logic_vector(127 downto 0);
 signal EnOCore : std_logic;
 
+type vector_array is array(natural range<>) of std_logic_vector(127 downto 0);
+
+constant rCipher : vector_array := (
+    -- channel 0
+     x"37c2539128699009617d4d8935e66c12",
+     -- channel 1 is skipped, as 2 has a higher priority
+     -- channel 2
+     x"ff18b572fed93cae3a10c25a622378d4",
+     -- channel 3
+     x"8e560554d74121bd0ff9aed2ad3cf476",
+     x"bbb73ab3ed2f4a06afa7c2d049a82089",
+     x"51f81928df15015412a2654e59d710c1",
+     x"8e560554d74121bd0ff9aed2ad3cf476",
+     -- rest of channel 2
+     x"271d9d8060e0cc065ee270e17843f36d",
+     x"eb291cdab7863ac90c4ff0519f886f80",
+     -- channel 1
+     x"703120e5f337c2f4dc8a9ae76ec15c51",
+     x"c4a0a2b01b2d447221d4439d06254107"
+     );
+     
+     
 
 begin
 
@@ -122,9 +144,20 @@ Resetn <= '1' after 50ns;
 
 
 process (Clock)
+procedure assertOutput(assertVal : std_logic_vector(127 downto 0)) is 
+begin
+    report "[Checking] If Core output  = " & to_hstring(to_bitvector(assertVal));
+    assert dOutCore = assertVal
+        report "[Check Error] Core output is wrong!"
+        severity failure;
+end procedure;
+
+variable i : integer := 0;
+
 begin
 if rising_edge(Clock) and EnOCore = '1' then
-    report "[INFO] Core finished: Result is " & to_hstring(to_bitvector(dOutCore));
+    assertOutput(rCipher(i));
+    i := i + 1;
 end if;
 
 end process;
