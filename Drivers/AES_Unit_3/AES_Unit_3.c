@@ -15,8 +15,8 @@
 /**************************   Private variables **********************/
 AES_Config config =
 {
-		0, //TODO!XPAR_AES_INTERFACE_M_3_0_DEVICE_ID,
-		XPAR_AES_INTERFACE_M_3_0_S_AXI_BASEADDR,
+		XPAR_AES_UNIT_3_0_DEVICE_ID,
+		XPAR_AES_UNIT_3_0_S_AXI_BASEADDR,
 		AES_NUM_CHANNELS
 };
 
@@ -341,7 +341,7 @@ void AES_calculateTagGCM(AES* InstancePtr, u32 channel, u32 headerLen, u32 paylo
 	*(u32*)finalData = 0;
 	*(u32*)(finalData+8) = 0;
 
-#ifdef LITTLE_ENDIAN
+#if AES_BYTE_ORDER == LITTLE_ENDIAN
 	*(u32*)(finalData+4) = Xil_EndianSwap32(headerLen*8);
 	*(u32*)(finalData+12) = Xil_EndianSwap32(payloadLen*8);
 #else
