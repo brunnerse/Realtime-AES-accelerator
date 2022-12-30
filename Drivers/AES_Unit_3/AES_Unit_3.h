@@ -191,7 +191,7 @@ void AES_IntrHandler(void *HandlerRef);
  * @note    Self test may fail if data memory and device are not on the same bus.
  *
  */
-XStatus AES_Mem_SelfTest(void * baseaddr_p);
+XStatus AES_Mem_SelfTest(AES* InstancePtr, void * baseaddr_p);
 
 
 #ifdef __cplusplus
