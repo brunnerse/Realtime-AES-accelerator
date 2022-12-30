@@ -337,7 +337,7 @@ void AES_calculateTagGCM(AES* InstancePtr, u32 channel, u32 headerLen, u32 paylo
 	u8 finalData[BLOCK_SIZE];
 	*(u32*)finalData = 0;
 	*(u32*)(finalData+8) = 0;
-#ifdef LITTLE_ENDIAN
+#if AES_BYTE_ORDER == LITTLE_ENDIAN
 	*(u32*)(finalData+4) = Xil_EndianSwap32(headerLen*8);
 	*(u32*)(finalData+12) = Xil_EndianSwap32(payloadLen*8);
 #else

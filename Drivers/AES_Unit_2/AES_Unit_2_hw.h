@@ -7,8 +7,6 @@ extern "C" {
 
 #include "AES_Unit_2.h"
 
-// Comment this line on Big Endian systems
-#define LITTLE_ENDIAN
 
 // Address offset definitions
 #define AES_CR_OFFSET 0x00
@@ -21,7 +19,7 @@ extern "C" {
 #define AES_SUSPR0_OFFSET 0x40
 
 // Position definitions in the Control Register CR
-#ifdef LITTLE_ENDIAN
+#if AES_BYTE_ORDER == LITTLE_ENDIAN
 #define EN_POS 24
 #define MODE_POS 27
 #define CHAIN_MODE_POS 29

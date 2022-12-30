@@ -15,8 +15,9 @@ extern "C" {
 /**************************** Type Definitions *****************************/
 #define BLOCK_SIZE 16
 
+#define AES_BYTE_ORDER LITTLE_ENDIAN
 #define AES_NUM_CHANNELS 8
-#define ADDR_REGISTER_BITS 7
+#define AES_ADDR_REGISTER_BITS 7
 
 #define AES_MAX_PRIORITY (AES_NUM_CHANNELS-1)
 
@@ -148,8 +149,8 @@ void AES_IntrHandler(void *HandlerRef);
     Xil_In32(Address)
     
 // Simple wrappers for mWriteMemory and mReadMemory 
-#define AES_Write(InstancePtr, channel, Offset, Data) AES_mWriteMemory((InstancePtr)->BaseAddress + ((channel)<<ADDR_REGISTER_BITS) + (Offset), (u32)(Data))
-#define AES_Read(InstancePtr, channel, Offset) AES_mReadMemory((InstancePtr)->BaseAddress + ((channel)<<ADDR_REGISTER_BITS) + (Offset))   
+#define AES_Write(InstancePtr, channel, Offset, Data) AES_mWriteMemory((InstancePtr)->BaseAddress + ((channel)<<AES_ADDR_REGISTER_BITS) + (Offset), (u32)(Data))
+#define AES_Read(InstancePtr, channel, Offset) AES_mReadMemory((InstancePtr)->BaseAddress + ((channel)<<AES_ADDR_REGISTER_BITS) + (Offset))   
 
 /************************** Function Prototypes ****************************/
 /**
