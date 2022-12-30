@@ -166,6 +166,7 @@ begin
 
 i_AES_Interface : entity work.AES_Interface_M_v1_0(arch_imp)
     generic map (
+		LITTLE_ENDIAN 		=> LITTLE_ENDIAN,
         C_S_AXI_ID_WIDTH	=> C_S_AXI_ID_WIDTH,	
         C_S_AXI_DATA_WIDTH	=> C_S_AXI_DATA_WIDTH,	
         C_S_AXI_ADDR_WIDTH	=> C_S_AXI_ADDR_WIDTH,	

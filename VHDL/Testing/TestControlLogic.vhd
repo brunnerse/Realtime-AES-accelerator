@@ -195,7 +195,7 @@ WrDataAHB <= x"000000" & '1' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00
 WrDataAHB(7) <= '1';
 wait for 10ns;
 RdEnAHB <= '0';
-WrEnAHB <= '0'; -- TODO stop write process earlier?
+WrEnAHB <= '0';
 wait for 50ns;
 -- start new encryption in channel 3
 WrEnAHB <= '1';
