@@ -106,19 +106,14 @@ end AXI_Mem_Interface;
 
 architecture Behavioral of AXI_Mem_Interface is
 
-constant TRANS_IDLE : std_logic_vector(1 downto 0) := "00";
-constant TRANS_BUSY : std_logic_vector(1 downto 0) := "01";
-constant TRANS_NONSEQ : std_logic_vector(1 downto 0) := "10";
-constant TRANS_SEQ : std_logic_vector(1 downto 0) := "11";
+-- internal signals for output signals
+signal axi_awvalid, axi_wvalid, axi_bready, axi_arvalid, axi_rready : std_logic;
 
-type state_type is (Idle, WaitAWReady_WReady, WaitAWReady, WaitWReady, Write, WaitARReady, Read);
-signal state : state_type;
-
-signal ReadEnReceived, WriteEnReceived : std_logic;
+signal ReadPulse, WritePulse, prevReadEn, prevWriteEn : std_logic;
 
 begin
 
--- set default AXI4 signals
+-- set default AXI4 signals for non-burst mode
 M_AXI_awlen <= "00000000";
 M_AXI_arlen <= "00000000";
 M_AXI_awsize <= "000";
@@ -136,89 +131,115 @@ M_AXI_wlast <= '1';
 M_AXI_awprot <= "000";
 M_AXI_arprot <= "000";
 
-process(M_AXI_aclk, ReadEn, WriteEn)
+-- forward internal output signals to port
+M_AXI_awvalid <= axi_awvalid;
+M_AXI_wvalid <= axi_wvalid;
+M_AXI_bready <= axi_bready;
+M_AXI_arvalid <= axi_arvalid;
+M_AXI_rready <= axi_rready;
+
+
+-- set up write and read pulse
+prevWriteEn <= WriteEn when rising_edge(M_AXI_aclk);
+prevReadEn <= ReadEn when rising_edge(M_AXI_aclk);
+
+ReadPulse <= ReadEn and not prevReadEn;
+WritePulse <= WriteEn and not prevWriteEn;
+
+-- Configure busy signal: High when Transaction is just starting or is currently ongoing
+busy <= ReadPulse or axi_rready or WritePulse or axi_bready;
+        
+        
+-- process transferring the rdaddr
+process (M_AXI_aclk) 
 begin
-if ReadEn = '1' and state=Idle then
-        ReadEnReceived <= '1';
-        busy <= '1';
-elsif WriteEn = '1' and state=Idle then
-        WriteEnReceived <= '1';
-        busy <= '1';
-elsif rising_edge(M_AXI_aclk) then
+if rising_edge(M_AXI_aclk) then
     if M_AXI_aresetn = '0' then
-        busy <= '0';
-        ReadEnReceived <= '0';
-        WriteEnReceived <= '0';
-        state <= Idle;
-        M_AXI_awvalid <= '0';
-        M_AXI_wvalid <= '0';
-        M_AXI_bready <= '0';
-        M_AXI_arvalid <= '0';
-        M_AXI_rready <= '0';
+        axi_arvalid <= '0';
     else
-        case state is
-            when Idle =>
-                if ReadEnReceived='1' then
-                    ReadEnReceived <= '0';
-                    M_AXI_araddr <= Address;
-                    M_AXI_arvalid <= '1';  -- araddr is valid
-                    M_AXI_rready <= '1';  -- ready to receive data
-                    state <= WaitARReady;
-                elsif WriteEnReceived='1' then
-                    WriteEnReceived <= '0';
-                    M_AXI_awaddr <= Address;
-                    M_AXI_awvalid <= '1'; -- indicate that awaddr is valid
-                    M_AXI_wdata <= DataIn;
-                    M_AXI_wstrb <= WrByteEna;
-                    M_AXI_wvalid <= '1'; -- indicate that write data are valid
-                    M_AXI_bready <= '1'; -- ready to receive response
-                    state <= WaitAWReady_WReady;             
-                end if;
-            when WaitARReady =>
-                if M_AXI_arready = '1' then -- handshake successful
-                    M_AXI_arvalid <= '0';
-                    state <= Read;
-                end if;
-            when Read =>
-                if M_AXI_rvalid = '1' then -- data received successfully
-                    DataOut <= M_AXI_rdata;
-                    M_AXI_rready <= '0';
-                    busy <= '0';  -- indicate that read is complete
-                    state <= Idle;
-                end if;
-            when WaitAWReady_WReady =>
-                if M_AXI_awready = '1' and M_AXI_wready = '1' then -- slave read address and data successfully
-                    M_AXI_awvalid <= '0';
-                    M_AXI_wvalid <= '0';
-                    state <= Write;
-                elsif M_AXI_awready = '1' and M_AXI_wready = '0' then
-                    M_AXI_awvalid <= '0';
-                    state <= WaitWReady;
-                elsif M_AXI_awready = '0' and M_AXI_wready = '1' then
-                    M_AXI_wvalid <= '0';
-                    state <= WaitAWReady;
-                end if;
-            when WaitAWReady =>
-                if M_AXI_awready = '1' then
-                    M_AXI_awvalid <= '0';
-                    state <= Write;
-                end if;
-            when WaitWReady =>
-                if M_AXI_wready = '1' then
-                    M_AXI_wvalid <= '0';
-                    state <= Write;
-                end if;
-            when Write =>
-                if M_AXI_bvalid = '1' then
-                    M_AXI_bready <= '0'; 
-                    busy <= '0';
-                    state <= Idle;
-                end if;     
-        end case;
+        if ReadPulse = '1' then
+            axi_arvalid <= '1';
+            M_AXI_araddr <= Address;
+        -- Check if handshake occured
+        elsif M_AXI_arready = '1' and axi_arvalid = '1' then
+            axi_arvalid <= '0';
+        end if;
     end if;
 end if;
 end process;
 
+-- process transferring the wraddr
+process (M_AXI_aclk) 
+begin
+if rising_edge(M_AXI_aclk) then
+    if M_AXI_aresetn = '0' then
+        axi_awvalid <= '0';
+    else
+        if WritePulse = '1' then
+            axi_awvalid <= '1';
+            M_AXI_awaddr <= Address;
+        -- Check if handshake occured
+        elsif M_AXI_awready = '1' and axi_awvalid = '1' then
+            axi_awvalid <= '0';
+        end if;
+    end if;
+end if;
+end process;
 
+-- process transferring the write data
+process (M_AXI_aclk) 
+begin
+if rising_edge(M_AXI_aclk) then
+    if M_AXI_aresetn = '0' then
+        axi_wvalid <= '0';
+    else
+        if WritePulse = '1' then
+            axi_wvalid <= '1';
+            M_AXI_wdata <= DataIn;
+            M_AXI_wstrb <= WrByteEna;
+        -- Check if handshake occured
+        elsif M_AXI_wready = '1' and axi_wvalid = '1' then
+            axi_wvalid <= '0';
+        end if;
+    end if;
+end if;
+end process;
+
+-- process receiving the write response
+process (M_AXI_aclk) 
+begin
+if rising_edge(M_AXI_aclk) then
+    if M_AXI_aresetn = '0' then
+        axi_bready <= '0';
+    else
+        if WritePulse = '1' then
+            axi_bready <= '1';
+        -- Check if handshake occured
+        elsif axi_bready = '1' and M_AXI_bvalid = '1' then
+            axi_bready <= '0';
+            -- response is in M_AXI_bresp, is ignored here
+        end if;
+    end if;
+end if;
+end process;
+
+-- process reading the data
+process (M_AXI_aclk) 
+begin
+if rising_edge(M_AXI_aclk) then
+    if M_AXI_aresetn = '0' then
+        axi_rready <= '0';
+    else
+        if ReadPulse = '1' then
+            axi_rready <= '1';
+        -- Check if handshake occured
+        elsif  axi_rready = '1' and M_AXI_rvalid = '1' then
+            axi_rready <= '0';
+            DataOut <= M_AXI_rdata;
+            -- response is in M_AXI_rresp, is ignored here
+        end if;
+    end if;
+end if;
+end process;
 
 end Behavioral;
