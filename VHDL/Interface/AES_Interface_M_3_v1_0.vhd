@@ -5,7 +5,7 @@ use ieee.numeric_std.all;
 entity AES_Interface_M_3_v1_0 is
 	generic (
 		-- Users to add parameters here
-        LittleEndian : boolean := true;
+        LITTLE_ENDIAN : boolean := true;
 		-- User parameters ends
 		-- Do not modify the parameters beyond this line
 
@@ -13,7 +13,7 @@ entity AES_Interface_M_3_v1_0 is
 		-- Parameters of Axi Slave Bus Interface S_AXI
 		C_S_AXI_ID_WIDTH	: integer	:= 1;
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
-		C_S_AXI_ADDR_WIDTH	: integer	:= 17;
+		C_S_AXI_ADDR_WIDTH	: integer	:= 14;
 		C_S_AXI_AWUSER_WIDTH	: integer	:= 0;
 		C_S_AXI_ARUSER_WIDTH	: integer	:= 0;
 		C_S_AXI_WUSER_WIDTH	: integer	:= 0;
@@ -472,7 +472,7 @@ AES_Interface_M_v1_0_M_AXI_inst : AES_Interface_M_3_v1_0_M_AXI
 	-- Depending on the configuration, set up the data forwarding to convert the byte order from little endian to big endian
     DataForwardingBigEndian:
         -- Big Endian case
-        if not LittleEndian generate
+        if not LITTLE_ENDIAN generate
             -- ReadWritePort
             WrData <= WrDataSignal;
             RdDataSignal <= RdData;
@@ -485,7 +485,7 @@ AES_Interface_M_v1_0_M_AXI_inst : AES_Interface_M_3_v1_0_M_AXI
             S_RM_RdData <= S_RM_RdDataSignal;
         end generate;
     DataForwardingLittleEndian:
-        if LittleEndian generate
+        if LITTLE_ENDIAN generate
             -- 32-bit signals
             GenReadWritePort: 
             for i in 3 downto 0 generate
