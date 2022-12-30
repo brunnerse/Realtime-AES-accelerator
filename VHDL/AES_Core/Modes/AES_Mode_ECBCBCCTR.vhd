@@ -86,10 +86,6 @@ begin
 xorUnit : AddRoundKey port map(dInXOR1, dOutXOR, dInXOR2, EnIXOR, EnOXOR, Clock, Resetn);
 
 
--- Set encrypt and keyExpandFlag signals according to the mode
-
-
-
 dInAEA <=   dOutXOR when chaining_mode = CHAINING_MODE_CBC and encrypt = '1' else
             IV when chaining_mode = CHAINING_MODE_CTR  else
             dIn;
