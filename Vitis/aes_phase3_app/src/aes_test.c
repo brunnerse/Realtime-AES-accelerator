@@ -12,7 +12,7 @@
 #include "AES_Unit_3.h"
 #include "AES_Unit_3_hw.h"
 
-//#define SETUP_INTERRUPT_SYSTEM
+#define SETUP_INTERRUPT_SYSTEM
 
 #define TEST_ECB
 #define TEST_SIZE
@@ -21,6 +21,12 @@
 
 
 volatile u32 interruptEvent = 0;
+
+void pause()
+{
+	xil_printf("\n==== [PAUSED: Continue with Enter] ====\r\n");
+	getchar();
+}
 
 void onInterrupt(void* number)
 {
@@ -83,7 +89,7 @@ int main()
 
 	Xil_DCacheDisable();
 
-    xil_printf("[TEST] Phase 3: Running file %s\n\r", __FILE__);
+    xil_printf("Running AES_Unit_3 test file %s\n\r", __FILE__);
 
 
 
@@ -113,22 +119,10 @@ int main()
 		return XST_FAILURE;
 	}
 
-	u32 IntrId =  XPAR_FABRIC_AXI_CDMA_0_CDMA_INTROUT_INTR-1;
+	u32 IntrId = XPS_FPGA0_INT_ID;
 	XScuGic_SetPriorityTriggerType(&IntCtrl, IntrId, 0xA0, 0x1);
 	status = XScuGic_Connect(&IntCtrl, IntrId, (Xil_InterruptHandler)AES_IntrHandler,
 					&aes);
-	if (status != XST_SUCCESS) {
-		return status;
-	}
-	XScuGic_Enable(&IntCtrl, IntrId);
-
-
-	XAxiCdma AxiCdmaInstance;
-	IntrId = XPAR_FABRIC_AXI_CDMA_0_CDMA_INTROUT_INTR;
-	XScuGic_SetPriorityTriggerType(&IntCtrl, IntrId, 0xA0, 0x1);
-
-	status = XScuGic_Connect(&IntCtrl, IntrId, (Xil_InterruptHandler)XAxiCdma_IntrHandler,
-					&AxiCdmaInstance);
 	if (status != XST_SUCCESS) {
 		return status;
 	}
@@ -197,7 +191,14 @@ int main()
 		//hexToStdOut(DestBuffer, 16);
 		xil_printf("[TEST] Channel %d successful:  %s\n\r", channel,
 				memcmp(block1, DestBuffer, BLOCK_SIZE) == 0 ? "Yes" : "No");
+
+		// Pause for user input in between so the user can read the output
+		if (channel == AES_NUM_CHANNELS/2)
+			pause();
 	}
+	// Pause for user input
+	pause();
+
 #endif
 #ifdef TEST_SIZE
     // Test with different sizes
@@ -236,6 +237,8 @@ int main()
 		xil_printf("[TEST] Size %u (addresses 0x%p -> 0x%p) successful:  %s\n\r\n", size, plaintext_custom, ciphertext_custom,
 				memcmp(plaintext_custom, ciphertext_custom, size) == 0 ? "Yes" : "No");
 	}
+	// Pause for user input
+	pause();
 #endif
 
 #ifdef TEST_MODI
@@ -346,6 +349,8 @@ int main()
 	}
 
 	xil_printf("\r\nCompleted Modi tests.\r\n");
+	// Pause for user input
+	pause();
 }
 #endif
 

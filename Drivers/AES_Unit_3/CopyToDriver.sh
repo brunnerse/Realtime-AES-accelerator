@@ -1,5 +1,11 @@
 #!/bin/sh
-path=~/Git_Repositories/_MasterCode/Vitis/aes_phase3_plat/
+paths="C:/Users/Severin/Git_Repositories/_MasterCode/Vitis/aes_phase3_plat/
+	C:/Users/Severin/Git_Repositories/_MasterCode/Vivado/ip_repo/AES_Unit_3_1.0
+	C:/Users/Severin/Git_Repositories/_MasterCode/Vitis/aes_phase3_app"
+
+for path in $paths
+do
+echo Copying to directory $path ...
 
 for file in $(ls)
 do
@@ -14,4 +20,6 @@ else
 		cp $file $r	
 	done
 fi
+done
+
 done
