@@ -328,7 +328,7 @@ end procedure;
     else
         -- Check all channels if the status flags should be cleared
         for i in channel_range loop
-            -- Check if CCF  should be cleared, either because the user flag is set or the channel was just enabled
+            -- Check if CCF should be cleared, either because the user flag is set or the channel was just enabled
             if mem(i)(ADDR_CR)(CR_POS_CCFC) = '1' or (En(i) = '1' and prevEn(i) = '0') then
                 CCF(i) <= '0';
             end if;
@@ -343,13 +343,13 @@ end procedure;
                 configReg := mem(highestChannel)(ADDR_CR); 
                 -- switch channel to highestChannel
                 channel <= highestChannel;
-                -- start if the Enable signal switched to high or the channel changed
-                if En(highestChannel) = '1' and (prevEn(highestChannel) = '0' or channel /= highestChannel) then  
+                -- start if the Enable signal is high and the channel is not already finished
+                if En(highestChannel) = '1' and CCF(highestChannel) = '0' then
                     -- copy configuration signals
                     
-                    -- if mode is decryption but the channel has changed, the keyexpansion data aren't valid anymore 
-                    --     therefore start in keyexpansion_and_decryption mode to regenerate the keyexpansion data
-                    if configReg(CR_RANGE_MODE) = MODE_DECRYPTION and channel /= highestChannel then
+                    -- if mode is decryption, the expanded roundkeys aren't valid yet 
+                    --     therefore start in keyexpansion_and_decryption mode
+                    if configReg(CR_RANGE_MODE) = MODE_DECRYPTION then
                         modeSignal <= MODE_KEYEXPANSION_AND_DECRYPTION;
                     else
                         modeSignal <= configReg(CR_RANGE_MODE);
@@ -382,8 +382,9 @@ end procedure;
                     sourceAddress <= sourceAddrVar;
 
                     -- If mode is keyexpansion or the GCM init mode, start the AES Core immediately, no data reading required
-                    -- need to read from configReg instead of the signals, as the signals only update after the process
-                    if configReg(CR_RANGE_MODE) = MODE_KEYEXPANSION or (configReg(CR_RANGE_CHMODE) = CHAINING_MODE_GCM and configReg(CR_RANGE_GCMPHASE) = GCM_PHASE_INIT) then
+                    -- need to read from configReg instead of the signals, as the signals only update after this cycle
+                    if configReg(CR_RANGE_MODE) = MODE_KEYEXPANSION or
+                            (configReg(CR_RANGE_CHMODE) = CHAINING_MODE_GCM and configReg(CR_RANGE_GCMPHASE) = GCM_PHASE_INIT) then
                         ChangeStateToComputing(highestChannel);
                     else
                         -- start read data transaction
@@ -407,12 +408,12 @@ end procedure;
                 -- write back once the core has finished
                 if EnOCore = '1' then
                     -- if mode was KEYEXPANSION_AND_DECRYPTION, we can switch to DECRYPTION to save time in the next computation
-                    if modeSignal = MODE_KEYEXPANSION_AND_DECRYPTION and (chainingModeSignal = CHAINING_MODE_ECB or chainingModeSignal = CHAINING_MODE_CBC) then
+                    if modeSignal = MODE_KEYEXPANSION_AND_DECRYPTION then 
                         modeSignal <= MODE_DECRYPTION;
                     end if;
                     -- In KeyExpansion mode or in GCM Phase Init, no writeback is required
                     if modeSignal = MODE_KEYEXPANSION or 
-                        (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT ) then
+                            (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT ) then
                         
                         ChangeToIdleAndMarkAsComplete;
                         
@@ -421,6 +422,7 @@ end procedure;
                     elsif chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_HEADER then
                          -- change to writeback so it checks in the next cycle whether there are more data to process
                          state <= Writeback;
+                    -- in all other cases, write back the result data
                     else
                         RW_addr <= destAddress;
                         RW_write <= '1';
@@ -537,7 +539,7 @@ if rising_edge(Clock) then
             Priority(i) <= (others => '0');
         end loop;
     else
-        -- Check if channel is finished: Reset the enable bit and reset the susp register
+        -- Check if channel is finished: Reset the enable bit
         if CCF(channel) = '1' and prevCCF(channel) = '0' then
             -- Set En to 0 and write back to memory
             mem(channel)(ADDR_CR)(CR_POS_EN) <= '0';
