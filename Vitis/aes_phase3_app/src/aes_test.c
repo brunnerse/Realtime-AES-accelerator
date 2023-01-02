@@ -63,7 +63,7 @@ void hexToStdOut(const u8* array, int len)
 }
 
 
-#define AES_BASEADDR XPAR_AES_INTERFACE_M_0_S_AXI_BASEADDR
+#define AES_BASEADDR XPAR_AES_UNIT_3_0_S_AXI_BASEADDR
 #define DDR_BASEADDR XPAR_PS7_DDR_0_S_AXI_BASEADDR
 
 
@@ -133,7 +133,7 @@ int main()
 
 	// Set up the AES unit
 
-    AES_Config *aesConfigPtr = AES_LookupConfig(0 /*TODO!XPAR_AES_INTERFACE_M_3_0_DEVICE_ID*/);
+    AES_Config *aesConfigPtr = AES_LookupConfig(XPAR_AES_UNIT_3_0_DEVICE_ID);
     status = AES_CfgInitialize(&aes, aesConfigPtr);
     Xil_AssertNonvoid(status == XST_SUCCESS);
     status = AES_Mem_SelfTest(&aes, (void*)aes.BaseAddress);
@@ -203,7 +203,6 @@ int main()
 #ifdef TEST_SIZE
     // Test with different sizes
     u32 channel = 120;
-    // TODO test all modi instead of choosing one?
     ChainingMode chmode = CHAINING_MODE_CBC;
 	xil_printf("\n====== Testing different data sizes =====\r\n");
 
@@ -308,7 +307,7 @@ int main()
 	// Start all channels
 	for (int channel = 0; channel < AES_NUM_CHANNELS; channel++)
 	{
-			AES_startComputation(&aes, channel); // TODO reverse order doesnt work, only in Debug mode?
+			AES_startComputation(&aes, channel); 
 	}
 	for (int channel = 0; channel < AES_NUM_CHANNELS; channel++)
 	{
@@ -416,7 +415,6 @@ int main()
 		printf("Susp after payload phase: \r\n");
 		hexToStdOut(Susp, BLOCK_SIZE*2);
 
-		// TODO make another process with higher priority that interrupts the GCM process
 
 		// Make test with in-place decryption afterwards
 		AES_processDataGCM(&aes, channel, 1, headerAddr, 2*BLOCK_SIZE, plaintextAddr, ciphertextAddr, 3*BLOCK_SIZE, IV, tagAddr);
@@ -442,7 +440,7 @@ int main()
 	xil_printf("Processed all AES tests.\n\r");
 
 
-	// TODO remove this in final version
+	// After the test are finished, blink an LED for fun
     // Configure LED as output
     XGpioPs_Config *GPIO_Config = XGpioPs_LookupConfig(XPAR_PS7_GPIO_0_DEVICE_ID);
     XGpioPs my_Gpio;

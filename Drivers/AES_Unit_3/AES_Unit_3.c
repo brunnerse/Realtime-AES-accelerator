@@ -468,14 +468,11 @@ void AES_IntrHandler(void *HandlerRef)
 		if (Irq != 0)
 		{
 			irqReceived = 1;
-			// TODO remove interrupt marks in final version
-			xil_printf("[INTERRUPT] Received Irq from channel %d\r\n", i);
 			// Clear interrupt by writing the Status register back
 			AES_Write(InstancePtr, 0, AES_SR_OFFSET, SR);
 			// Call Callback function of channel if it was set
 			if (InstancePtr->CallbackFn[i])
 			{
-				xil_printf("[INTERRUPT] Calling CbFunction at %p\r\n", (void*)(&(InstancePtr->CallbackFn[i])));
 				(InstancePtr->CallbackFn[i])(InstancePtr->CallbackRef[i]);
 				// Set CallbackFn to NULL so it isn't called later unintentionally
 				InstancePtr->CallbackFn[i] = NULL;
