@@ -1,14 +1,13 @@
 
 /***************************** Include Files *******************************/
 #include "AES_Unit_2.h"
+#include "AES_Unit_2_hw.h"
 #include "xparameters.h"
 #include "stdio.h"
 #include "xil_io.h"
 
 /************************** Constant Definitions ***************************/
-#define READ_WRITE_MUL_FACTOR 0x10
-#define AES_SR_OFFSET 0x04
-#define AES_SUSPR0_OFFSET 0x40
+
 /************************** Function Definitions ***************************/
 /**
  *
@@ -49,32 +48,29 @@ XStatus AES_Mem_SelfTest(void * baseaddr_p)
 	xil_printf("   - write pattern to local BRAM and read back\n\r");
 	
 
-	for (offset = 0; offset < (1 << ADDR_REGISTER_BITS) * AES_NUM_CHANNELS; offset += 4)
+	for (u32 channel = 0; channel < AES_NUM_CHANNELS; channel++)
 	{
-		// ignore status register addresses
-		if ((offset & ((1<<ADDR_REGISTER_BITS)-1))  == AES_SR_OFFSET)
+		for (offset = 0; offset < AES_SR_OFFSET; offset += 4)
 		{
-			continue;
+			// Careful not to accidentally enable the unit here while writing to CR
+			AES_mWriteMemory(baseaddr + (channel<<AES_ADDR_REGISTER_BITS) + offset,
+					(0xDEADBEEF % offset + (channel << 8)));
 		}
-		AES_mWriteMemory(baseaddr+offset, (0xDEADBEEF % offset));
 	}
 
-
-	for ( offset = 0; offset < (1 << ADDR_REGISTER_BITS) * AES_NUM_CHANNELS; offset += 4)
+	for (u32 channel = 0; channel < AES_NUM_CHANNELS; channel++)
 	{
-		// ignore status register addresses
-		if ((offset & ((1<<ADDR_REGISTER_BITS)-1))  == AES_SR_OFFSET)
+		for (offset = 0; offset < AES_SR_OFFSET; offset += 4)
 		{
-			continue;
+			Mem32Value = AES_mReadMemory(baseaddr + (channel<<AES_ADDR_REGISTER_BITS) + offset);
+			if ( Mem32Value != (0xDEADBEEF % offset  + (channel << 8)) )
+			{
+				xil_printf("   - write/read memory failed on address 0x%08x\n\r", baseaddr+offset);
+				return XST_FAILURE;
+			}
+			// Reset memory value to 0
+			AES_mWriteMemory(baseaddr + (channel<<AES_ADDR_REGISTER_BITS) + offset, 0);
 		}
-		Mem32Value = AES_mReadMemory(baseaddr+offset);
-	    if ( Mem32Value != (0xDEADBEEF % offset) )
-		{
-	    	xil_printf("   - write/read memory failed on address 0x%08x\n\r", baseaddr+offset);
-			return XST_FAILURE;
-		}
-	    // Reset memory value to 0
-	    AES_mWriteMemory(baseaddr+offset, 0);
 	}
 	xil_printf("   - write/read memory passed\n\n\r");
 
