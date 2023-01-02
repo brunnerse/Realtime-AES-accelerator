@@ -499,7 +499,7 @@ if rising_edge(Clock) then
             RdData(SR_POS_RDERR+RDERR'HIGH downto SR_POS_RDERR) <= RDERR;
             RdData(SR_POS_WRERR+WRERR'HIGH downto SR_POS_WRERR) <= WRERR;
         else
-            channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
+            channelIdx :=  to_integer(unsigned(RdAddr(addr_channel_range)));
             RdData <= mem(channelIdx)(to_integer(unsigned(RdAddr(addr_register_range))));
         end if;
     end if;
@@ -536,12 +536,15 @@ if rising_edge(Clock) then
         
         -- Write port 1 (from the Interface)
         if WrEn1 = '1' then
-            channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
-            for i in 3 downto 0 loop
-                if WrStrb1(i) = '1' then
-                    mem(channelIdx)(to_integer(unsigned(WrAddr1(addr_register_range))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
-                end if;
-           end loop;
+           channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
+           -- Write to mem, but only if the address is still in the mem region
+           if unsigned(WrAddr1(addr_register_range)) < to_unsigned(ADDR_SR,ADDR_WIDTH)(addr_register_range) then
+               for i in 3 downto 0 loop
+                    if WrStrb1(i) = '1' then
+                        mem(channelIdx)(to_integer(unsigned(WrAddr1(addr_register_range))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
+                    end if;
+               end loop;
+           end if;
            -- Set enable and priority signals if it was a write to the CR register
            if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH)(addr_register_range)) then
                 -- WriteStrobe ignored for simplicity; 

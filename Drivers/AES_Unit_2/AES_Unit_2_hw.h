@@ -10,13 +10,13 @@ extern "C" {
 
 // Address offset definitions
 #define AES_CR_OFFSET 0x00
-#define AES_SR_OFFSET 0x04
-#define AES_DINR_ADDR_OFFSET 0x08
-#define AES_DOUTR_ADDR_OFFSET 0x0c
-#define AES_DATASIZE_OFFSET 0x30
-#define AES_KEYR0_OFFSET 0x10
-#define AES_IVR0_OFFSET 0x20
-#define AES_SUSPR0_OFFSET 0x40
+#define AES_DINR_ADDR_OFFSET 0x04
+#define AES_DOUTR_ADDR_OFFSET 0x08
+#define AES_KEYR0_OFFSET 0x0c
+#define AES_IVR0_OFFSET 0x1c
+#define AES_DATASIZE_OFFSET 0x2c
+#define AES_SUSPR0_OFFSET 0x30
+#define AES_SR_OFFSET 0x50
 
 // Position definitions in the Control Register CR
 #if AES_BYTE_ORDER == LITTLE_ENDIAN
