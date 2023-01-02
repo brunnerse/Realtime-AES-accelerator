@@ -64,6 +64,29 @@ constant plainAddr : integer := 16#560#;
 constant cipherAddr : integer := 16#2000#;
 
 
+type vector_array is array(natural range<>) of std_logic_vector(127 downto 0);
+
+constant rCipher : vector_array := (
+    -- channel 0
+     x"37c2539128699009617d4d8935e66c12",
+     -- channel 1 is skipped, as 2 has a higher priority
+     -- channel 2
+     x"ff18b572fed93cae3a10c25a622378d4",
+     -- channel 3
+     x"8e560554d74121bd0ff9aed2ad3cf476",
+     x"bbb73ab3ed2f4a06afa7c2d049a82089",
+     x"51f81928df15015412a2654e59d710c1",
+     x"8e560554d74121bd0ff9aed2ad3cf476",
+     -- rest of channel 2
+     x"271d9d8060e0cc065ee270e17843f36d",
+     x"eb291cdab7863ac90c4ff0519f886f80",
+     -- channel 1
+     x"703120e5f337c2f4dc8a9ae76ec15c51",
+     x"c4a0a2b01b2d447221d4439d06254107"
+     );
+
+
+
 signal Clock : STD_LOGIC := '0';
 signal EnOCore : STD_LOGIC := '0';
 signal Resetn : STD_LOGIC := '0';
@@ -85,6 +108,7 @@ signal CHANNEL_OFFSET : channel_off_type;
 
 type channel_cr_type is array(channel_range) of std_logic_vector(31 downto 0);
 signal CHANNEL_CR : channel_cr_type;
+
 
 
 begin
@@ -130,9 +154,15 @@ end generate;
 
 
 process (Clock)
+variable i : integer := 0;
 begin
 if rising_edge(Clock) and EnOCore = '1' then
-    report "[INFO] Core finished: Result is " & to_hstring(to_bitvector(dOutCore));
+    report "[Checking] If Core output  = " & to_hstring(to_bitvector(rCipher(i)));
+    assert dOutCore = rCipher(i)
+        report "[Check Error] Core output is wrong!"
+        severity failure;
+        
+    i := i + 1;
 end if;
 end process;
 
