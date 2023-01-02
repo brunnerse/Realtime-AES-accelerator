@@ -11,9 +11,9 @@
 
 
 #include "AES_Unit_2.h"
-#define AES_IVR0_OFFSET 0x20
+#include "AES_Unit_2_hw.h"
 
-//#define SETUP_INTERRUPT_SYSTEM
+#define SETUP_INTERRUPT_SYSTEM
 
 #define TEST_ECB
 #define TEST_SIZE
@@ -141,10 +141,11 @@ int main()
     AES_startComputationECB(&aes, 0, 1, plaintext, DestBuffer, 16, onInterrupt, (void*)0);
     AES_waitUntilCompleted(&aes, 0);
 	xil_printf("Starting KeyExpansion with Interrupt disabled...\r\n");
+    AES_SetInterruptEnabled(&aes, 0, 0);
 	AES_PerformKeyExpansion(&aes, 0);
     AES_waitUntilCompleted(&aes, 0);
-	AES_SetInterruptEnabled(&aes, 0, 1);
     xil_printf("Starting KeyExpansion with Interrupt enabled...\r\n");
+	AES_SetInterruptEnabled(&aes, 0, 1);
     aes.CallbackFn[0] = onInterrupt;
     aes.CallbackRef[0] = (void*)1337;
 	AES_PerformKeyExpansion(&aes, 0);
@@ -172,7 +173,7 @@ int main()
 		//Xil_DCacheInvalidateRange((UINTPTR)DestBuffer, 16);
 		hexToStdOut(DestBuffer, 16);
 		// Use a different key for testing the KeyExpand functionality during decryption
-		xil_printf("\tEncrypt with different key:");
+		xil_printf("\tEncrypt with different key:\r\n\t");
 		AES_SetKey(&aes, channel, key);
 		AES_processDataECB(&aes, channel, 1, block1, trashDestBuffer, BLOCK_SIZE);
 		hexToStdOut(trashDestBuffer, 16);
@@ -189,8 +190,7 @@ int main()
 #endif
 #ifdef TEST_SIZE
     // Test with different sizes
-    u32 channel = 1;
-    // TODO test all modi instead of choosing one?
+    u32 channel = 3;
     ChainingMode chmode = CHAINING_MODE_CBC;
 	xil_printf("\n====== Testing different data sizes =====\r\n");
 
@@ -293,7 +293,7 @@ int main()
 	// Start all channels
 	for (int channel = 0; channel < AES_NUM_CHANNELS; channel++)
 	{
-			AES_startComputation(&aes, channel); // TODO reverse order doesnt work, only in Debug mode?
+		AES_startComputation(&aes, channel);
 	}
 	for (int channel = 0; channel < AES_NUM_CHANNELS; channel++)
 	{
@@ -317,11 +317,11 @@ int main()
 		}
 	}
 
-	for (int channel = 0; channel < 4; channel++)
+	for (int channel = 0; channel < AES_NUM_CHANNELS; channel++)
 	{
 		AES_startComputation(&aes, channel);
 	}
-	for (int channel = 0; channel < 4; channel++)
+	for (int channel = 0; channel < AES_NUM_CHANNELS; channel++)
 	{
 		AES_waitUntilCompleted(&aes, channel);
 		xil_printf("Channel %d finished decryption.\n\r", channel);
@@ -390,7 +390,6 @@ int main()
 
 		u8 Susp[BLOCK_SIZE*2];
 
-		// TODO for this, the case len(header) = 0 or len(payload) = 0 has to be handled
 		AES_startComputationGCM(&aes, channel, 1, headerAddr, headerLen, NULL, NULL, 0, IV, NULL, NULL);
 		AES_waitUntilCompleted(&aes, channel);
 		AES_GetSusp(&aes, channel, Susp);
@@ -403,8 +402,6 @@ int main()
 		AES_GetSusp(&aes, channel, Susp);
 		printf("Susp after payload phase: \r\n");
 		hexToStdOut(Susp, BLOCK_SIZE*2);
-
-		// TODO make another process with higher priority that interrupts the GCM process
 
 		// Make test with in-place decryption afterwards
 		AES_processDataGCM(&aes, channel, 1, headerAddr, headerLen, plaintextAddr, ciphertextAddr, payloadLen, IV, tagAddr);
@@ -429,9 +426,8 @@ int main()
 
 	xil_printf("Processed all AES tests.\n\r");
 
-
-	// TODO remove this in final version
-    // Configure LED as output
+	// At the end, blink an LED for fun
+    // Configure LED as output for
     XGpioPs_Config *GPIO_Config = XGpioPs_LookupConfig(XPAR_PS7_GPIO_0_DEVICE_ID);
     XGpioPs my_Gpio;
     status = XGpioPs_CfgInitialize(&my_Gpio, GPIO_Config, GPIO_Config->BaseAddr);

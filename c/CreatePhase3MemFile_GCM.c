@@ -152,7 +152,6 @@ int main()
         AES_Write(&aes, channel, ADDR_IV+12, 0x01000000);
         AES_SetDataParameters(&aes, channel, finalAddr, tagAddr, BLOCK_SIZE);
         u8 finalData[BLOCK_SIZE];
-        // TODO Little-Endian Swap necessary here?
         *(u32*)finalData = 0;
         *(u32*)(finalData+4) = Xil_EndianSwap32(2*16*8);
         *(u32*)(finalData+8) = 0;
