@@ -57,29 +57,26 @@ end package;
 package addresses is
 -- Define the addresses according to the specification. 
 constant ADDR_CR : integer := 16#00#;
-constant ADDR_SR : integer := 16#04#;
-constant ADDR_DINADDR : integer := 16#08#;
-constant ADDR_DOUTADDR : integer := 16#0c#;
-constant ADDR_KEYR0 : integer := 16#10#;
-constant ADDR_KEYR1 : integer := 16#14#;
-constant ADDR_KEYR2 : integer := 16#18#;
-constant ADDR_KEYR3: integer := 16#1c#;
-constant ADDR_IVR0 : integer := 16#20#;
-constant ADDR_IVR1 : integer := 16#24#;
-constant ADDR_IVR2 : integer := 16#28#;
-constant ADDR_IVR3 : integer := 16#2c#;
-
-constant ADDR_DATASIZE : integer := 16#30#;
-
-constant ADDR_SUSPR0 : integer := 16#40#;
-constant ADDR_SUSPR1 : integer := 16#44#;
-constant ADDR_SUSPR2 : integer := 16#48#;
-constant ADDR_SUSPR3 : integer := 16#4c#;
-constant ADDR_HR0 : integer := 16#50#;
-constant ADDR_HR1 : integer := 16#54#;
-constant ADDR_HR2 : integer := 16#58#;
-constant ADDR_HR3 : integer := 16#5c#;
-
+constant ADDR_DINADDR : integer := 16#04#;
+constant ADDR_DOUTADDR : integer := 16#08#;
+constant ADDR_KEYR0 : integer := 16#0c#;
+constant ADDR_KEYR1 : integer := 16#10#;
+constant ADDR_KEYR2 : integer := 16#14#;
+constant ADDR_KEYR3: integer := 16#18#;
+constant ADDR_IVR0 : integer := 16#1c#;
+constant ADDR_IVR1 : integer := 16#20#;
+constant ADDR_IVR2 : integer := 16#24#;
+constant ADDR_IVR3 : integer := 16#28#;
+constant ADDR_DATASIZE : integer := 16#2c#;
+constant ADDR_SUSPR0 : integer := 16#30#;
+constant ADDR_SUSPR1 : integer := 16#34#;
+constant ADDR_SUSPR2 : integer := 16#39#;
+constant ADDR_SUSPR3 : integer := 16#3c#;
+constant ADDR_HR0 : integer := 16#40#;
+constant ADDR_HR1 : integer := 16#44#;
+constant ADDR_HR2 : integer := 16#49#;
+constant ADDR_HR3 : integer := 16#4c#;
+constant ADDR_SR : integer := 16#50#;
 
 end package;
 
