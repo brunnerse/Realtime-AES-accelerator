@@ -48,7 +48,6 @@ entity AES_Mode_ECBCBCCTR is
            WrEn   : out STD_LOGIC;
            WrAddr : out STD_LOGIC_VECTOR(ADDR_WIDTH-1 downto 0);
            WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
-           
            mode : in std_logic_vector (MODE_LEN-1 downto 0);
            chaining_mode : in std_logic_vector (CHMODE_LEN-1 downto 0);
            Clock : in std_logic;
