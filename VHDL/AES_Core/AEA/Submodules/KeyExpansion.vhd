@@ -41,15 +41,15 @@ end KeyExpansion;
 
 architecture Behavioral of KeyExpansion is
 
-signal keyIndex : STD_LOGIC_VECTOR(3 downto 0);
+-- The Index of the key that is being calculated in this cycle
+signal keyIndex : integer range 1 to NUM_ROUNDS;
+
 signal keys : ROUNDKEYARRAY;
 signal RCon : STD_LOGIC_VECTOR (7 downto 0);
-
 
 begin
 
 roundKeys <= keys;
-
 
 process (Clock)
 
@@ -58,16 +58,22 @@ variable word_1, word : STD_LOGIC_VECTOR(31 downto 0);
 
 begin
 if rising_edge(Clock) then
+    EnO <= '0';
     if Resetn = '0' then
-        EnO <= '0';
-        keyIndex <= x"0";
-        for i in NUM_ROUNDS downto 0 loop
+        for i in keys'RANGE loop
             keys(i) <= ( others=> '0');
-        end loop; 
+        end loop;
+        keyIndex <= 1;
+        RCon <= x"01";
     else
-        -- Calculating four words per cycle
-        if keyIndex /= x"0" then -- currently calculating a key
-            lastKey := keys(to_integer(unsigned(keyIndex))-1);
+         -- currently calculating a key; one key per cycle
+        if EnI = '1' or keyIndex > 1 then
+            -- in first round, lastKey is the userKey
+            if EnI = '1' then
+                lastKey := userKey;
+            else
+                lastKey := keys(keyIndex-1);
+            end if;
             -- Calculate first word
             word_1 := lastKey(31 downto 0);
             -- Rotate word: rol 8
@@ -86,29 +92,23 @@ if rising_edge(Clock) then
             end if;
             
             word := word_1 xor lastKey(127 downto 96);
-            keys(to_integer(unsigned(keyIndex)))(127 downto 96) <= word;
+            keys(keyIndex)(127 downto 96) <= word;
             
             -- Calculate the other 3 words
             for i in 1 to 3 loop
                 -- xor the previous word with the fourth last word (w_1 xor w_4)
                 word := word xor lastKey(127-32*i downto 96-32*i);
-                keys(to_integer(unsigned(keyIndex)))(127-32*i downto 96-32*i) <= word;
+                keys(keyIndex)(127-32*i downto 96-32*i) <= word;
             end loop;
 
-            -- Increment keyIndex
-            keyIndex <= std_logic_vector(unsigned(keyIndex) + to_unsigned(1, 4));
             -- Check if all words have been calculated
-            if keyIndex = x"a" then
-                keyIndex <= x"0";
+            if keyIndex = NUM_ROUNDS then
+                -- Set EnO and reset helper variables for next run
                 EnO <= '1';
-            end if;
-        else -- Idle state
-            EnO <= '0';
-            if EnI = '1' then -- start calculation when EnI is enabled
-                -- write user key in first four words
-                keys(0) <= userKey;
-                keyIndex <= x"1";
+                keyIndex <= 1;
                 RCon <= x"01";
+            else
+                keyIndex <= keyIndex + 1;
             end if;
         end if;
     end if;

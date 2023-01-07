@@ -11,7 +11,7 @@ constant BLOCK_SIZE : integer := KEY_SIZE/8;
 -- AEA definitions
 constant NUM_ROUNDS : integer := 10;
 -- Array of keys that are used in each round of theAEA
-type ROUNDKEYARRAY is array(0 to NUM_ROUNDS) of STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
+type ROUNDKEYARRAY is array(1 to NUM_ROUNDS) of STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
 -- AEA column table. The table has always 4 rows, the number of columns depends on the key size
 type TABLE is array(0 to KEY_SIZE/32-1) of STD_LOGIC_VECTOR(31 downto 0);
 
