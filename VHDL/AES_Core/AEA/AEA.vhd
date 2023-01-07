@@ -41,6 +41,9 @@ end AEA;
 architecture Behavioral of AEA is
 
 component AddRoundKey is
+    Generic (
+        synchronous : boolean := true
+        );
     Port ( din : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dout : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
@@ -72,7 +75,7 @@ component KeyExpansion is
            Resetn : in STD_LOGIC);
 end component;
 
-type state_type is (Idle, PreState, RoundState);
+type state_type is (Idle, RoundState);
 
 signal currentRound : integer range 1 to NUM_ROUNDS;
 signal state : state_type;
@@ -91,9 +94,12 @@ signal EnIKeyExp, EnOKeyExp : std_logic;
 begin
 
 
-preARK : AddRoundKey port map(dInPreARK, dOutPreARK, key, EnIPreARK, EnOPreARK, Clock, Resetn);
-roundAEA : AEA_Round port map(dInRound, dOutRound, roundKey, encrypt, isLastRound, EnIRound, EnORound, roundIsLastCycle, Clock, Resetn);
-keyExp : KeyExpansion port map(key, roundKeys, EnIKeyExp, EnOKeyExp, Clock, Resetn); 
+preARK : AddRoundKey
+             port map(dInPreARK, dOutPreARK, key, EnIPreARK, EnOPreARK, Clock, Resetn);
+roundAEA : AEA_Round
+             port map(dInRound, dOutRound, roundKey, encrypt, isLastRound, EnIRound, EnORound, roundIsLastCycle, Clock, Resetn);
+keyExp : KeyExpansion
+             port map(key, roundKeys, EnIKeyExp, EnOKeyExp, Clock, Resetn); 
 
 -- connect data signals of the components
 dInPreARK <= dIn when encrypt = '1' else dOutRound;
@@ -124,60 +130,57 @@ roundKey <= roundKeys(currentRound);
 
 -- process that counts up/down the currentRound variable and sets isLastRound accordingly
 process (Clock)
+procedure SwitchToIdle is
+begin
+    state <= Idle;
+    -- for decryption, start with the last round
+    -- default values are for decryption, as Mode Decryption (without KeyExp) start immediately in rounds,
+    -- whereas with Mode Encryption, there's one cycle before the round starts, so the values can still be changed
+    currentRound <= NUM_ROUNDS;
+    isLastRound <= '1';
+end procedure;
+
 begin
 if rising_edge(Clock) then
     if Resetn = '0' then
-        isLastRound <= '0';
+        SwitchToIdle;
     else
-        case(state) is
+        case (state) is
             when Idle =>
-                if encrypt = '1' then
+                -- when an encryption starts, change currentRound and isLastRound to its encryption init values
+                -- otherwise, keep them on their decryption initial values
+                if EnI = '1' and encrypt = '1' then
                     currentRound <= 1;
                     isLastRound <= '0';
-                else
-                    -- for decryption, start with the last round
-                    currentRound <= 10;
-                    isLastRound <= '1';
                 end if;
-                -- change to RoundState on enable signal (except in keyexpansion mode)
-                --  in KeyExp+Decrypt mode, change to RoundState once the KeyExp has finished
-                if (EnI = '1') then
-                    state <= PreState;
-                end if;
-            -- PreState: AEA is executing PreARK (when encrypting) or KeyExpansion (when decrypt+keyexpand)
-            when PreState => 
-                -- Change to RoundState once the Pre-Unit finished
-                if encrypt = '1' and keyExpandFlag = '1' then 
-                    state <= Idle; -- Don't go to RoundState in KeyExpansion Mode
-                elsif encrypt = '1' and EnOPreARK = '1'  then -- Encryption Mode: Wait until PreArk finished
-                    state <= RoundState;
-                elsif encrypt = '0' and keyExpandFlag = '0' then -- Decryption Mode: Go immediately to RoundState
-                    state <= RoundState;
-                elsif (encrypt = '0' and keyExpandFlag = '1' and EnOKeyExp = '1') then -- KeyExp+Decryption mode
+                -- change to RoundState when Round starts.
+                -- This enables a feedback loop where Round's En and Data signals are fed back to itself
+                if EnIRound = '1' then
                     state <= RoundState;
                 end if;
             -- RoundState: AEA is executing Rounds         
             when RoundState =>
                 -- Update currentRound and state in the last cycle before the round finishes
                 if roundIsLastCycle = '1' then
-                
                     -- Set the isLastRound signal for encryption before the last round starts
                     if encrypt = '1' and currentRound = NUM_ROUNDS-1 then
                         isLastRound <= '1';
                     else
+                        -- during decryption, round 10 (with isLastRound='1') is the first round,
+                        -- so it can be deasserted as soon as a round finishes
                         isLastRound <= '0';
                     end if;
                     
                     -- Increment/Decrement currentRound, Change state to idle if last round reached
                     if encrypt = '1' then
                         if currentRound = NUM_ROUNDS then
-                            state <= Idle;
+                            SwitchToIdle;
                         else
                             currentRound <= currentRound + 1;
                         end if;
                     else -- encrypt = '0'
                         if currentRound = 1 then
-                             state <= Idle;
+                             SwitchToIdle;
                         else
                              -- decrement for decryption 
                              currentRound <= currentRound - 1; 

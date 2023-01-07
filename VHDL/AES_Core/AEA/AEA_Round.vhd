@@ -54,6 +54,9 @@ component SubBytes is
 end component;
 
 component ShiftRows is
+    Generic (
+        synchronous : boolean := false
+        );
     Port ( din : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dout : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            encrypt : in STD_LOGIC;
@@ -64,6 +67,9 @@ component ShiftRows is
 end component;
 
 component AddRoundKey is
+    Generic (
+        synchronous : boolean := true
+        );
     Port ( din : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dout : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
@@ -91,10 +97,15 @@ signal EnOARK, EnOMC, EnOSB, EnOSR : std_logic;
 
 begin
 
-roundSB : SubBytes port map(dInSB, dOutSB, encrypt, EnISB, EnOSB, Clock, Resetn);
-roundSR : ShiftRows port map(dInSR, dOutSR, encrypt, EnISR, EnOSR, Clock, Resetn); 
-roundMC : MixColumns port map(dInMC, dOutMC, encrypt, EnIMC, EnOMC, Clock, Resetn); 
-roundARK : AddRoundKey port map(dInARK, dOutARK, key, EnIARK, EnOARK, Clock, Resetn);
+roundSB : SubBytes
+             port map(dInSB, dOutSB, encrypt, EnISB, EnOSB, Clock, Resetn);
+roundSR : ShiftRows
+             generic map(synchronous => false)
+             port map(dInSR, dOutSR, encrypt, EnISR, EnOSR, Clock, Resetn); 
+roundMC : MixColumns
+             port map(dInMC, dOutMC, encrypt, EnIMC, EnOMC, Clock, Resetn); 
+roundARK : AddRoundKey
+             port map(dInARK, dOutARK, key, EnIARK, EnOARK, Clock, Resetn);
 
 -- Define data between the components; for decryption, the order is reversed
 -- Left side is encryption, right side is decryption
@@ -120,9 +131,9 @@ EnIARK <=                                   EnI when encrypt = '0' else
           EnOSR; -- Skip MixColumns in the last round
 EnO <= EnOARK when encrypt = '1' else     EnOSB;
 
-isLastCycle <= EnOMC when encrypt = '1' and isLastRound = '0' else  -- For encryption, the second last component is MixColumns
-               EnOSR when encrypt = '1' and isLastRound = '1' else
-               EnOSR;   -- For decryption, the second last component is ShiftRows
+isLastCycle <= ENIARK when encrypt = '1' else       -- For encryption, the last component is ARK
+                                            EnISB;  -- For decryption, the last component is SubBytes
+
 
 
 end Behavioral;
