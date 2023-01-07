@@ -146,7 +146,7 @@ for j in 0 to 1 loop
         performRead(ADDR_DOUTR);
         report "[Checking] ciphertext = " & to_hstring(to_bitvector(rCipher(i*32+31 downto i*32)));
         assert DataOut = rCipher(i*32+31 downto i*32)
-            report "RdData is wrong!"
+            report "[Check Error] RdData is wrong!"
             severity failure;
     end loop;
     
