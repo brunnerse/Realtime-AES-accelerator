@@ -58,7 +58,7 @@ testKey <= x"000102030405060708090a0b0c0d0e0f";
 
 
 core: AES_Core 
-    generic map(ADDR_IV => ADDR_IVR0, ADDR_SUSP => ADDR_SUSPR0, ADDR_H => ADDR_SUSPR4)
+    generic map(ADDR_IV => ADDR_IVR0, ADDR_SUSP => ADDR_SUSPR0, ADDR_H => ADDR_HR0)
     port map (testKey, testIV, H, testSusp, WrEn, WrAddr, WrData, testPlaintext, testCiphertext, EnCoreI, EnCoreO, mode, chaining_mode, GCMPhase, Clock, Resetn);
 
 
@@ -131,7 +131,7 @@ begin
 -- initialize IV
 if Resetn = '0' then
     testSusp <= (others => '0');
-    testIV <= x"f0e0d0c0b0a090807060504000000002";
+    testIV <= x"00e0d0c0b0a090807060504000000002";
 -- update IV
 elsif rising_edge(Clock) then
     if WrEn = '1' then
@@ -139,12 +139,12 @@ elsif rising_edge(Clock) then
             testIV <= WrData;
         elsif WrAddr = std_logic_vector(to_unsigned(ADDR_SUSPR0, ADDR_WIDTH)) then
             testSusp <= WrData;
-        elsif WrAddr = std_logic_vector(to_unsigned(ADDR_SUSPR4, ADDR_WIDTH)) then
+        elsif WrAddr = std_logic_vector(to_unsigned(ADDR_HR0, ADDR_WIDTH)) then
             H <= WrData;   
         end if;
      end if;
      if GCMPhase = GCM_PHASE_FINAL then
-        testIV <=  x"f0e0d0c0b0a090807060504000000001";
+        testIV <=  x"00e0d0c0b0a090807060504000000001";
      end if;
 end if;
 end process;

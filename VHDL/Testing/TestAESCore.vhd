@@ -68,14 +68,14 @@ constant plaintext3 : std_logic_vector(KEY_SIZE-1 downto 0) := x"affedeadbeefdad
 signal Clock : std_logic := '1';
 signal Resetn : std_logic := '0';
 
-signal testPlaintext, testIV, testKey, testCiphertext, testDecCiphertext, newIV, Susp, H : std_logic_vector(KEY_SIZE-1 downto 0);
+signal testPlaintext, testIV, IV, testKey, testCiphertext, testDecCiphertext, newIV, Susp, H : std_logic_vector(KEY_SIZE-1 downto 0);
 signal EnCoreI, EnCoreO : std_logic;
 
 signal WrEn : std_logic;
 signal WrData : std_logic_vector(KEY_SIZE-1 downto 0);
 signal WrAddr  : std_logic_vector(ADDR_WIDTH-1 downto 0);
 
-signal mode : std_logic_vector(MODE_LEN-1 downto 0) := MODE_ENCRYPTION;
+signal mode : std_logic_vector(MODE_LEN-1 downto 0) := MODE_KEYEXPANSION_AND_DECRYPTION;
 signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0) := CHAINING_MODE_CBC;
 
 begin
@@ -104,15 +104,18 @@ process begin
 EnCoreI <= '0'; wait for 40ns; -- Wait until Resetn is over
 EnCoreI <= '1'; 
 testPlaintext <= plaintext1;
+testIV <= IV;
 wait for 10 ns;
 EnCoreI <= '0';
 wait for 1000 ns; -- Wait at least until key expansion is finished is over
-EnCoreI <= '1'; 
+EnCoreI <= '1';
+testIV <= IV; 
 testPlaintext <= plaintext2;
 wait for 10 ns;
 EnCoreI <= '0';
 wait for 1000 ns; -- Wait at least until key expansion is finished is over
-EnCoreI <= '1'; 
+EnCoreI <= '1';
+testIV <= IV; 
 testPlaintext <= plaintext3;
 wait for 10 ns;
 EnCoreI <= '0'; 
@@ -125,14 +128,14 @@ begin
 -- initialize IV
 if Resetn = '0' then
     if chaining_mode = CHAINING_MODE_CTR then
-        testIV <= x"f0e0d0c0b0a090807060504000000000";
+        IV <= x"00e0d0c0b0a090807060504000000000";
     else
-        testIV <= x"f0e0d0c0b0a090807060504030201000";
+        IV <= x"00e0d0c0b0a090807060504030201000";
     end if;
 -- update IV
 elsif rising_edge(Clock) then
     if WrEn = '1' and WrAddr = std_logic_vector(to_unsigned(ADDR_IVR0, ADDR_WIDTH)) then
-        testIV <= WrData;
+        IV <= WrData;
      end if;
 end if;
 end process;

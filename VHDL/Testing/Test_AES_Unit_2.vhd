@@ -244,7 +244,7 @@ for i in 0 to 3 loop
          to_hstring(to_bitvector(std_logic_vector(to_unsigned(regaddr+i*4, 8)))) &
          " = " & to_hstring(to_bitvector(assertVal(127-i*32 downto 96-i*32)));
     assert wrdata = assertVal(127-i*32 downto 96-i*32)
-        report "[CHeck Error] Value is wrong!"
+        report "[Check Error] Value is wrong!"
         severity failure;
 end loop;
 end procedure;

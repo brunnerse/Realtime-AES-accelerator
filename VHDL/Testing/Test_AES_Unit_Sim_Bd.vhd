@@ -58,7 +58,7 @@ constant plaintext1 : std_logic_vector(KEY_SIZE-1 downto 0) := x"001020300111213
 constant plaintext2 : std_logic_vector(KEY_SIZE-1 downto 0) := x"000102030405060708090a0b0c0d0e0f";
 constant plaintext3 : std_logic_vector(KEY_SIZE-1 downto 0) := x"affedeadbeefdadcabbeadbeec0cabad";
 
-constant testIV : std_logic_vector(KEY_SIZE-1 downto 0) := x"f0e0d0c0b0a090807060504030201000";
+constant testIV : std_logic_vector(KEY_SIZE-1 downto 0) := x"00e0d0c0b0a090807060504030201000";
 
 constant plainAddr : integer := 16#560#;
 constant cipherAddr : integer := 16#2000#;
@@ -163,6 +163,9 @@ if rising_edge(Clock) and EnOCore = '1' then
         severity failure;
         
     i := i + 1;
+    if i > rCipher'HIGH then
+        report "[Checked] Completed all checks.";
+    end if;
 end if;
 end process;
 
@@ -265,7 +268,7 @@ activateChannel(1);
 wait for 100ns;
 activateChannel(2);
 
-wait for 1000ns;
+wait for 800ns;
 activateChannel(3);
 
 -- wait until CCF of channel 1 is set
