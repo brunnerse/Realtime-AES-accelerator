@@ -33,6 +33,9 @@ use work.common.ALL;
 --use UNISIM.VComponents.all;
 
 entity AddRoundKey is
+    Generic (
+        synchronous : boolean := true
+        );
     Port ( din : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dout : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
@@ -46,6 +49,12 @@ architecture Behavioral of AddRoundKey is
 
 begin
 
+GenASync: if not synchronous generate
+EnO <= EnI;
+dOut <= din xor key;
+end generate;
+
+GenSync:  if synchronous generate
 process (Clock)
 begin
 if rising_edge(Clock) then
@@ -59,4 +68,6 @@ if rising_edge(Clock) then
     end if;
 end if;
 end process;
+end generate;
+
 end Behavioral;

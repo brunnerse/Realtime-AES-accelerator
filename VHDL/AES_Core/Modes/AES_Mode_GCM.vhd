@@ -65,6 +65,9 @@ end AES_Mode_GCM;
 architecture Behavioral of AES_Mode_GCM is
 
 component AddRoundKey is
+    Generic (
+        synchronous : boolean := true
+    );
     Port ( din : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dout : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
