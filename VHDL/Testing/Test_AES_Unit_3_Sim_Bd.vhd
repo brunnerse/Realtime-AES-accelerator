@@ -158,6 +158,9 @@ begin
 if rising_edge(Clock) and EnOCore = '1' then
     assertOutput(rCipher(i));
     i := i + 1;
+    if i > rCipher'HIGH then
+        report "[Checked] Completed all checks.";
+    end if;
 end if;
 
 end process;
@@ -221,7 +224,7 @@ activateChannel(1);
 wait for 100ns;
 activateChannel(2);
 
-wait for 1000ns;
+wait for 800ns;
 activateChannel(3);
 
 -- wait until CCF of channel 1 is set

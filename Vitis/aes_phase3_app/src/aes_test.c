@@ -147,10 +147,11 @@ int main()
     AES_startComputationECB(&aes, 0, 1, plaintext, DestBuffer, 16, onInterrupt, (void*)0);
     AES_waitUntilCompleted(&aes, 0);
 	xil_printf("Starting KeyExpansion with Interrupt disabled...\r\n");
+	AES_SetInterruptEnabled(&aes, 0, 0);
 	AES_PerformKeyExpansion(&aes, 0);
     AES_waitUntilCompleted(&aes, 0);
-	AES_SetInterruptEnabled(&aes, 0, 1);
     xil_printf("Starting KeyExpansion with Interrupt enabled...\r\n");
+	AES_SetInterruptEnabled(&aes, 0, 1);
     aes.CallbackFn[0] = onInterrupt;
     aes.CallbackRef[0] = (void*)1337;
 	AES_PerformKeyExpansion(&aes, 0);
