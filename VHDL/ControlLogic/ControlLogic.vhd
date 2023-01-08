@@ -75,7 +75,7 @@ signal BUSY, WRERR, RDERR, CCF : std_logic;
 signal DMAOUTEN, DMAINEN, ERRIE, CCFIE, ERRC, CCFC : std_logic;
 
 -- Define registers as array
-type addr_range is array (0 to ADDR_SUSPR7/4) of std_logic_vector(DATA_WIDTH-1 downto 0);
+type addr_range is array (0 to ADDR_HR3/4) of std_logic_vector(DATA_WIDTH-1 downto 0);
 signal mem : addr_range;
 
 -- Define 128-bit signals for data in and data out
@@ -96,7 +96,7 @@ dataOut <= DOUT;
 key <= mem(ADDR_KEYR0/4) & mem(ADDR_KEYR1/4) & mem(ADDR_KEYR2/4) & mem(ADDR_KEYR3/4);
 IV <= mem(ADDR_IVR0/4) & mem(ADDR_IVR1/4) & mem(ADDR_IVR2/4) & mem(ADDR_IVR3/4);
 Susp <=  mem(ADDR_SUSPR0/4) & mem(ADDR_SUSPR1/4) & mem(ADDR_SUSPR2/4) & mem(ADDR_SUSPR3/4);
-H <=  mem(ADDR_SUSPR4/4) & mem(ADDR_SUSPR5/4) & mem(ADDR_SUSPR6/4) & mem(ADDR_SUSPR7/4);
+H <=  mem(ADDR_HR0/4) & mem(ADDR_HR1/4) & mem(ADDR_HR2/4) & mem(ADDR_HR3/4);
 
 -- set AES control signals
 -- copy mode, chaining_mode and GCMPhase to internal signals first, so we can check them in internal processes
@@ -161,7 +161,7 @@ process (Clock)
 begin
 if rising_edge(Clock) then
     if Resetn = '0' then
-        for i in 0 to ADDR_SUSPR7/4 loop
+        for i in 0 to ADDR_HR3/4 loop
             mem(i) <= (others => '0');
         end loop;
         writeCounter <= "00";

@@ -115,7 +115,6 @@ int main()
 	// Set up the AES unit
 
     AES_Config *aesConfigPtr = AES_LookupConfig(XPAR_AES_UNIT_0_0_DEVICE_ID);
-    aesConfigPtr->BaseAddress = 0x7aa00000;
     status = AES_CfgInitialize(&aes, aesConfigPtr);
     Xil_AssertNonvoid(status == XST_SUCCESS);
     status = AES_Mem_SelfTest((void*)(aes.BaseAddress));

@@ -86,7 +86,7 @@ testKey <= x"000102030405060708090a0b0c0d0e0f";
 
 -- Set GCM signals H, Susp and GCMPhase to dummy values
 core: AES_Core 
-    generic map(ADDR_IV => ADDR_IVR0, ADDR_SUSP => ADDR_SUSPR0, ADDR_H => ADDR_SUSPR4)
+    generic map(ADDR_IV => ADDR_IVR0, ADDR_SUSP => ADDR_SUSPR0, ADDR_H => ADDR_HR0)
     port map (testKey, testIV, H, Susp, WrEn, WrAddr, WrData, testPlaintext, testCiphertext, EnCoreI, EnCoreO, mode, chaining_mode, "00", Clock, Resetn);
 
 

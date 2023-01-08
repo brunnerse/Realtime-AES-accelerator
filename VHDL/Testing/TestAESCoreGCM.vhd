@@ -68,7 +68,7 @@ testKey <= x"000102030405060708090a0b0c0d0e0f";
 
 
 core: AES_Core 
-    generic map(ADDR_IV => ADDR_IVR0, ADDR_SUSP => ADDR_SUSPR0, ADDR_H => ADDR_SUSPR4)
+    generic map(ADDR_IV => ADDR_IVR0, ADDR_SUSP => ADDR_SUSPR0, ADDR_H => ADDR_HR0)
     port map (testKey, testIV, H, testSusp, WrEn, WrAddr, WrData, testPlaintext, testCiphertext, EnCoreI, EnCoreO, mode, chaining_mode, GCMPhase, Clock, Resetn);
 
 
@@ -184,7 +184,7 @@ elsif rising_edge(Clock) then
             testIV <= WrData;
         elsif WrAddr = std_logic_vector(to_unsigned(ADDR_SUSPR0, ADDR_WIDTH)) then
             testSusp <= WrData;
-        elsif WrAddr = std_logic_vector(to_unsigned(ADDR_SUSPR4, ADDR_WIDTH)) then
+        elsif WrAddr = std_logic_vector(to_unsigned(ADDR_HR0, ADDR_WIDTH)) then
             H <= WrData;   
         end if;
      end if;
