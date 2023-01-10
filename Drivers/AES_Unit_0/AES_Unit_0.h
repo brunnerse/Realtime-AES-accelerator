@@ -10,6 +10,8 @@
 
 /**************************** Type Definitions *****************************/
 
+#define AES_BYTE_ORDER LITTLE_ENDIAN
+
 #define BLOCK_SIZE 16
 
 typedef enum {

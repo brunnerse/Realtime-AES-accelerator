@@ -5,8 +5,6 @@
 #include "xparameters.h"
 /************************** Function Definitions ***************************/
 
-// Comment this line on Big Endian systems
-#define LITTLE_ENDIAN
 
 
 #define AES_CR_OFFSET 0x00
@@ -18,7 +16,7 @@
 #define AES_SUSPR0_OFFSET 0x40
 
 // Position definitions in the Control Register CR
-#ifdef LITTLE_ENDIAN
+#if AES_BYTE_ORDER == LITTLE_ENDIAN
 #define EN_POS 24
 #define MODE_POS 27
 #define CHAIN_MODE_POS 29
@@ -289,7 +287,7 @@ void AES_processDataGCM(AES* InstancePtr, int encrypt, u8* header, u32 headerLen
 	AES_Write(InstancePtr, AES_IVR0_OFFSET+12, MODE_GCM_IV_FINAL);
 	// Write headerLen (64 bit) ||  payloadLen(64 bit) to DINR;  lengths have to be in bits
 	AES_Write(InstancePtr, AES_DINR_OFFSET, 0);
-#ifdef LITTLE_ENDIAN
+#if AES_BYTE_ORDER == LITTLE_ENDIAN
 	AES_Write(InstancePtr, AES_DINR_OFFSET, Xil_EndianSwap32(headerLen * 8));
 	AES_Write(InstancePtr, AES_DINR_OFFSET, 0);
 	AES_Write(InstancePtr, AES_DINR_OFFSET, Xil_EndianSwap32(payloadLen * 8));
