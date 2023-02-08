@@ -32,7 +32,7 @@
 #define AES_CR_OFFSET 0x00
 #define AES_SR_OFFSET 0x04
 #define AES_DOUTR_OFFSET 0x0c
-#define AES_SUSPR0_OFFSET 0x40
+#define AES_SUSPR0_OFFSET 0x30
 
 
 
