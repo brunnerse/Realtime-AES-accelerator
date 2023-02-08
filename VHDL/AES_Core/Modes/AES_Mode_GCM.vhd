@@ -111,7 +111,7 @@ end function;
 
 -- signal definitions
 signal  dIn1XOR1, dIn2XOR1, dIn1XOR2,dIn2XOR2, dOutXOR1, dOutXOR2, dInMul, dOutMul: std_logic_vector(KEY_SIZE-1 downto 0);
-signal  EnIXOR1, EnIXOR2, EnOXOR1, EnOXOR2, EnIMul, EnOMul, WrEnSignal : std_logic;
+signal  EnIXOR1, EnIXOR2, EnOXOR1, EnOXOR2, EnIMul, EnOMul, WrEnSignal, prevEnI : std_logic;
 
 signal lastIdx : integer; -- used for the multiplication process
 
@@ -126,9 +126,6 @@ dIn2XOR1 <= dIn when GCMPhase = GCM_PHASE_PAYLOAD else
             dOutMul; -- in GCM_PHASE_FINAL
 EnIXOR1 <= EnOAEA when GCMPHASE /= GCM_PHASE_INIT else -- Mul has to be faster than AEA!
             '0'; -- Do not use xorUnit1 in init phase
-            
-dOut <= dOutXOR1;
-
 
 dIn1XOR2 <= Susp;
 dIn2XOR2 <= dOutXOR1 when GCMPhase = GCM_PHASE_PAYLOAD and encrypt = '1' else
@@ -148,12 +145,16 @@ dInAEA <=   IV when GCMPhase /= GCM_PHASE_INIT else
 EnIAEA <=   EnI when GCMPhase /= GCM_PHASE_HEADER else
             '0'; -- Do not use AEA unit in Header phase
 
-EnO <=  EnOXOR1 when GCMPhase = GCM_PHASE_FINAL else
-        WrEnSignal when GCMPhase = GCM_PHASE_INIT or GCMPhase = GCM_PHASE_HEADER else
-        EnOAEA when encrypt = '0' else -- payload phase, decryption
-        EnOMul; -- payload phase, encryption  
-        -- TODO: Fuer den letzten Fall wird Susp immer noch einen Takt später geschrieben! Sollte aber nichts machen?
-   
+
+dOut <= dOutXOR1;
+EnO <=  EnOXOR1 when GCMPhase = GCM_PHASE_FINAL or (GCMPhase = GCM_PHASE_PAYLOAD and encrypt = '0') else -- final phase and payload phase, decryption
+        WrEnSignal when prevEnI = '0' else -- in all other cases, the last thing done is writing (ignore the first write though, only the last one counts)
+        '0';
+        --(GCMPhase = GCM_PHASE_INIT and prevEnI = '0') or GCMPhase = GCM_PHASE_HEADER else -- init phase (ignore first write to Susp), header phase
+        -- during payload phase with encryption:  EnO = WrEnSignal, however the first write to the IV should be ignored
+        -- WrEnSignal when (GCMPhase = GCM_PHASE_PAYLOAD and prevEnI = '0')  else 
+ 
+prevEnI <= EnI when rising_edge(Clock);        
 
 WrEn <= WrEnSignal;
                

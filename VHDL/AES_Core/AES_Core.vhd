@@ -98,7 +98,6 @@ component AES_Mode_ECBCBCCTR is
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            EnI : in std_logic;
            EnO : out std_logic;
-           encrypt : in std_logic;
             -- signals to control the AEA unit
            EnIAEA : out std_logic;
            EnOAEA : in std_logic;
@@ -162,7 +161,7 @@ algorithm : AEA port map (dInaEA, dOutAEA, Key, encryptAEA, keyExpandFlagAEA, En
 
 modeNonTag : AES_Mode_ECBCBCCTR 
             generic map(ADDR_IV)
-            port map(IV, dIn, dOutMNT, EnIMNT, EnOMNT, encryptAEA, 
+            port map(IV, dIn, dOutMNT, EnIMNT, EnOMNT,
                      EnIAEAMNT, EnOAEAMNT, dInAEAMNT, dOutAEA, 
                      WrEnMNT, WrAddrMNT, WrDataMNT, mode, chaining_mode, Clock, Resetn); 
 modeGCM  : AES_Mode_GCM 
