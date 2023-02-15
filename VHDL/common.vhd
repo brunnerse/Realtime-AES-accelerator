@@ -36,7 +36,7 @@ constant GCM_PHASE_FINAL : std_logic_vector := "11";
 
 -- Control Logic definitions
 constant DATA_WIDTH : integer := 32;
-constant ADDR_WIDTH : integer := 10;
+constant ADDR_WIDTH : integer := 7;
 
 
 end package;

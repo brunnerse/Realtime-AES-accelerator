@@ -14,7 +14,7 @@ entity AES_Interface_v1_0_S_AXI is
 		-- Width of S_AXI data bus
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
 		-- Width of S_AXI address bus
-		C_S_AXI_ADDR_WIDTH	: integer	:= 10;
+		C_S_AXI_ADDR_WIDTH	: integer	:= 7;
 		-- Width of optional user defined signal in write address channel
 		C_S_AXI_AWUSER_WIDTH	: integer	:= 0;
 		-- Width of optional user defined signal in read address channel

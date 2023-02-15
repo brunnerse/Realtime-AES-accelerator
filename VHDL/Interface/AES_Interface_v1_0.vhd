@@ -13,7 +13,7 @@ entity AES_Interface_v1_0 is
 		-- Parameters of Axi Slave Bus Interface S_AXI
 		C_S_AXI_ID_WIDTH	: integer	:= 1;
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
-		C_S_AXI_ADDR_WIDTH	: integer	:= 10;
+		C_S_AXI_ADDR_WIDTH	: integer	:= 7;
 		C_S_AXI_AWUSER_WIDTH	: integer	:= 1;
 		C_S_AXI_ARUSER_WIDTH	: integer	:= 1;
 		C_S_AXI_WUSER_WIDTH	: integer	:= 1;
