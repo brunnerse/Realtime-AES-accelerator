@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity AES_Interface_v1_0 is
+entity AES_Interface is
 	generic (
 		-- Users to add parameters here
         LITTLE_ENDIAN : boolean;
@@ -78,12 +78,12 @@ entity AES_Interface_v1_0 is
         RdAddr : out std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
         RdData : in std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0)
 	);
-end AES_Interface_v1_0;
+end AES_Interface;
 
-architecture arch_imp of AES_Interface_v1_0 is
+architecture arch_imp of AES_Interface is
 
 	-- component declaration
-	component AES_Interface_v1_0_S_AXI is
+	component AES_Interface_S_AXI is
 		generic (
 		C_S_AXI_ID_WIDTH	: integer	:= 1;
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
@@ -146,14 +146,14 @@ architecture arch_imp of AES_Interface_v1_0 is
 		S_AXI_RVALID	: out std_logic;
 		S_AXI_RREADY	: in std_logic
 		);
-	end component AES_Interface_v1_0_S_AXI;
+	end component AES_Interface_S_AXI;
 
 
     signal WrDataSignal, RdDataSignal : std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
 begin
 
 -- Instantiation of Axi Bus Interface S_AXI
-AES_Interface_v1_0_S_AXI_inst : AES_Interface_v1_0_S_AXI
+AES_Interface_S_AXI_inst : AES_Interface_S_AXI
 	generic map (
 		C_S_AXI_ID_WIDTH	=> C_S_AXI_ID_WIDTH,
 		C_S_AXI_DATA_WIDTH	=> C_S_AXI_DATA_WIDTH,
