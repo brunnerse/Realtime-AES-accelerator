@@ -85,10 +85,6 @@ begin
 xorUnit : AddRoundKey port map(dInXOR1, dOutXOR, dInXOR2, EnIXOR, EnOXOR, Clock, Resetn);
 
 
--- Set encrypt and keyExpandFlag signals according to the mode
-
-
-
 dInAEA <=   dOutXOR when chaining_mode = CHAINING_MODE_CBC and encrypt = '1' else
             IV when chaining_mode = CHAINING_MODE_CTR  else
             dIn;
@@ -108,7 +104,7 @@ dOut <=     dOutXOR when chaining_mode = CHAINING_MODE_CTR or (chaining_mode = C
 
 
 -- For CBC mode, during encryption the input of the AEA is the output of XOR, except in KeyExpansion mode
-EnIAEA <=   EnOXOR when chaining_mode = CHAINING_MODE_CBC and encrypt = '1' and mode /= MODE_KEYEXPANSION else
+EnIAEA <=   EnOXOR when chaining_mode = CHAINING_MODE_CBC and encrypt = '1' else
             EnI;
           
 EnIXOR <=   EnI when chaining_mode = CHAINING_MODE_CBC and encrypt = '1' else
