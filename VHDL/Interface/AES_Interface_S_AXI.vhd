@@ -214,6 +214,8 @@ architecture arch_imp of AES_Interface_S_AXI is
 	--ADDR_LSB = 2 for 32 bits (n downto 2) 
 	--ADDR_LSB = 3 for 42 bits (n downto 3)
 
+	signal RdEnSignal : std_logic;
+
 	constant ADDR_LSB  : integer := (C_S_AXI_DATA_WIDTH/32)+ 1;
 	constant low : std_logic_vector (C_S_AXI_ADDR_WIDTH - 1 downto 0) := "0000000000";
 begin
@@ -236,6 +238,9 @@ begin
 	ar_wrap_size <= ((C_S_AXI_DATA_WIDTH)/8 * to_integer(unsigned(axi_arlen))); 
 	aw_wrap_en <= '1' when (((axi_awaddr AND std_logic_vector(to_unsigned(aw_wrap_size,C_S_AXI_ADDR_WIDTH))) XOR std_logic_vector(to_unsigned(aw_wrap_size,C_S_AXI_ADDR_WIDTH))) = low) else '0';
 	ar_wrap_en <= '1' when (((axi_araddr AND std_logic_vector(to_unsigned(ar_wrap_size,C_S_AXI_ADDR_WIDTH))) XOR std_logic_vector(to_unsigned(ar_wrap_size,C_S_AXI_ADDR_WIDTH))) = low) else '0';
+
+	RdEn <= RdEnSignal;
+
 
 	-- Implement axi_awready generation
 
@@ -454,24 +459,24 @@ begin
 	-- is deasserted on reset (active low). axi_rresp and axi_rdata are 
 	-- cleared to zero on reset (active low).  
 
-	process (S_AXI_ACLK)
+	process (S_AXI_ACLK)	
 	begin
 	  if rising_edge(S_AXI_ACLK) then
 	    if S_AXI_ARESETN = '0' then
 	      axi_rvalid <= '0';
 	      axi_rresp  <= "00";
-		  RdEn <= '0';
+		  RdEnSignal <= '0';
 	    else
 		  if (axi_arready = '1' and S_AXI_ARVALID = '1') then
-			RdEn <= '1';
-		  elsif (RdEn = '1') then
-			RdEn <= '0';
+			RdEnSignal <= '1';
+		  elsif (RdEnSignal = '1') then
+			RdEnSignal <= '0';
 			axi_rvalid <= '1';
 	        axi_rresp  <= "00"; -- 'OKAY' response
 	      elsif (axi_rvalid = '1' and S_AXI_RREADY = '1') then
 	        axi_rvalid <= '0';
 			if (axi_rlast = '0') then
-			  RdEn <= '1';
+			  RdEnSignal <= '1';
 			end if;
 	      end  if;      
 	    end if;
