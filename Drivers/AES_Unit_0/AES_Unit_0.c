@@ -13,7 +13,7 @@
 #define AES_DOUTR_OFFSET 0x0c
 #define AES_KEYR0_OFFSET 0x10
 #define AES_IVR0_OFFSET 0x20
-#define AES_SUSPR0_OFFSET 0x40
+#define AES_SUSPR0_OFFSET 0x30
 
 // Position definitions in the Control Register CR
 #if AES_BYTE_ORDER == LITTLE_ENDIAN

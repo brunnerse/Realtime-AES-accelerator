@@ -36,7 +36,7 @@ constant GCM_PHASE_FINAL : std_logic_vector := "11";
 
 -- Control Logic definitions
 constant DATA_WIDTH : integer := 32;
-constant ADDR_WIDTH : integer := 10;
+constant ADDR_WIDTH : integer := 7;
 
 
 end package;
@@ -56,15 +56,14 @@ constant ADDR_IVR0 : integer := 16#20#;
 constant ADDR_IVR1 : integer := 16#24#;
 constant ADDR_IVR2 : integer := 16#28#;
 constant ADDR_IVR3 : integer := 16#2c#;
--- 0x30 are additional key registers which are only used for 256-bit, which isn't done here
-constant ADDR_SUSPR0 : integer := 16#40#;
-constant ADDR_SUSPR1 : integer := 16#44#;
-constant ADDR_SUSPR2 : integer := 16#48#;
-constant ADDR_SUSPR3 : integer := 16#4c#;
-constant ADDR_HR0 : integer := 16#50#;
-constant ADDR_HR1 : integer := 16#54#;
-constant ADDR_HR2 : integer := 16#58#;
-constant ADDR_HR3 : integer := 16#5c#;
+constant ADDR_SUSPR0 : integer := 16#30#;
+constant ADDR_SUSPR1 : integer := 16#34#;
+constant ADDR_SUSPR2 : integer := 16#38#;
+constant ADDR_SUSPR3 : integer := 16#3c#;
+constant ADDR_HR0 : integer := 16#40#;
+constant ADDR_HR1 : integer := 16#44#;
+constant ADDR_HR2 : integer := 16#48#;
+constant ADDR_HR3 : integer := 16#4c#;
 
 
 end package;

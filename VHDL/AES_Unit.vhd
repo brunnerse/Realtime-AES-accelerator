@@ -94,7 +94,7 @@ signal chaining_mode : std_logic_vector(1 downto 0);
 begin
 
 
-i_AES_Interface : entity work.AES_Interface_v1_0(arch_imp)
+i_AES_Interface : entity work.AES_Interface(arch_imp)
     generic map (
 		LITTLE_ENDIAN	 => LITTLE_ENDIAN,
         C_S_AXI_ID_WIDTH	=> C_S_AXI_ID_WIDTH,	
