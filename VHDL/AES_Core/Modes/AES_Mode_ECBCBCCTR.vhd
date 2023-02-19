@@ -46,7 +46,7 @@ entity AES_Mode_ECBCBCCTR is
            dOutAEA : in std_logic_vector (KEY_SIZE-1 downto 0);
            -- signals to write to register set
            WrEn   : out STD_LOGIC;
-           WrAddr : out STD_LOGIC_VECTOR(ADDR_WIDTH-1 downto 0);
+           WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
            WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
            mode : in std_logic_vector (MODE_LEN-1 downto 0);
            chaining_mode : in std_logic_vector (CHMODE_LEN-1 downto 0);
@@ -121,7 +121,7 @@ EnO <=  EnOAEA when chaining_mode = CHAINING_MODE_ECB else
 
 
 -- update IV
-WrAddr <= std_logic_vector(to_unsigned(ADDR_IV, ADDR_WIDTH));
+WrAddr <= std_logic_vector(to_unsigned(ADDR_IV, WrAddr'LENGTH));
 WrEn <= WrEnSignal;
 
 process(Clock)

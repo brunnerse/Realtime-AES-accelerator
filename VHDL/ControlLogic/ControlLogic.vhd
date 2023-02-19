@@ -59,7 +59,7 @@ entity ControlLogic is
 -- Ports to the AES Core
     -- second write port
     WrEn2 : in std_logic;
-    WrAddr2 : in std_logic_vector(ADDR_WIDTH-1 downto 0);
+    WrAddr2 : in std_logic_vector(ADDR_REGISTER_BITS-1 downto 0);
     WrData2 : in std_logic_vector(KEY_SIZE-1 downto 0);
     key : out std_logic_vector (KEY_SIZE-1 downto 0);
     IV : out std_logic_vector (KEY_SIZE-1 downto 0);

@@ -40,7 +40,7 @@ entity AES_Core is
            H  : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            Susp : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            WrEn   : out STD_LOGIC;
-           WrAddr : out STD_LOGIC_VECTOR(ADDR_WIDTH-1 downto 0);
+           WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
            WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
            dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
@@ -117,7 +117,7 @@ component AES_Mode_ECBCBCCTR is
            dOutAEA : in std_logic_vector (KEY_SIZE-1 downto 0);
            -- signals to write to register set
            WrEn   : out STD_LOGIC;
-           WrAddr : out STD_LOGIC_VECTOR(ADDR_WIDTH-1 downto 0);
+           WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
            WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
            mode : in std_logic_vector (MODE_LEN-1 downto 0);
            chaining_mode : in std_logic_vector (CHMODE_LEN-1 downto 0);
@@ -150,7 +150,7 @@ component AES_Mode_GCM is
            dOutAEA : in std_logic_vector (KEY_SIZE-1 downto 0);
            -- signals to write to register set
            WrEn   : out STD_LOGIC;
-           WrAddr : out STD_LOGIC_VECTOR(ADDR_WIDTH-1 downto 0);
+           WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
            WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
            Clock : in std_logic;
            Resetn : in std_logic
@@ -166,7 +166,7 @@ signal encryptGCM, encryptAEA, EnIAEA, EnOAEA, keyExpandFlagAEA : std_logic;
 -- signal to mode components
 signal EnIMNT, EnIGCM, EnOMNT, EnOGCM, EnIAEAMNT, EnIAEAGCM, EnOAEAMNT, EnOAEAGCM, WrEnMNT, WrEnGCM : std_logic;
 signal dOutMNT, dOutGCM, newIVGCM, dInAEAMNT, dInAEAGCM, WrDataMNT, WrDataGCM : std_logic_vector(KEY_SIZE-1 downto 0);
-signal WrAddrMNT, WrAddrGCM : std_logic_vector(ADDR_WIDTH-1 downto 0);
+signal WrAddrMNT, WrAddrGCM : std_logic_vector(ADDR_REGISTER_BITS-1 downto 0);
 begin
 
 algorithm : AEA port map (dInaEA, dOutAEA, Key, encryptAEA, keyExpandFlagAEA, EnIAEA, EnOAEA, Clock, Resetn);
