@@ -57,9 +57,9 @@ signal WrDataCore : std_logic_vector(KEY_SIZE-1 downto 0);
 signal aes_introut : std_logic;
 
 
-signal mode : std_logic_vector(MODE_LEN-1 downto 0) := MODE_KEYEXPANSION_AND_DECRYPTION;
-signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0) := CHAINING_MODE_CBC;
-signal GCMPhase : std_logic_vector(1 downto 0) := GCM_PHASE_INIT;
+signal mode : std_logic_vector(MODE_LEN-1 downto 0);
+signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0);
+signal GCMPhase : std_logic_vector(1 downto 0);
 
 begin
 
@@ -116,7 +116,7 @@ begin
 wait until Resetn = '1';
 IWrEn <= '1';
 -- set CR
-IWrData <= x"00000" & "0010" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1'; -- TODO Chaining mode definition needs downto?
+IWrData <= x"00000" & "0010" & '0' & CHAINING_MODE_ECB & MODE_ENCRYPTION & "00" & '1';
 IWrAddr <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
 wait for 10 ns;
 IWrEn <= '0';
@@ -134,9 +134,12 @@ wait until IRdData(0) = '1'; -- wait until CCF is set
 -- clear CCF
 IWrEn <= '1';
 IWrAddr <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
-IWrData <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1';
+IWrData <= x"000000" & '0' & CHAINING_MODE_ECB & MODE_ENCRYPTION & "00" & '1';
 IWrData(7) <= '1';
---wait for 10ns;
+wait for 10ns;
+IWrEn <= '0';
+
+-- Check correctness
 for i in 3 downto 0 loop
     IRdAddr <= std_logic_vector(to_unsigned(ADDR_DOUTR, ADDR_WIDTH));
     IRdEn <= '1';
@@ -149,11 +152,13 @@ for i in 3 downto 0 loop
         severity failure;
 end loop;
 IRdEn <= '0';
-IWrEn <= '0'; -- TODO stop write process earlier?
+
 -- disable
 IWrEn <= '1';
 IWrAddr <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
-IWrData <= x"000000" & '0' & CHAINING_MODE_ECB(0 to 1) & MODE_ENCRYPTION & "00" & '1';
+IWrData <= x"000000" & '0' & CHAINING_MODE_ECB & MODE_ENCRYPTION & "00" & '0';
+wait for 10ns;
+IWrEn <= '0';
 wait;
 end process;
 
