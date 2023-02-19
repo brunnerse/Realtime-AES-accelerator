@@ -217,7 +217,7 @@ architecture arch_imp of AES_Interface_S_AXI is
 	signal RdEnSignal : std_logic;
 
 	constant ADDR_LSB  : integer := (C_S_AXI_DATA_WIDTH/32)+ 1;
-	constant low : std_logic_vector (C_S_AXI_ADDR_WIDTH - 1 downto 0) := "0000000000";
+	constant low : std_logic_vector (C_S_AXI_ADDR_WIDTH - 1 downto 0) := (others => '0');
 begin
 	-- I/O Connections assignments
 
@@ -260,7 +260,7 @@ begin
 	          axi_awv_awr_flag <= '1'; 
 			  --set awready = 0 to prevent accepting a new transaction during an ongoing one
 			  axi_awready <= '0';
-	      elsif (S_AXI_WVALID = '1' and axi_wready = '1' and S_AXI_WLAST = '1') then 
+	      elsif (S_AXI_BREADY = '1' and axi_bvalid = '1') then 
               -- preparing to accept next address after current write burst tx completion
               axi_awv_awr_flag  <= '0';
 			  -- ready to accept new transaction
@@ -332,8 +332,7 @@ begin
 	      if (axi_awready = '1' and S_AXI_AWVALID  = '1') then
 	        axi_wready <= '1';
 		  -- reset after last beat
-		  -- elsif (axi_awv_awr_flag = '0') then  (equivalent)
-	      elsif (S_AXI_WLAST = '1' and axi_wready = '1') then 
+	      elsif (S_AXI_WLAST = '1' and axi_wready = '1' and S_AXI_WVALID = '1') then 
 	        axi_wready <= '0';
 	      end if;
 	    end if;
@@ -355,7 +354,7 @@ begin
 	      axi_buser <= (others => '0');
 	    else
 		  -- set bvalid after last beat
-	      if (axi_bvalid = '0' and axi_wready = '1' and S_AXI_WVALID = '1' and S_AXI_WLAST = '1' ) then
+	      if (axi_wready = '1' and S_AXI_WVALID = '1' and S_AXI_WLAST = '1' ) then
 	        axi_bvalid <= '1';
 	        axi_bresp  <= "00"; 
 		  -- reset bvalid after handshake
@@ -386,7 +385,7 @@ begin
 	        axi_arv_arr_flag <= '1'; 
 			--set arready = 0 to prevent accepting a new transaction during an ongoing one
 			axi_arready <= '0';
-	      elsif (axi_rvalid = '1' and S_AXI_RREADY = '1' and (axi_arlen_cntr = axi_arlen)) then 
+	      elsif (axi_rvalid = '1' and S_AXI_RREADY = '1' and axi_rlast = '1') then 
 	        -- preparing to accept next address after current read completion
 	        axi_arv_arr_flag <= '0';
 			-- ready to accept new transaction
@@ -407,20 +406,16 @@ begin
 	      axi_arburst <= (others => '0');
 	      axi_arlen <= (others => '0'); 
 	      axi_arlen_cntr <= (others => '0');
-	      axi_rlast <= '0';
 	      axi_ruser <= (others => '0');
 	    else
 	      if (axi_arready = '1' and S_AXI_ARVALID = '1') then
 	        -- address latching 
 	        axi_araddr <= S_AXI_ARADDR(C_S_AXI_ADDR_WIDTH - 1 downto 0); ---- start address of transfer
 	        axi_arlen_cntr <= (others => '0');
-	        axi_rlast <= '0';
 	        axi_arburst <= S_AXI_ARBURST;
 	        axi_arlen <= S_AXI_ARLEN;
 	      elsif((axi_arlen_cntr <= axi_arlen) and axi_rvalid = '1' and S_AXI_RREADY = '1') then     
 	        axi_arlen_cntr <= std_logic_vector (unsigned(axi_arlen_cntr) + 1);
-	        axi_rlast <= '0';      
-	     
 	        case (axi_arburst) is
 	          when "00" =>  -- fixed burst
 	            -- The read address for all the beats in the transaction are fixed
@@ -440,12 +435,8 @@ begin
 	          when others => --reserved (incremental burst for example)
 	            axi_araddr(C_S_AXI_ADDR_WIDTH - 1 downto ADDR_LSB) <= std_logic_vector (unsigned(axi_araddr(C_S_AXI_ADDR_WIDTH - 1 downto ADDR_LSB)) + 1);--for arsize = 4 bytes (010)
 			  axi_araddr(ADDR_LSB-1 downto 0)  <= (others => '0');
-	        end case;         
-	      elsif((axi_arlen_cntr = axi_arlen) and axi_rlast = '0' and axi_arv_arr_flag = '1') then  
-	        axi_rlast <= '1';
-	      elsif (S_AXI_RREADY = '1') then  
-	        axi_rlast <= '0';
-	      end if;
+	        end case; 
+	      end if;        
 	    end if;
 	  end if;
 	end  process;  
@@ -464,6 +455,7 @@ begin
 	  if rising_edge(S_AXI_ACLK) then
 	    if S_AXI_ARESETN = '0' then
 	      axi_rvalid <= '0';
+	      axi_rlast <= '0';
 	      axi_rresp  <= "00";
 		  RdEnSignal <= '0';
 	    else
@@ -473,6 +465,12 @@ begin
 			RdEnSignal <= '0';
 			axi_rvalid <= '1';
 	        axi_rresp  <= "00"; -- 'OKAY' response
+	        -- set rlast for the last beat
+	        if(axi_arlen_cntr = axi_arlen) then  
+	           axi_rlast <= '1';
+	        else
+	           axi_rlast <= '0';
+	        end if;
 	      elsif (axi_rvalid = '1' and S_AXI_RREADY = '1') then
 	        axi_rvalid <= '0';
 			if (axi_rlast = '0') then
