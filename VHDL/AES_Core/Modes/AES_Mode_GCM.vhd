@@ -53,7 +53,7 @@ entity AES_Mode_GCM is
            dOutAEA : in std_logic_vector (KEY_SIZE-1 downto 0);
            -- signals to write to register set
            WrEn   : out STD_LOGIC;
-           WrAddr : out STD_LOGIC_VECTOR(ADDR_WIDTH-1 downto 0);
+           WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
            WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
            Clock : in std_logic;
            Resetn : in std_logic
@@ -112,7 +112,7 @@ end function;
 -- signal definitions
 signal  dIn1XOR1, dIn2XOR1, dIn1XOR2,dIn2XOR2, dOutXOR1, dOutXOR2, dInMul, dOutMul: std_logic_vector(KEY_SIZE-1 downto 0);
 signal  EnIXOR1, EnIXOR2, EnOXOR1, EnOXOR2, EnIMul, EnOMul, WrEnSignal : std_logic;
-signal WrAddrSignal : std_logic_vector(ADDR_WIDTH-1 downto 0);
+signal WrAddrSignal : std_logic_vector(ADDR_REGISTER_BITS-1 downto 0);
 signal prevEnI : std_logic;
 
 signal lastIdx : integer; -- used for the multiplication process
@@ -170,19 +170,19 @@ begin
 if rising_edge(Clock) then
     WrEnSignal <= '0';
     if EnI = '1' and GCMPhase = GCM_PHASE_INIT then
-        WrAddrSignal <= std_logic_vector(to_unsigned(ADDR_SUSP, ADDR_WIDTH));
+        WrAddrSignal <= std_logic_vector(to_unsigned(ADDR_SUSP, WrAddr'LENGTH));
         WrData <= (others => '0');
         WrEnSignal <= '1';
     elsif EnOAEA = '1' and GCMPhase = GCM_PHASE_INIT then
-        WrAddrSignal <= std_logic_vector(to_unsigned(ADDR_H, ADDR_WIDTH));
+        WrAddrSignal <= std_logic_vector(to_unsigned(ADDR_H, WrAddr'LENGTH));
         WrData <= dOutAEA;
         WrEnSignal <= '1';
     elsif EnOMul = '1' and (GCMPhase = GCM_PHASE_HEADER or GCMPhase = GCM_PHASE_PAYLOAD) then 
-        WrAddrSignal <= std_logic_vector(to_unsigned(ADDR_SUSP, ADDR_WIDTH));
+        WrAddrSignal <= std_logic_vector(to_unsigned(ADDR_SUSP, WrAddr'LENGTH));
         WrData <= dOutMul;
         WrEnSignal <= '1';
     elsif EnI = '1' and GCMPhase = GCM_PHASE_PAYLOAD then
-        WrAddrSignal <= std_logic_vector(to_unsigned(ADDR_IV, ADDR_WIDTH));
+        WrAddrSignal <= std_logic_vector(to_unsigned(ADDR_IV, WrAddr'LENGTH));
         WrData <= incrementIV(IV);
         WrEnSignal <= '1';
     end if;

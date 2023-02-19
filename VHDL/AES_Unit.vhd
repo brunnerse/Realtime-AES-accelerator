@@ -16,7 +16,7 @@ Generic (
     -- Parameters of Axi Slave Bus Interface S_AXI
     C_S_AXI_ID_WIDTH	: integer	:= 1;
     C_S_AXI_DATA_WIDTH	: integer	:= 32;
-    C_S_AXI_ADDR_WIDTH	: integer	:= 14;
+    C_S_AXI_ADDR_WIDTH	: integer	:= ADDR_WIDTH;
     C_S_AXI_AWUSER_WIDTH	: integer	:= 1;
     C_S_AXI_ARUSER_WIDTH	: integer	:= 1;
     C_S_AXI_WUSER_WIDTH	: integer	:= 1;
@@ -157,7 +157,8 @@ signal    M_RM_RdReady : std_logic;
 signal    M_RM_WrValid : std_logic;
 
 
-signal IWrAddr, IRdAddr, WrAddrCore : std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
+signal IWrAddr, IRdAddr : std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
+signal WrAddrCore : std_logic_vector(ADDR_REGISTER_BITS-1 downto 0);
 signal IWrData, IRdData : std_logic_vector(31 downto 0);
 signal WrDataCore : std_logic_vector(KEY_SIZE-1 downto 0);
 signal IWrEn, IRdEn, WrEnCore : std_logic;
