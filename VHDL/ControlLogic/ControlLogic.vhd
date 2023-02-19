@@ -68,6 +68,7 @@ architecture Behavioral of ControlLogic is
 
 
 signal En, prevEn : std_logic;
+signal EnICoreSignal : std_logic;
 
 -- status signals
 signal BUSY, WRERR, RDERR, CCF : std_logic;
@@ -98,9 +99,11 @@ IV <= mem(ADDR_IVR0/4) & mem(ADDR_IVR1/4) & mem(ADDR_IVR2/4) & mem(ADDR_IVR3/4);
 Susp <=  mem(ADDR_SUSPR0/4) & mem(ADDR_SUSPR1/4) & mem(ADDR_SUSPR2/4) & mem(ADDR_SUSPR3/4);
 H <=  mem(ADDR_HR0/4) & mem(ADDR_HR1/4) & mem(ADDR_HR2/4) & mem(ADDR_HR3/4);
 
+
 -- set AES control signals
 -- copy mode, chaining_mode and GCMPhase to internal signals first, so we can check them in internal processes
 En <= mem(ADDR_CR/4)(0);
+EnICore <= EnICoreSignal;
 modeSignal <= mem(ADDR_CR/4)(4 downto 3);
 mode <= modeSignal;
 chainingModeSignal <= mem(ADDR_CR/4)(6 downto 5);
@@ -185,7 +188,7 @@ end process;
 process (Clock)
 begin
 if rising_edge(Clock) then
-    EnICore <= '0';
+    EnICoreSignal <= '0';
     -- Reset counter when unit is enabled
     if En = '1' and prevEn = '0' then
         writeCounter <= "00";
@@ -198,15 +201,14 @@ if rising_edge(Clock) then
             dataIn(127-to_integer(writeCounter)*32 downto 96-to_integer(writeCounter)*32) <= WrData1;
             if writeCounter = to_unsigned(3,2) then
                 -- All four bytes have been written, enable the AES Core
-                EnICore <= '1';
+                EnICoreSignal <= '1';
             end if;
-        end if;
     end if;
 
     -- If mode is keyexpansion or the GCM init mode, start the AES Core without waiting for the four write accesses
     if (modeSignal = MODE_KEYEXPANSION or (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT)) and 
             En = '1' and prevEn = '0' then
-        EnICore <= '1';
+        EnICoreSignal <= '1';
     end if;
 end if;
 end process;
@@ -224,8 +226,8 @@ if rising_edge(Clock) then
             CCF <= '1'; -- Set CCF flag whenever the Core finished a calculation
             interrupt <= CCFIE;
         end if;
-        -- Reset CCF when CCFC is set or unit is enabled
-        if CCFC = '1' or (En = '1' and prevEn = '0') then
+        -- Reset CCF when CCFC is set, unit is enabled or Core is being started
+        if CCFC = '1' or (En = '1' and prevEn = '0') or EnICoreSignal = '1' then
             CCF <= '0';
         end if;
     end if;
