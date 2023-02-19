@@ -86,7 +86,7 @@ encrypt <= not mode(1);
 -- Use an AddRoundKey unit as XOR
 xorUnit : AddRoundKey port map(dInXOR1, dOutXOR, dInXOR2, EnIXOR, EnOXOR, Clock, Resetn);
 
-
+-- For CBC mode, during encryption the input of the AEA is the output of XOR
 dInAEA <=   dOutXOR when chaining_mode = CHAINING_MODE_CBC and encrypt = '1' else
             IV when chaining_mode = CHAINING_MODE_CTR  else
             dIn;
@@ -105,7 +105,7 @@ dOut <=     dOutXOR when chaining_mode = CHAINING_MODE_CTR or (chaining_mode = C
             dOutAEA; 
 
 
--- For CBC mode, during encryption the input of the AEA is the output of XOR, except in KeyExpansion mode
+-- For CBC mode, during encryption the input of the AEA is the output of XOR
 EnIAEA <=   EnOXOR when chaining_mode = CHAINING_MODE_CBC and encrypt = '1' else
             EnI;
           
