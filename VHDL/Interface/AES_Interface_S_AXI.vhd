@@ -197,10 +197,6 @@ architecture arch_imp of AES_Interface_S_AXI is
 	-- read address wraps to a lower address if upper address
 	-- limit is reached
 	signal ar_wrap_size : integer;
-	-- The axi_awv_awr_flag flag marks the presence of write address valid
-	signal axi_awv_awr_flag    : std_logic;
-	--The axi_arv_arr_flag flag marks the presence of read address valid
-	signal axi_arv_arr_flag    : std_logic;
 	-- The axi_awlen_cntr internal write address counter to keep track of beats in a burst transaction
 	signal axi_awlen_cntr      : std_logic_vector(7 downto 0);
 	--The axi_arlen_cntr internal read address counter to keep track of beats in a burst transaction
@@ -253,17 +249,12 @@ begin
 	  if rising_edge(S_AXI_ACLK) then 
 	    if S_AXI_ARESETN = '0' then
 	      axi_awready <= '1';
-	      axi_awv_awr_flag <= '0';
 	    else
 	      if (axi_awready = '1' and S_AXI_AWVALID = '1') then
-			  -- set flag to mark ongoing transaction 
-	          axi_awv_awr_flag <= '1'; 
 			  --set awready = 0 to prevent accepting a new transaction during an ongoing one
 			  axi_awready <= '0';
 	      elsif (S_AXI_BREADY = '1' and axi_bvalid = '1') then 
-              -- preparing to accept next address after current write burst tx completion
-              axi_awv_awr_flag  <= '0';
-			  -- ready to accept new transaction
+			  -- ready to accept new transaction after current one completes
 			  axi_awready <= '1';
 	      end if;
 	    end if;
@@ -378,17 +369,12 @@ begin
 	  if rising_edge(S_AXI_ACLK) then 
 	    if S_AXI_ARESETN = '0' then
 	      axi_arready <= '1';
-	      axi_arv_arr_flag <= '0';
 	    else
 	      if (axi_arready = '1' and S_AXI_ARVALID = '1') then
-			-- set flag to mark ongoing transaction 
-	        axi_arv_arr_flag <= '1'; 
 			--set arready = 0 to prevent accepting a new transaction during an ongoing one
 			axi_arready <= '0';
 	      elsif (axi_rvalid = '1' and S_AXI_RREADY = '1' and axi_rlast = '1') then 
-	        -- preparing to accept next address after current read completion
-	        axi_arv_arr_flag <= '0';
-			-- ready to accept new transaction
+			-- ready to accept new transaction after last beat of current transaction
 	        axi_arready <= '1';
 	      end if;
 	    end if;
