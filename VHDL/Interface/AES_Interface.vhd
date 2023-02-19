@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity AES_Interface_M_v1_0 is
+entity AES_Interface is
 	generic (
 		-- Users to add parameters here
         LITTLE_ENDIAN : boolean := true;
@@ -147,12 +147,12 @@ entity AES_Interface_M_v1_0 is
 		m_axi_rvalid	: in std_logic;
 		m_axi_rready	: out std_logic
 	);
-end AES_Interface_M_v1_0;
+end AES_Interface;
 
-architecture arch_imp of AES_Interface_M_v1_0 is
+architecture arch_imp of AES_Interface is
 
 	-- component declaration
-	component AES_Interface_M_v1_0_S_AXI is
+	component AES_Interface_S_AXI is
 		generic (
 		C_S_AXI_ID_WIDTH	: integer	:= 1;
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
@@ -215,9 +215,9 @@ architecture arch_imp of AES_Interface_M_v1_0 is
 		S_AXI_RVALID	: out std_logic;
 		S_AXI_RREADY	: in std_logic
 		);
-	end component AES_Interface_M_v1_0_S_AXI;
+	end component AES_Interface_S_AXI;
 
-	component AES_Interface_M_v1_0_M_AXI is
+	component AES_Interface_M_AXI is
 		generic (
 		C_M_AXI_ID_WIDTH	: integer	:= 1;
 		C_M_AXI_ADDR_WIDTH	: integer	:= 32;
@@ -282,7 +282,7 @@ architecture arch_imp of AES_Interface_M_v1_0 is
 		M_AXI_RVALID	: in std_logic;
 		M_AXI_RREADY	: out std_logic
 		);
-	end component AES_Interface_M_v1_0_M_AXI;
+	end component AES_Interface_M_AXI;
 	
 	-- Give the interface ports attributes so Vivado recognizes them as interfaces
 	ATTRIBUTE X_INTERFACE_INFO : STRING;
@@ -325,7 +325,7 @@ architecture arch_imp of AES_Interface_M_v1_0 is
 begin
 
 -- Instantiation of Axi Bus Interface S_AXI
-AES_Interface_M_v1_0_S_AXI_inst : AES_Interface_M_v1_0_S_AXI
+AES_Interface_S_AXI_inst : AES_Interface_S_AXI
 	generic map (
 		C_S_AXI_ID_WIDTH	=> C_S_AXI_ID_WIDTH,
 		C_S_AXI_DATA_WIDTH	=> C_S_AXI_DATA_WIDTH,
@@ -386,14 +386,14 @@ AES_Interface_M_v1_0_S_AXI_inst : AES_Interface_M_v1_0_S_AXI
         -- banked registers
         WrData => WrDataSignal,
 		RdData => RdDataSignal,
-		WrAddr => WrAddr,
+		WrAddr => WrAddr,1
 		RdAddr => RdAddr,
 		WrEn => WrEn,
 		RdEn => RdEn
 	);
 
 -- Instantiation of Axi Bus Interface M_AXI
-AES_Interface_M_v1_0_M_AXI_inst : AES_Interface_M_v1_0_M_AXI
+AES_Interface_M_AXI_inst : AES_Interface_M_AXI
 	generic map (
 		C_M_AXI_ID_WIDTH	=> C_M_AXI_ID_WIDTH,
 		C_M_AXI_ADDR_WIDTH	=> C_M_AXI_ADDR_WIDTH,

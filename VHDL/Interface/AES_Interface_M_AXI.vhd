@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity AES_Interface_M_v1_0_M_AXI is
+entity AES_Interface_M_AXI is
 	generic (
 		-- Thread ID Width
 		C_M_AXI_ID_WIDTH	: integer	:= 1;
@@ -146,9 +146,9 @@ entity AES_Interface_M_v1_0_M_AXI is
     -- accept the read data and response information.
 		M_AXI_RREADY	: out std_logic
 	);
-end AES_Interface_M_v1_0_M_AXI;
+end AES_Interface_M_AXI;
 
-architecture implementation of AES_Interface_M_v1_0_M_AXI is
+architecture implementation of AES_Interface_M_AXI is
 
     function log2( i : natural) return integer is
         variable temp    : integer := i;

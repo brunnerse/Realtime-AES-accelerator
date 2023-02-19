@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity AES_Interface_M_v1_0_S_AXI is
+entity AES_Interface_M_S_AXI is
 	generic (
 		-- Users to add parameters here
 
@@ -166,9 +166,9 @@ entity AES_Interface_M_v1_0_S_AXI is
     -- accept the read data and response information.
 		S_AXI_RREADY	: in std_logic
 	);
-end AES_Interface_M_v1_0_S_AXI;
+end AES_Interface_S_AXI;
 
-architecture arch_imp of AES_Interface_M_v1_0_S_AXI is
+architecture arch_imp of AES_Interface_S_AXI is
 
 	-- AXI4FULL signals
 	signal axi_awaddr	: std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
