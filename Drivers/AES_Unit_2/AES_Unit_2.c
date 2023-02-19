@@ -298,9 +298,6 @@ void AES_startComputationCTR(AES* InstancePtr, u32 channel, u8* data, u8* outDat
 
 void AES_startComputationGCM(AES* InstancePtr, u32 channel, int encrypt, u8* header, u32 headerLen, u8* payload, u8* outProcessedPayload, u32 payloadLen, u8 IV[12], AES_CallbackFn callbackFn, void* callbackRef)
 {
-	InstancePtr->CallbackFn[channel] = callbackFn;
-	InstancePtr->CallbackRef[channel] = callbackRef;
-	
 	AES_SetIV(InstancePtr, channel, IV, 12);
 	// Write last word of the IV manually
 	AES_Write(InstancePtr, channel, AES_IVR0_OFFSET+12, MODE_GCM_IV_INIT);
@@ -311,6 +308,11 @@ void AES_startComputationGCM(AES* InstancePtr, u32 channel, int encrypt, u8* hea
 	{
 		// wait until Init Phase is complete
 		AES_waitUntilCompleted(InstancePtr, channel);
+		// If there's no payload phase, register callbacks now so they're called after the header phase
+		if (payloadLen == 0) {
+			InstancePtr->CallbackFn[channel] = callbackFn;
+			InstancePtr->CallbackRef[channel] = callbackRef;
+		}
 		AES_SetDataParameters(InstancePtr, channel, header, NULL, headerLen);
 		// enable with Phase Header
 		AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_HEADER);
@@ -320,6 +322,10 @@ void AES_startComputationGCM(AES* InstancePtr, u32 channel, int encrypt, u8* hea
 	{
 		// wait until Init / Header Phase is complete
 		AES_waitUntilCompleted(InstancePtr, channel);
+		// Register callbacks
+		InstancePtr->CallbackFn[channel] = callbackFn;
+		InstancePtr->CallbackRef[channel] = callbackRef;
+
 		AES_SetDataParameters(InstancePtr, channel, payload, outProcessedPayload, payloadLen);
 		// enable with Phase Payload
 		AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_DECRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_PAYLOAD);
