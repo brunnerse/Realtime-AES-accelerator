@@ -589,7 +589,7 @@ end procedure;
                    -- Check for special case GCM mode if the channel work is complete,
                    -- for other modi the channel was interrupted 
                    if chainingModeSignal = CHAINING_MODE_GCM and 
-                     (GCMPhaseSignal = GCM_PHASE_INIT or GCMPhaseSignal = GCM_PHASE_FINAL or dataSize = dataCount) then
+                     (GCMPhaseSignal = GCM_PHASE_INIT or dataSize = dataCount) then
                         ChangeToIdleAndMarkAsComplete;
                    else
                         state <= Idle;
@@ -804,7 +804,7 @@ if rising_edge(Clock) then
         
         -- Write Port 3 : from RegMem Port
         -- Prepare to read M_RM_RdData into memory once RM_valid is asserted
-        if RM_Valid = '1' and RM_RdReady = '0' then
+        if RM_Valid = '1' and RM_RdReady = '0' and RM_write = '1' then
             read_index <= (others => '0');
             RM_RdReady <= '1';
         elsif RM_RdReady = '1' and M_RM_RdValid = '1' then

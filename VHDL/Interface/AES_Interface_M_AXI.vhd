@@ -331,7 +331,7 @@ begin
             elsif (rm_valid_pulse = '1' and S_RM_WRITE = '1') then
                    axi_awvalid <= '1';
                    axi_awaddr <= S_RM_ADDR;
-                   axi_awlen <= std_logic_vector(unsigned(S_RM_LENGTH)-to_unsigned(1, S_RM_LENGTH'LENGTH));
+                   axi_awlen <= std_logic_vector(unsigned(S_RM_LENGTH) - 1);
                    -- RegMem Port uses only 32 bits
                    axi_awsize <= std_logic_vector( to_unsigned(log2(32/8), 3) );                                   
             -- deassert once the address has been accepted          
@@ -471,7 +471,7 @@ begin
             elsif (rm_valid_pulse = '1' and S_RM_WRITE = '0') then
                    axi_arvalid <= '1';
                    axi_araddr <= S_RM_ADDR;
-                   axi_arlen <= std_logic_vector(unsigned(S_RM_LENGTH)-to_unsigned(1, S_RM_LENGTH'LENGTH));  
+                   axi_arlen <= std_logic_vector(unsigned(S_RM_LENGTH)- 1);  
                    -- RegMem Port uses only 32 bits
                    axi_arsize <= std_logic_vector( to_unsigned(log2(32/8), 3) );             
             -- deassert once the address has been accepted                                      

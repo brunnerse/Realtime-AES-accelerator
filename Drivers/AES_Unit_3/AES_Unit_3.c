@@ -475,7 +475,7 @@ void AES_IntrHandler(void *HandlerRef)
 		{
 			irqReceived = 1;
 			// Clear interrupt by writing the Status register back
-			AES_Write(InstancePtr, 0, AES_SR_OFFSET, SR);
+			AES_Write(InstancePtr, i, AES_SR_OFFSET, SR);
 			// Call Callback function of channel if it was set
 			if (InstancePtr->CallbackFn[i])
 			{
