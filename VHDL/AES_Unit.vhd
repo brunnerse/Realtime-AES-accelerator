@@ -139,13 +139,13 @@ ATTRIBUTE X_INTERFACE_PARAMETER : STRING;
 
 
 -- signals to master AES Interface
-signal    M_RW_valid :  std_logic;
-signal    M_RW_ready : std_logic;
-signal    M_RW_addr : std_logic_vector(31 downto 0);
-signal    M_RW_wrData : std_logic_vector(KEY_SIZE-1 downto 0);
-signal    M_RW_rdData : std_logic_vector(KEY_SIZE-1 downto 0);
-signal    M_RW_write : std_logic; 
-signal    M_RW_error : std_logic;
+signal    M_RV_valid :  std_logic;
+signal    M_RV_ready : std_logic;
+signal    M_RV_addr : std_logic_vector(31 downto 0);
+signal    M_RV_wrData : std_logic_vector(KEY_SIZE-1 downto 0);
+signal    M_RV_rdData : std_logic_vector(KEY_SIZE-1 downto 0);
+signal    M_RV_write : std_logic; 
+signal    M_RV_error : std_logic;
 
 signal IWrAddr, IRdAddr : std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
 signal WrAddrCore : std_logic_vector(ADDR_REGISTER_BITS-1 downto 0);
@@ -193,13 +193,13 @@ i_AES_Interface : entity work.AES_Interface(arch_imp)
         WrAddr => IWrAddr, 
         WrData => IWrData,
         WrStrb => IWrStrb,
-        S_RW_valid => M_RW_valid,
-        S_RW_ready => M_RW_ready,
-        S_RW_addr => M_RW_addr,
-        S_RW_wrData => M_RW_wrData,
-        S_RW_rdData => M_RW_rdData,
-        S_RW_write => M_RW_write,
-        S_RW_error => M_RW_error,
+        S_RV_valid => M_RV_valid,
+        S_RV_ready => M_RV_ready,
+        S_RV_addr => M_RV_addr,
+        S_RV_wrData => M_RV_wrData,
+        S_RV_rdData => M_RV_rdData,
+        S_RV_write => M_RV_write,
+        S_RV_error => M_RV_error,
         -- Slave AXI port
         s_axi_aclk => s_axi_aclk,
 		s_axi_aresetn => s_axi_aresetn,
@@ -301,13 +301,13 @@ i_ControlLogic : entity work.ControlLogic(Behavioral)
         LITTLE_ENDIAN => LITTLE_ENDIAN,
         NUM_CHANNELS => NUM_CHANNELS)
     port map(
-        M_RW_valid => M_RW_valid,
-        M_RW_ready => M_RW_ready,
-        M_RW_error => M_RW_error, 
-        M_RW_rdData => M_RW_rdData,
-        M_RW_wrData => M_RW_wrData,
-        M_RW_addr => M_RW_addr,
-        M_RW_write => M_RW_write,
+        M_RV_valid => M_RV_valid,
+        M_RV_ready => M_RV_ready,
+        M_RV_error => M_RV_error, 
+        M_RV_rdData => M_RV_rdData,
+        M_RV_wrData => M_RV_wrData,
+        M_RV_addr => M_RV_addr,
+        M_RV_write => M_RV_write,
         RdEn => IRdEn,
         RdAddr => IRdAddr,
         RdData => IRdData, 

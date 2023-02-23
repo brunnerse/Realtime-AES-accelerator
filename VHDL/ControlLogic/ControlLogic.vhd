@@ -43,13 +43,13 @@ entity ControlLogic is
     RdAddr : in std_logic_vector(ADDR_WIDTH-1 downto 0);
     RdData : out std_logic_vector(DATA_WIDTH-1 downto 0);
 -- ReadyValid port for memory data transfer
-    M_RW_valid : out std_logic;
-    M_RW_ready : in std_logic;
-    M_RW_addr : out std_logic_vector(31 downto 0);
-    M_RW_wrData : out std_logic_vector(KEY_SIZE-1 downto 0);
-    M_RW_rdData : in std_logic_vector(KEY_SIZE-1 downto 0);
-    M_RW_write : out std_logic; 
-    M_RW_error : in std_logic;
+    M_RV_valid : out std_logic;
+    M_RV_ready : in std_logic;
+    M_RV_addr : out std_logic_vector(31 downto 0);
+    M_RV_wrData : out std_logic_vector(KEY_SIZE-1 downto 0);
+    M_RV_rdData : in std_logic_vector(KEY_SIZE-1 downto 0);
+    M_RV_write : out std_logic; 
+    M_RV_error : in std_logic;
     --  write port
     WrEn1 : in std_logic;
     WrAddr1 : in std_logic_vector(ADDR_WIDTH-1 downto 0);
@@ -159,19 +159,19 @@ ATTRIBUTE X_INTERFACE_INFO of WrAddr2: SIGNAL is
 "xilinx.com:user:ReadWritePort:1.0 S_WritePort_127 WrAddr";
 
 
-ATTRIBUTE X_INTERFACE_INFO of M_RW_addr: SIGNAL is
+ATTRIBUTE X_INTERFACE_INFO of M_RV_addr: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort Addr";
-ATTRIBUTE X_INTERFACE_INFO of M_RW_wrData: SIGNAL is
+ATTRIBUTE X_INTERFACE_INFO of M_RV_wrData: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort WrData";
-ATTRIBUTE X_INTERFACE_INFO of M_RW_rdData: SIGNAL is
+ATTRIBUTE X_INTERFACE_INFO of M_RV_rdData: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort RdData";
-ATTRIBUTE X_INTERFACE_INFO of M_RW_ready: SIGNAL is
+ATTRIBUTE X_INTERFACE_INFO of M_RV_ready: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort ready";
-ATTRIBUTE X_INTERFACE_INFO of M_RW_valid: SIGNAL is
+ATTRIBUTE X_INTERFACE_INFO of M_RV_valid: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort valid";
-ATTRIBUTE X_INTERFACE_INFO of M_RW_write: SIGNAL is
+ATTRIBUTE X_INTERFACE_INFO of M_RV_write: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort write";
-ATTRIBUTE X_INTERFACE_INFO of M_RW_error: SIGNAL is
+ATTRIBUTE X_INTERFACE_INFO of M_RV_error: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort error";
 
 -- Define registers as array out of words with DATA_WIDTH bits
@@ -209,16 +209,16 @@ type state_type is (Idle, Fetch, Computing, Writeback);
 signal state : state_type;
 
 -- internal signals for RW port output
-signal RW_addr : std_logic_vector(M_RW_addr'RANGE);
-signal RW_valid : std_logic;
-signal RW_wrData : std_logic_vector(KEY_SIZE-1 downto 0);
-signal RW_write : std_logic;
+signal RV_addr : std_logic_vector(M_RV_addr'RANGE);
+signal RV_valid : std_logic;
+signal RV_wrData : std_logic_vector(KEY_SIZE-1 downto 0);
+signal RV_write : std_logic;
 
 
 type dataCountArray is array (channel_range) of std_logic_vector(DATA_WIDTH-1 downto 0);
 signal dataCount : dataCountArray;
 signal dataSize : std_logic_vector(DATA_WIDTH-1 downto 0);
-signal sourceAddress, destAddress : std_logic_vector(M_RW_addr'LENGTH-1 downto 0);
+signal sourceAddress, destAddress : std_logic_vector(M_RV_addr'LENGTH-1 downto 0);
 -- control signals
 signal interrupt, clearInterrupt : std_logic_vector(channel_range); -- stores for each channel whether it request an interrupt
 signal CCFIE : std_logic;
@@ -230,10 +230,10 @@ begin
 
 
 -- forward internal RW port output signals
-M_RW_addr <= RW_addr;
-M_RW_valid <= RW_valid;
-M_RW_wrData <= RW_wrData;
-M_RW_write <= RW_write;
+M_RV_addr <= RV_addr;
+M_RV_valid <= RV_valid;
+M_RV_wrData <= RV_wrData;
+M_RV_write <= RV_write;
 
 -- set AES control signals
 mode <= modeSignal;
@@ -305,7 +305,7 @@ end procedure;
     -- synchronous reset
     if Resetn = '0' then
         state <= Idle;
-        RW_valid <= '0';
+        RV_valid <= '0';
         channel <= 0;
         interrupt <= (others => '0');
         isChannelInterrupted <= (others => '0');
@@ -377,19 +377,19 @@ end procedure;
                     else
                         -- start read data transaction
                         -- set RW addr to source address
-                        RW_addr         <= sourceAddrVar; -- set RW_addr to sourceAddress
-                        RW_write        <= '0';
-                        RW_valid        <= '1';
+                        RV_addr         <= sourceAddrVar; -- set RV_addr to sourceAddress
+                        RV_write        <= '0';
+                        RV_valid        <= '1';
                         state           <= Fetch;
                     end if;
                 end if;
             when Fetch =>
                 -- wait until data were received
-                if M_RW_ready = '1' then
+                if M_RV_ready = '1' then
                     -- reset valid signal
-                    RW_valid <= '0';
+                    RV_valid <= '0';
                     -- start the core
-                    DIN <= M_RW_rdData;
+                    DIN <= M_RV_rdData;
                     ChangeStateToComputing(channel);
                 end if;
             when Computing =>
@@ -412,21 +412,21 @@ end procedure;
                          state <= Writeback;
                     -- in all other cases, write back the result data
                     else
-                        RW_addr <= destAddress;
-                        RW_write <= '1';
-                        RW_wrData <= DOUT;
-                        RW_valid <= '1';
+                        RV_addr <= destAddress;
+                        RV_write <= '1';
+                        RV_wrData <= DOUT;
+                        RV_valid <= '1';
                         state <= Writeback;
                    end if;
                 end if;
             when Writeback =>
                 -- either memory request as completed or we are in GCM Header phase, so nothing is written back and we can continue immediately
-                 if M_RW_ready = '1' or
+                 if M_RV_ready = '1' or
                          (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_HEADER) then
                          
-                    RW_valid <= '0';
+                    RV_valid <= '0';
                     -- increment dataCount of this channel
-                    dataCount(channel) <= std_logic_vector(unsigned(dataCount(channel)) + to_unsigned(BLOCK_SIZE, RW_addr'LENGTH));
+                    dataCount(channel) <= std_logic_vector(unsigned(dataCount(channel)) + to_unsigned(BLOCK_SIZE, RV_addr'LENGTH));
                     
                     -- check if computation is complete
                     if (unsigned(dataSize) - unsigned(dataCount(channel))) <= to_unsigned(BLOCK_SIZE, dataSize'LENGTH) then
@@ -436,12 +436,12 @@ end procedure;
                     elsif channel = highestChannel then
                         -- Not complete; Fetch next data block
                         -- increment addresses
-                        destAddress <= std_logic_vector(unsigned(destAddress) + to_unsigned(BLOCK_SIZE, RW_addr'LENGTH));
-                        sourceAddress <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(BLOCK_SIZE, RW_addr'LENGTH));
-                        -- set RW_addr to new source address
-                        RW_addr <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(BLOCK_SIZE, RW_addr'LENGTH));           
-                        RW_valid <= '1'; -- new memory request
-                        RW_write <= '0';
+                        destAddress <= std_logic_vector(unsigned(destAddress) + to_unsigned(BLOCK_SIZE, RV_addr'LENGTH));
+                        sourceAddress <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(BLOCK_SIZE, RV_addr'LENGTH));
+                        -- set RV_addr to new source address
+                        RV_addr <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(BLOCK_SIZE, RV_addr'LENGTH));           
+                        RV_valid <= '1'; -- new memory request
+                        RV_write <= '0';
                         state <= Fetch;
                     -- Channel is being interrupted
                     else
@@ -471,11 +471,11 @@ if rising_edge(Clock) then
             end if;
        end loop;
        -- update error when a transaction is complete
-       if RW_valid = '1' and M_RW_ready = '1' then
-            if RW_write = '1' then
-                WRERR(channel) <= WRERR(channel) or M_RW_error;
+       if RV_valid = '1' and M_RV_ready = '1' then
+            if RV_write = '1' then
+                WRERR(channel) <= WRERR(channel) or M_RV_error;
             else
-                RDERR(channel) <= RDERR(channel) or M_RW_error;
+                RDERR(channel) <= RDERR(channel) or M_RV_error;
             end if;
        end if;
     end if;

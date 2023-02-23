@@ -23,13 +23,13 @@ entity AES_Interface_M_AXI is
 	);
 	port (
 		-- Users to add ports here
-        S_RW_VALID : in std_logic;
-        S_RW_READY : out std_logic;
-        S_RW_ADDR : in std_logic_vector(31 downto 0);
-        S_RW_WRDATA : in std_logic_vector(127 downto 0);
-        S_RW_RDDATA : out std_logic_vector(127 downto 0);
-        S_RW_WRITE : in std_logic; 
-		S_RW_ERROR	: out std_logic;
+        S_RV_VALID : in std_logic;
+        S_RV_READY : out std_logic;
+        S_RV_ADDR : in std_logic_vector(31 downto 0);
+        S_RV_WRDATA : in std_logic_vector(127 downto 0);
+        S_RV_RDDATA : out std_logic_vector(127 downto 0);
+        S_RV_WRITE : in std_logic; 
+		S_RV_ERROR	: out std_logic;
 		-- User ports ends
 		-- Do not modify the ports beyond this line
 
@@ -185,10 +185,10 @@ architecture implementation of AES_Interface_M_AXI is
 	signal wnext	: std_logic;
 	signal rnext	: std_logic;
 	
-	signal RW_ready : std_logic;
-    signal RW_valid_prev : std_logic;
-	signal RW_valid_pulse	: std_logic;
-	signal RW_ready_prev : std_logic;
+	signal RV_ready : std_logic;
+    signal RV_valid_prev : std_logic;
+	signal RV_valid_pulse	: std_logic;
+	signal RV_ready_prev : std_logic;
 
 
 begin
@@ -239,13 +239,13 @@ begin
 	--Read and Read Response (R)
 	M_AXI_RREADY	<= axi_rready;
 	
-	S_RW_READY <= RW_ready;
+	S_RV_READY <= RV_ready;
 	-- store handshake signals from previous cycle
-    RW_valid_prev <= S_RW_VALID when rising_edge(M_AXI_ACLK);
-	RW_ready_prev <= RW_ready when rising_edge(M_AXI_ACLK);
-	-- pulse from RW_valid signal (i.e. when to start a new transfer):
-	-- either RW_valid was 0 before and is now 1,  or the previous transaction completed but S_RW_valid is still high
-	RW_valid_pulse	<= S_RW_VALID and (not RW_valid_prev or RW_ready_prev);
+    RV_valid_prev <= S_RV_VALID when rising_edge(M_AXI_ACLK);
+	RV_ready_prev <= RV_ready when rising_edge(M_AXI_ACLK);
+	-- pulse from RV_valid signal (i.e. when to start a new transfer):
+	-- either RV_valid was 0 before and is now 1,  or the previous transaction completed but S_RV_valid is still high
+	RV_valid_pulse	<= S_RV_VALID and (not RV_valid_prev or RV_ready_prev);
 
 
 	----------------------
@@ -268,7 +268,7 @@ begin
 	        axi_awvalid <= '0';                                            
 	      else                                                             
 	        -- start next transaction            
-	        if (RW_valid_pulse = '1' and S_RW_WRITE = '1') then 
+	        if (RV_valid_pulse = '1' and S_RV_WRITE = '1') then 
                   axi_awvalid <= '1';                                          
             -- deassert once the address has been accepted          
 	        elsif (M_AXI_AWREADY = '1' and axi_awvalid = '1') then         
@@ -278,7 +278,7 @@ begin
 	    end if;                                                            
 	  end process;                                                         
 	     
-	axi_awaddr <= S_RW_ADDR;                                                   
+	axi_awaddr <= S_RV_ADDR;                                                   
 
 	----------------------
 	--Write Data Channel
@@ -296,7 +296,7 @@ begin
 	        axi_wvalid <= '0';                                                          
 	      else 
 		  	-- set wvalid to 1 at the start of the transfer                                                                        
-	        if (RW_valid_pulse =  '1' and S_RW_WRITE = '1') then                           
+	        if (RV_valid_pulse =  '1' and S_RV_WRITE = '1') then                           
                   axi_wvalid <= '1'; 
 			-- deassert wvalid after the last write handshake                                                                     
 	        elsif (M_AXI_WREADY = '1' and axi_wvalid = '1' and axi_wlast = '1') then                                
@@ -319,7 +319,7 @@ begin
                 -- elsif (&(write_index[C_TRANSACTIONS_NUM-1:1])&& ~write_index[0] && wnext)
 	      else
                -- init wlast at start of the burst
-                if RW_valid_pulse = '1' then
+                if RV_valid_pulse = '1' then
                     if NUM_BURSTS = 1 then
                         axi_wlast <= '1';
                     else
@@ -343,14 +343,14 @@ begin
 	       variable idx_offset : integer;                                                              
 	  begin                                                                             
 	    if (rising_edge (M_AXI_ACLK)) then                                              
-	      if (M_AXI_ARESETN = '0' or RW_valid_pulse = '1') then               
+	      if (M_AXI_ARESETN = '0' or RV_valid_pulse = '1') then               
 	           write_index <= (others => '0');
-	           axi_wdata <= S_RW_wrData(127 downto 128 - C_M_AXI_DATA_WIDTH);                                             
+	           axi_wdata <= S_RV_wrData(127 downto 128 - C_M_AXI_DATA_WIDTH);                                             
 	      else                                                                          
 	           -- update write_index and wdata at each handshake
                if M_AXI_WREADY= '1' and axi_wvalid = '1' then
                    idx_offset := to_integer(unsigned(write_index)+1) * C_M_AXI_DATA_WIDTH;    
-                   axi_wdata <= S_RW_wrData(127 - idx_offset downto 128 - C_M_AXI_DATA_WIDTH - idx_offset);                   
+                   axi_wdata <= S_RV_wrData(127 - idx_offset downto 128 - C_M_AXI_DATA_WIDTH - idx_offset);                   
 	               write_index <= std_logic_vector(unsigned(write_index) + 1);                 
                end if;                                                                     
 	      end if;                                                                       
@@ -376,7 +376,7 @@ begin
 	--into the ERROR output. 
 
 	-- set bready to 1 during the entire transfer (if it is a write transfer)
-      axi_bready <= S_RW_VALID and S_RW_WRITE;                                             
+      axi_bready <= S_RV_VALID and S_RV_WRITE;                                             
 
 	------------------------------
 	--Read Address Channel
@@ -392,7 +392,7 @@ begin
 	     -- If previously not valid , start next transaction             
 	      else              
            -- start next transaction                                          
-	        if (RW_valid_pulse = '1' and S_RW_WRITE = '0') then
+	        if (RV_valid_pulse = '1' and S_RV_WRITE = '0') then
 	          axi_arvalid <= '1';     
             -- deassert once the address has been accepted                                      
 	        elsif (M_AXI_ARREADY = '1' and axi_arvalid = '1') then       
@@ -403,7 +403,7 @@ begin
 	  end process;              
                    
 	                                                      
-	  axi_araddr <= S_RW_addr;                                                   
+	  axi_araddr <= S_RV_addr;                                                   
 
 
 	----------------------------------
@@ -416,13 +416,13 @@ begin
       variable idx_offset : integer;                                                   
       begin                                                                 
         if (rising_edge (M_AXI_ACLK)) then                                  
-          if (M_AXI_ARESETN = '0' or RW_valid_pulse = '1') then    
+          if (M_AXI_ARESETN = '0' or RV_valid_pulse = '1') then    
                read_index <= (others => '0');                                  
           else
-               -- at every handshake, copy the rdata to the designated part of S_RW_rdData, then increment the read_index
+               -- at every handshake, copy the rdata to the designated part of S_RV_rdData, then increment the read_index
                if axi_rready = '1' and M_AXI_RVALID = '1' then
                    idx_offset := to_integer(unsigned(read_index)) * C_M_AXI_DATA_WIDTH;    
-                   S_RW_rdData(127 - idx_offset downto 128 - C_M_AXI_DATA_WIDTH - idx_offset) <= M_AXI_RDATA;                   
+                   S_RV_rdData(127 - idx_offset downto 128 - C_M_AXI_DATA_WIDTH - idx_offset) <= M_AXI_RDATA;                   
                    read_index <= std_logic_vector(unsigned(read_index) + 1);                 
                end if;                                                                                                                                                         
           end if;                                                           
@@ -441,7 +441,7 @@ begin
 	      -- when M_AXI_RVALID is asserted by slave                         
 	      else
 	        -- assert rready at the start of the transfer
-	        if RW_valid_pulse = '1' and S_RW_WRITE = '0' then
+	        if RV_valid_pulse = '1' and S_RV_WRITE = '0' then
 	           axi_rready <= '1';
 	        -- deassert rready after the last transfer                                                  
 	        elsif(axi_rready = '1' and M_AXI_RVALID = '1' and M_AXI_RLAST = '1') then
@@ -452,16 +452,16 @@ begin
 	  end process;                                               
                                                                                                
 	                                                                                                                                                                                       
-	 -- Set S_RW_ready when last write/read completion.                                                                                                                                                                                                                                                                 
+	 -- Set S_RV_ready when last write/read completion.                                                                                                                                                                                                                                                                 
 	  process(M_AXI_ACLK)                                                                                        
 	  begin                                                                                                      
 	    if (rising_edge (M_AXI_ACLK)) then                                                                       
-           RW_ready <= '0';
-           if S_RW_VALID = '1' then                                                                                                   
-               if S_RW_WRITE = '1' and M_AXI_BVALID = '1' and axi_bready = '1' then   -- one response for the entire burst, so wlast doesn't matter
-                  RW_ready <= '1';                                                                               
-               elsif S_RW_WRITE = '0' and M_AXI_RVALID = '1' and axi_rready = '1'and M_AXI_RLAST = '1' then
-                  RW_ready <= '1';
+           RV_ready <= '0';
+           if S_RV_VALID = '1' then                                                                                                   
+               if S_RV_WRITE = '1' and M_AXI_BVALID = '1' and axi_bready = '1' then   -- one response for the entire burst, so wlast doesn't matter
+                  RV_ready <= '1';                                                                               
+               elsif S_RV_WRITE = '0' and M_AXI_RVALID = '1' and axi_rready = '1'and M_AXI_RLAST = '1' then
+                  RV_ready <= '1';
                end if;        
            end if;                                                                                                                                                                                           
 	    end if;                                                                                                  
@@ -473,12 +473,12 @@ begin
 	  process(M_AXI_ACLK)                                          
 	  begin                                                              
 	    if (rising_edge (M_AXI_ACLK)) then                               
-	      if (M_AXI_ARESETN = '0' or RW_valid_pulse = '1') then                                 
-	           S_RW_ERROR <= '0';                                            
+	      if (M_AXI_ARESETN = '0' or RV_valid_pulse = '1') then                                 
+	           S_RV_ERROR <= '0';                                            
 	      else                                                           
 	        if 	(axi_bready and M_AXI_BVALID and M_AXI_BRESP(1)) = '1' or                                         
                   (axi_rready and M_AXI_RVALID and M_AXI_RRESP(1)) = '1' then
-	          S_RW_ERROR <= '1';                                          
+	          S_RV_ERROR <= '1';                                          
 	        end if;                                                      
 	      end if;                                                        
 	    end if;                                                          

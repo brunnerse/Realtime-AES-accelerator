@@ -41,13 +41,13 @@ entity AES_Interface is
         WrData : out std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
         WrStrb : out std_logic_vector(C_S_AXI_DATA_WIDTH/8-1 downto 0);
         -- ReadyValid_RW_Port to ControlLogic
-        S_RW_valid : in std_logic;
-        S_RW_ready : out std_logic;
-        S_RW_addr : in std_logic_vector(31 downto 0);
-        S_RW_wrData : in std_logic_vector(127 downto 0);
-        S_RW_rdData : out std_logic_vector(127 downto 0);
-        S_RW_write : in std_logic;
-        S_RW_error : out std_logic; 
+        S_RV_valid : in std_logic;
+        S_RV_ready : out std_logic;
+        S_RV_addr : in std_logic_vector(31 downto 0);
+        S_RV_wrData : in std_logic_vector(127 downto 0);
+        S_RV_rdData : out std_logic_vector(127 downto 0);
+        S_RV_write : in std_logic;
+        S_RV_error : out std_logic; 
 		-- User ports ends
 		
 		-- Do not modify the ports beyond this line
@@ -230,13 +230,13 @@ architecture arch_imp of AES_Interface is
 		);
 		port (
 		        -- ReadyValid_RW_Port to ControlLogic
-        S_RW_VALID : in std_logic;
-        S_RW_READY : out std_logic;
-        S_RW_ADDR : in std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
-        S_RW_WRDATA : in std_logic_vector(127 downto 0);
-        S_RW_RDDATA : out std_logic_vector(127 downto 0);
-        S_RW_WRITE : in std_logic; 
-		S_RW_ERROR	: out std_logic;
+        S_RV_VALID : in std_logic;
+        S_RV_READY : out std_logic;
+        S_RV_ADDR : in std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
+        S_RV_WRDATA : in std_logic_vector(127 downto 0);
+        S_RV_RDDATA : out std_logic_vector(127 downto 0);
+        S_RV_WRITE : in std_logic; 
+		S_RV_ERROR	: out std_logic;
 		M_AXI_ACLK	: in std_logic;
 		M_AXI_ARESETN	: in std_logic;
 		M_AXI_AWID	: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
@@ -304,24 +304,24 @@ architecture arch_imp of AES_Interface is
 
 
 
-	ATTRIBUTE X_INTERFACE_INFO of S_RW_addr: SIGNAL is
+	ATTRIBUTE X_INTERFACE_INFO of S_RV_addr: SIGNAL is
     "xilinx.com:user:ReadyValid_RW_Port:1.0 S_DataPort Addr";
-    ATTRIBUTE X_INTERFACE_INFO of S_RW_wrData: SIGNAL is
+    ATTRIBUTE X_INTERFACE_INFO of S_RV_wrData: SIGNAL is
     "xilinx.com:user:ReadyValid_RW_Port:1.0 S_DataPort WrData";
-    ATTRIBUTE X_INTERFACE_INFO of S_RW_rdData: SIGNAL is
+    ATTRIBUTE X_INTERFACE_INFO of S_RV_rdData: SIGNAL is
     "xilinx.com:user:ReadyValid_RW_Port:1.0 S_DataPort RdData";
-    ATTRIBUTE X_INTERFACE_INFO of S_RW_ready: SIGNAL is
+    ATTRIBUTE X_INTERFACE_INFO of S_RV_ready: SIGNAL is
     "xilinx.com:user:ReadyValid_RW_Port:1.0 S_DataPort ready";
-    ATTRIBUTE X_INTERFACE_INFO of S_RW_valid: SIGNAL is
+    ATTRIBUTE X_INTERFACE_INFO of S_RV_valid: SIGNAL is
     "xilinx.com:user:ReadyValid_RW_Port:1.0 S_DataPort valid";
-    ATTRIBUTE X_INTERFACE_INFO of S_RW_write: SIGNAL is
+    ATTRIBUTE X_INTERFACE_INFO of S_RV_write: SIGNAL is
     "xilinx.com:user:ReadyValid_RW_Port:1.0 S_DataPort write";
-    ATTRIBUTE X_INTERFACE_INFO of S_RW_error: SIGNAL is
+    ATTRIBUTE X_INTERFACE_INFO of S_RV_error: SIGNAL is
     "xilinx.com:user:ReadyValid_RW_Port:1.0 S_DataPort error";
 
 	-- signals to forward the RdData and WrData Signals
     signal WrDataSignal, RdDataSignal : std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
-    signal S_RW_rdDataSignal, S_RW_wrDataSignal :  std_logic_vector(127 downto 0);
+    signal S_RV_rdDataSignal, S_RV_wrDataSignal :  std_logic_vector(127 downto 0);
 begin
 
 -- Instantiation of Axi Bus Interface S_AXI
@@ -406,13 +406,13 @@ AES_Interface_M_AXI_inst : AES_Interface_M_AXI
 	)
 	port map (
 	    -- RW Port signals
-        S_RW_VALID => S_RW_valid,
-        S_RW_READY => S_RW_ready,
-        S_RW_ADDR => S_RW_addr,
-        S_RW_WRDATA => S_RW_wrDataSignal,
-        S_RW_RDDATA => S_RW_rdDataSignal,
-        S_RW_WRITE => S_RW_write,
-		S_RW_ERROR	=> S_RW_error,
+        S_RV_VALID => S_RV_valid,
+        S_RV_READY => S_RV_ready,
+        S_RV_ADDR => S_RV_addr,
+        S_RV_WRDATA => S_RV_wrDataSignal,
+        S_RV_RDDATA => S_RV_rdDataSignal,
+        S_RV_WRITE => S_RV_write,
+		S_RV_ERROR	=> S_RV_error,
 		-- AXI signals
 		M_AXI_ACLK	=> m_axi_aclk,
 		M_AXI_ARESETN	=> m_axi_aresetn,
@@ -471,8 +471,8 @@ AES_Interface_M_AXI_inst : AES_Interface_M_AXI
             RdDataSignal <= RdData;
             WrStrb <= S_AXI_WSTRB;
             -- ReadyValid_RW_Port
-            S_RW_wrDataSignal <= S_RW_wrData;
-            S_RW_rdData <= S_RW_rdDataSignal;
+            S_RV_wrDataSignal <= S_RV_wrData;
+            S_RV_rdData <= S_RV_rdDataSignal;
         end generate;
     DataForwardingLittleEndian:
         if LITTLE_ENDIAN generate
@@ -484,7 +484,7 @@ AES_Interface_M_AXI_inst : AES_Interface_M_AXI
                 WrStrb(i) <= s_axi_wstrb(3 - i);
             end generate;
             -- ReadyValid_RW_Port
-           GenReadyValid_RW_Port_Data:
+           GenReadyValid_RV_Port_Data:
             for j in 128/C_M_AXI_DATA_WIDTH-1 downto 0 generate
                 -- for each of the 32/64 bit words, reverse the byte positions
                 InnerLoop: 
@@ -492,8 +492,8 @@ AES_Interface_M_AXI_inst : AES_Interface_M_AXI
                 constant index : integer := (j * C_M_AXI_DATA_WIDTH/8 + i) * 8;
                 constant invindex : integer := ((j+1) * C_M_AXI_DATA_WIDTH/8 - 1 - i) * 8;
                 begin
-                    S_RW_wrDataSignal(index+7 downto index) <= S_RW_wrData(invindex+7 downto invindex);
-                    S_RW_rdData(index+7 downto index) <= S_RW_rdDataSignal(invindex+7 downto invindex);
+                    S_RV_wrDataSignal(index+7 downto index) <= S_RV_wrData(invindex+7 downto invindex);
+                    S_RV_rdData(index+7 downto index) <= S_RV_rdDataSignal(invindex+7 downto invindex);
                 end generate ;
             end generate;
         end generate;

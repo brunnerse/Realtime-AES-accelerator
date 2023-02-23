@@ -73,10 +73,10 @@ testKey <= x"000102030405060708090a0b0c0d0e0f";
 
 i_ControlLogic : entity work.ControlLogic(Behavioral)
     port map(
-        M_RW_ready => CL_ready,
-        M_RW_valid => CL_valid,
-        M_RW_rdData => testPlaintext,
-        M_RW_error => '0',
+        M_RV_ready => CL_ready,
+        M_RV_valid => CL_valid,
+        M_RV_rdData => testPlaintext,
+        M_RV_error => '0',
         
         Clock => Clock,
         Resetn => Resetn,
