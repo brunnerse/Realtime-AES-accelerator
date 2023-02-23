@@ -121,8 +121,8 @@ EnEncI <= '0'; wait for 50 ns; -- Wait until Resetn is over
 EnEncI <= '1'; 
 testPlaintext <= x"00102030011121310212223203132333";
 wait for 10 ns;
-EnEncI <= '0'; wait for 110 ns; -- Wait until Resetn is over
-wait;
+EnEncI <= '0'; wait for 110 ns;
+wait for 1000ns;
 EnEncI <= '1'; 
 testPlaintext <= x"affedeadbeefdadcabbeadbeec0cabad";
 wait for 10 ns;
