@@ -94,12 +94,6 @@ begin
 DIN <= dataIn;
 dataOut <= DOUT;
 
-key <= mem(ADDR_KEYR0/4) & mem(ADDR_KEYR1/4) & mem(ADDR_KEYR2/4) & mem(ADDR_KEYR3/4);
-IV <= mem(ADDR_IVR0/4) & mem(ADDR_IVR1/4) & mem(ADDR_IVR2/4) & mem(ADDR_IVR3/4);
-Susp <=  mem(ADDR_SUSPR0/4) & mem(ADDR_SUSPR1/4) & mem(ADDR_SUSPR2/4) & mem(ADDR_SUSPR3/4);
-H <=  mem(ADDR_HR0/4) & mem(ADDR_HR1/4) & mem(ADDR_HR2/4) & mem(ADDR_HR3/4);
-
-
 -- set AES control signals
 -- copy mode, chaining_mode and GCMPhase to internal signals first, so we can check them in internal processes
 En <= mem(ADDR_CR/4)(0);
@@ -178,6 +172,15 @@ end process;
 
 -- process for driving EnICore and dataIn
 process (Clock)
+procedure UpdateCoreSignals is 
+begin
+for i in 3 downto 0 loop
+    key(127-i*32 downto 96-i*32) <= mem(ADDR_KEYR0/4 + i);
+    IV (127-i*32 downto 96-i*32) <= mem(ADDR_IVR0/4 + i);
+    Susp(127-i*32 downto 96-i*32) <= mem(ADDR_SUSPR0/4 + i);
+    H(127-i*32 downto 96-i*32) <= mem(ADDR_HR0/4 + i);
+end loop;
+end procedure;
 begin
 if rising_edge(Clock) then
     EnICoreSignal <= '0';
@@ -193,6 +196,7 @@ if rising_edge(Clock) then
             dataIn(127-to_integer(writeCounter)*32 downto 96-to_integer(writeCounter)*32) <= WrData1;
             if writeCounter = to_unsigned(3,2) then
                 -- All four bytes have been written, enable the AES Core
+                UpdateCoreSignals;
                 EnICoreSignal <= '1';
             end if;
     end if;
@@ -200,6 +204,7 @@ if rising_edge(Clock) then
     -- If mode is keyexpansion or the GCM init mode, start the AES Core without waiting for the four write accesses
     if (modeSignal = MODE_KEYEXPANSION or (chainingModeSignal = CHAINING_MODE_GCM and GCMPhaseSignal = GCM_PHASE_INIT)) and 
             En = '1' and prevEn = '0' then
+        UpdateCoreSignals;
         EnICoreSignal <= '1';
     end if;
 end if;
