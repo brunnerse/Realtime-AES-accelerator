@@ -32,7 +32,7 @@ use IEEE.NUMERIC_STD.ALL;
 use ieee.std_logic_misc.or_reduce;
 
 
-entity ControlLogic_3 is
+entity ControlLogic is
   Generic (
     LITTLE_ENDIAN : boolean := true;
     NUM_CHANNELS : integer range 1 to 128 := 16 -- upper bound must be MAX_CHANNELS, but Vivado doesn't synthesize then
@@ -92,9 +92,9 @@ entity ControlLogic_3 is
     Clock    : in std_logic;
     Resetn   : in std_logic
   );
-end ControlLogic_3;
+end ControlLogic;
 
-architecture Behavioral of ControlLogic_3 is
+architecture Behavioral of ControlLogic is
 
 component BinarySearch is
     generic (

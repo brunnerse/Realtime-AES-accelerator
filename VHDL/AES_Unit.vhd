@@ -319,7 +319,7 @@ i_AES_Interface : entity work.AES_Interface(arch_imp)
      );
 
 
-i_ControlLogic : entity work.ControlLogic_3(Behavioral)
+i_ControlLogic : entity work.ControlLogic(Behavioral)
     generic map(
         LITTLE_ENDIAN => LITTLE_ENDIAN,
         NUM_CHANNELS => NUM_CHANNELS)
