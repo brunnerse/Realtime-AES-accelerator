@@ -5,7 +5,7 @@ use ieee.numeric_std.all;
 entity AES_Interface_M_S_AXI is
 	generic (
 		-- Users to add parameters here
-
+        
 		-- User parameters ends
 		-- Do not modify the parameters beyond this line
 
@@ -14,7 +14,7 @@ entity AES_Interface_M_S_AXI is
 		-- Width of S_AXI data bus
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
 		-- Width of S_AXI address bus
-		C_S_AXI_ADDR_WIDTH	: integer	:= 8;
+		C_S_AXI_ADDR_WIDTH	: integer	:= 7;
 		-- Width of optional user defined signal in write address channel
 		C_S_AXI_AWUSER_WIDTH	: integer	:= 0;
 		-- Width of optional user defined signal in read address channel
@@ -28,6 +28,7 @@ entity AES_Interface_M_S_AXI is
 	);
 	port (
 		-- Users to add ports here
+        -- to banked registers
         WrData : out std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
         RdData : in std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
         WrAddr, RdAddr : out std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
@@ -196,10 +197,6 @@ architecture arch_imp of AES_Interface_S_AXI is
 	-- read address wraps to a lower address if upper address
 	-- limit is reached
 	signal ar_wrap_size : integer;
-	-- The axi_awv_awr_flag flag marks the presence of write address valid
-	signal axi_awv_awr_flag    : std_logic;
-	--The axi_arv_arr_flag flag marks the presence of read address valid
-	signal axi_arv_arr_flag    : std_logic;
 	-- The axi_awlen_cntr internal write address counter to keep track of beats in a burst transaction
 	signal axi_awlen_cntr      : std_logic_vector(7 downto 0);
 	--The axi_arlen_cntr internal read address counter to keep track of beats in a burst transaction
@@ -213,9 +210,10 @@ architecture arch_imp of AES_Interface_S_AXI is
 	--ADDR_LSB = 2 for 32 bits (n downto 2) 
 	--ADDR_LSB = 3 for 42 bits (n downto 3)
 
+	signal RdEnSignal : std_logic;
+
 	constant ADDR_LSB  : integer := (C_S_AXI_DATA_WIDTH/32)+ 1;
 	constant low : std_logic_vector (C_S_AXI_ADDR_WIDTH - 1 downto 0) := (others => '0');
-
 begin
 	-- I/O Connections assignments
 
@@ -237,6 +235,9 @@ begin
 	aw_wrap_en <= '1' when (((axi_awaddr AND std_logic_vector(to_unsigned(aw_wrap_size,C_S_AXI_ADDR_WIDTH))) XOR std_logic_vector(to_unsigned(aw_wrap_size,C_S_AXI_ADDR_WIDTH))) = low) else '0';
 	ar_wrap_en <= '1' when (((axi_araddr AND std_logic_vector(to_unsigned(ar_wrap_size,C_S_AXI_ADDR_WIDTH))) XOR std_logic_vector(to_unsigned(ar_wrap_size,C_S_AXI_ADDR_WIDTH))) = low) else '0';
 
+	RdEn <= RdEnSignal;
+
+
 	-- Implement axi_awready generation
 
 	-- axi_awready is asserted for one S_AXI_ACLK clock cycle when both
@@ -247,19 +248,14 @@ begin
 	begin
 	  if rising_edge(S_AXI_ACLK) then 
 	    if S_AXI_ARESETN = '0' then
-	      axi_awready <= '0';
-	      axi_awv_awr_flag <= '0';
+	      axi_awready <= '1';
 	    else
-	      if (axi_awready = '0' and S_AXI_AWVALID = '1' and axi_awv_awr_flag = '0' and axi_arv_arr_flag = '0') then
-	        -- slave is ready to accept an address and
-	        -- associated control signals
-	        axi_awv_awr_flag  <= '1'; -- used for generation of bresp() and bvalid
-	        axi_awready <= '1';
-	      elsif (S_AXI_WLAST = '1' and axi_wready = '1') then 
-	      -- preparing to accept next address after current write burst tx completion
-	        axi_awv_awr_flag  <= '0';
-	      else
-	        axi_awready <= '0';
+	      if (axi_awready = '1' and S_AXI_AWVALID = '1') then
+			  --set awready = 0 to prevent accepting a new transaction during an ongoing one
+			  axi_awready <= '0';
+	      elsif (S_AXI_BREADY = '1' and axi_bvalid = '1') then 
+			  -- ready to accept new transaction after current one completes
+			  axi_awready <= '1';
 	      end if;
 	    end if;
 	  end if;         
@@ -278,7 +274,7 @@ begin
 	      axi_awlen <= (others => '0'); 
 	      axi_awlen_cntr <= (others => '0');
 	    else
-	      if (axi_awready = '0' and S_AXI_AWVALID = '1' and axi_awv_awr_flag = '0') then
+	      if (axi_awready = '1' and S_AXI_AWVALID = '1') then
 	      -- address latching 
 	        axi_awaddr <= S_AXI_AWADDR(C_S_AXI_ADDR_WIDTH - 1 downto 0);  ---- start address of transfer
 	        axi_awlen_cntr <= (others => '0');
@@ -323,11 +319,11 @@ begin
 	    if S_AXI_ARESETN = '0' then
 	      axi_wready <= '0';
 	    else
-	      if (axi_wready = '0' and S_AXI_WVALID = '1' and axi_awv_awr_flag = '1') then
+		  -- ready to accept write commands after address-write-handshake completed
+	      if (axi_awready = '1' and S_AXI_AWVALID  = '1') then
 	        axi_wready <= '1';
-	        -- elsif (axi_awv_awr_flag = '0') then
-	      elsif (S_AXI_WLAST = '1' and axi_wready = '1') then 
-
+		  -- reset after last beat
+	      elsif (S_AXI_WLAST = '1' and axi_wready = '1' and S_AXI_WVALID = '1') then 
 	        axi_wready <= '0';
 	      end if;
 	    end if;
@@ -345,19 +341,21 @@ begin
 	  if rising_edge(S_AXI_ACLK) then 
 	    if S_AXI_ARESETN = '0' then
 	      axi_bvalid  <= '0';
-	      axi_bresp  <= "00"; --need to work more on the responses
+	      axi_bresp  <= "00";
 	      axi_buser <= (others => '0');
 	    else
-	      if (axi_awv_awr_flag = '1' and axi_wready = '1' and S_AXI_WVALID = '1' and axi_bvalid = '0' and S_AXI_WLAST = '1' ) then
+		  -- set bvalid after last beat
+	      if (axi_wready = '1' and S_AXI_WVALID = '1' and S_AXI_WLAST = '1' ) then
 	        axi_bvalid <= '1';
 	        axi_bresp  <= "00"; 
-	      elsif (S_AXI_BREADY = '1' and axi_bvalid = '1') then  
-	      --check if bready is asserted while bvalid is high)
+		  -- reset bvalid after handshake
+	      elsif (axi_bvalid = '1' and S_AXI_BREADY = '1' ) then  
 	        axi_bvalid <= '0';                      
 	      end if;
 	    end if;
 	  end if;         
 	end process; 
+
 	-- Implement axi_arready generation
 
 	-- axi_arready is asserted for one S_AXI_ACLK clock cycle when
@@ -370,17 +368,14 @@ begin
 	begin
 	  if rising_edge(S_AXI_ACLK) then 
 	    if S_AXI_ARESETN = '0' then
-	      axi_arready <= '0';
-	      axi_arv_arr_flag <= '0';
+	      axi_arready <= '1';
 	    else
-	      if (axi_arready = '0' and S_AXI_ARVALID = '1' and axi_awv_awr_flag = '0' and axi_arv_arr_flag = '0') then
+	      if (axi_arready = '1' and S_AXI_ARVALID = '1') then
+			--set arready = 0 to prevent accepting a new transaction during an ongoing one
+			axi_arready <= '0';
+	      elsif (axi_rvalid = '1' and S_AXI_RREADY = '1' and axi_rlast = '1') then 
+			-- ready to accept new transaction after last beat of current transaction
 	        axi_arready <= '1';
-	        axi_arv_arr_flag <= '1';
-	      elsif (axi_rvalid = '1' and S_AXI_RREADY = '1' and (axi_arlen_cntr = axi_arlen)) then 
-	      -- preparing to accept next address after current read completion
-	        axi_arv_arr_flag <= '0';
-	      else
-	        axi_arready <= '0';
 	      end if;
 	    end if;
 	  end if;         
@@ -397,20 +392,16 @@ begin
 	      axi_arburst <= (others => '0');
 	      axi_arlen <= (others => '0'); 
 	      axi_arlen_cntr <= (others => '0');
-	      axi_rlast <= '0';
 	      axi_ruser <= (others => '0');
 	    else
-	      if (axi_arready = '0' and S_AXI_ARVALID = '1' and axi_arv_arr_flag = '0') then
+	      if (axi_arready = '1' and S_AXI_ARVALID = '1') then
 	        -- address latching 
 	        axi_araddr <= S_AXI_ARADDR(C_S_AXI_ADDR_WIDTH - 1 downto 0); ---- start address of transfer
 	        axi_arlen_cntr <= (others => '0');
-	        axi_rlast <= '0';
 	        axi_arburst <= S_AXI_ARBURST;
 	        axi_arlen <= S_AXI_ARLEN;
 	      elsif((axi_arlen_cntr <= axi_arlen) and axi_rvalid = '1' and S_AXI_RREADY = '1') then     
 	        axi_arlen_cntr <= std_logic_vector (unsigned(axi_arlen_cntr) + 1);
-	        axi_rlast <= '0';      
-	     
 	        case (axi_arburst) is
 	          when "00" =>  -- fixed burst
 	            -- The read address for all the beats in the transaction are fixed
@@ -430,12 +421,8 @@ begin
 	          when others => --reserved (incremental burst for example)
 	            axi_araddr(C_S_AXI_ADDR_WIDTH - 1 downto ADDR_LSB) <= std_logic_vector (unsigned(axi_araddr(C_S_AXI_ADDR_WIDTH - 1 downto ADDR_LSB)) + 1);--for arsize = 4 bytes (010)
 			  axi_araddr(ADDR_LSB-1 downto 0)  <= (others => '0');
-	        end case;         
-	      elsif((axi_arlen_cntr = axi_arlen) and axi_rlast = '0' and axi_arv_arr_flag = '1') then  
-	        axi_rlast <= '1';
-	      elsif (S_AXI_RREADY = '1') then  
-	        axi_rlast <= '0';
-	      end if;
+	        end case; 
+	      end if;        
 	    end if;
 	  end if;
 	end  process;  
@@ -449,33 +436,44 @@ begin
 	-- is deasserted on reset (active low). axi_rresp and axi_rdata are 
 	-- cleared to zero on reset (active low).  
 
-	process (S_AXI_ACLK)
+	process (S_AXI_ACLK)	
 	begin
 	  if rising_edge(S_AXI_ACLK) then
 	    if S_AXI_ARESETN = '0' then
 	      axi_rvalid <= '0';
+	      axi_rlast <= '0';
 	      axi_rresp  <= "00";
+		  RdEnSignal <= '0';
 	    else
-	      if (axi_arv_arr_flag = '1' and axi_rvalid = '0') then
-	        axi_rvalid <= '1';
+		  if (axi_arready = '1' and S_AXI_ARVALID = '1') then
+			RdEnSignal <= '1';
+		  elsif (RdEnSignal = '1') then
+			RdEnSignal <= '0';
+			axi_rvalid <= '1';
 	        axi_rresp  <= "00"; -- 'OKAY' response
+	        -- set rlast for the last beat
+	        if(axi_arlen_cntr = axi_arlen) then  
+	           axi_rlast <= '1';
+	        else
+	           axi_rlast <= '0';
+	        end if;
 	      elsif (axi_rvalid = '1' and S_AXI_RREADY = '1') then
 	        axi_rvalid <= '0';
+			if (axi_rlast = '0') then
+			  RdEnSignal <= '1';
+			end if;
 	      end  if;      
 	    end if;
 	  end if;
 	end  process;
+	
+-- Code to forward to memory request
 
-    -- Add user logic here
-    -- forward memory request to RdEn, WrEn ports
    WrAddr <= axi_awaddr;
-   RdAddr <= axi_araddr;
- 
    WrEn <= axi_wready and S_AXI_WVALID;
-   RdEn <= axi_arready and S_AXI_ARVALID;
-  
    WrData <= S_AXI_WDATA;
-   axi_rdata <= RdData;
-	-- User logic ends
 
+   RdAddr <= axi_araddr; 
+   axi_rdata <= RdData; 
+   
 end arch_imp;
