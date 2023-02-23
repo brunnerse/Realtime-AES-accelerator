@@ -71,9 +71,9 @@ signal En, prevEn : std_logic;
 signal EnICoreSignal : std_logic;
 
 -- status signals
-signal BUSY, WRERR, RDERR, CCF : std_logic;
+signal CCF : std_logic;
 -- control signals
-signal ERRIE, CCFIE, ERRC, CCFC : std_logic;
+signal  CCFIE, CCFC : std_logic;
 
 -- Define registers as array
 type addr_range is array (0 to ADDR_HR3/4) of std_logic_vector(DATA_WIDTH-1 downto 0);
@@ -110,16 +110,8 @@ chainingModeSignal <= mem(ADDR_CR/4)(6 downto 5);
 chaining_mode <= chainingModeSignal;
 GCMPhaseSignal <= mem(ADDR_CR/4)(14 downto 13);
 GCMPhase <= GCMPhaseSignal;
-ERRIE <= mem(ADDR_CR/4)(10);
 CCFIE <= mem(ADDR_CR/4)(9);
-ERRC <= mem(ADDR_CR/4)(8);
 CCFC <= mem(ADDR_CR/4)(7);
-
-
--- set unused status flags to 0 for now 
-BUSY <= '0';
-WRERR <= '0';
-RDERR <= '0';
 
 -- process to store the previous enable signal, so other processes can check if it changed
 process(Clock)
@@ -142,7 +134,7 @@ if rising_edge(Clock) then
                 RdData <= dataOut(127-to_integer(readCounter)*32 downto 96-to_integer(readCounter)*32);
                 readCounter <= readCounter + to_unsigned(1, 2);
             elsif RdAddr =  std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)) then
-                RdData <= x"0000000" & BUSY & WRERR & RDERR & CCF;
+                RdData <= x"0000000" & "000" & CCF;
             else
                 RdData <= mem(to_integer(unsigned(RdAddr(ADDR_WIDTH-1 downto 2)))); -- divide address by four, as array is indexed word-wise
             end if;
