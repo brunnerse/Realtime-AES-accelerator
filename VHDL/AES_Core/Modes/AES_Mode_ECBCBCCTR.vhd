@@ -38,7 +38,6 @@ entity AES_Mode_ECBCBCCTR is
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            EnI : in std_logic;
            EnO : out std_logic;
-           encrypt : in std_logic;
             -- signals to control the AEA unit
            EnIAEA : out std_logic;
            EnOAEA : in std_logic;
@@ -77,14 +76,16 @@ end function;
 -- signal definitions
 signal dInXOR1, dInXOR2, dOutXOR: std_logic_vector(KEY_SIZE-1 downto 0);
 signal EnIXOR, EnOXOR, WrEnSignal : std_logic;
-
+signal encrypt : std_logic;
 
 begin
+
+encrypt <= not mode(1);
 
 -- Use an AddRoundKey unit as XOR
 xorUnit : AddRoundKey port map(dInXOR1, dOutXOR, dInXOR2, EnIXOR, EnOXOR, Clock, Resetn);
 
-
+-- Input of AEA differs for each chaining mode
 dInAEA <=   dOutXOR when chaining_mode = CHAINING_MODE_CBC and encrypt = '1' else
             IV when chaining_mode = CHAINING_MODE_CTR  else
             dIn;
@@ -103,8 +104,8 @@ dOut <=     dOutXOR when chaining_mode = CHAINING_MODE_CTR or (chaining_mode = C
             dOutAEA; 
 
 
--- For CBC mode, during encryption the input of the AEA is the output of XOR, except in KeyExpansion mode
-EnIAEA <=   EnOXOR when chaining_mode = CHAINING_MODE_CBC and encrypt = '1' and mode /= MODE_KEYEXPANSION else
+-- For CBC mode, during encryption the input of the AEA is the output of XOR
+EnIAEA <=   EnOXOR when chaining_mode = CHAINING_MODE_CBC and encrypt = '1' else
             EnI;
           
 EnIXOR <=   EnI when chaining_mode = CHAINING_MODE_CBC and encrypt = '1' else

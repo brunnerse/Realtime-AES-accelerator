@@ -112,7 +112,6 @@ end function;
 -- signal definitions
 signal  dIn1XOR1, dIn2XOR1, dIn1XOR2,dIn2XOR2, dOutXOR1, dOutXOR2, dInMul, dOutMul: std_logic_vector(KEY_SIZE-1 downto 0);
 signal  EnIXOR1, EnIXOR2, EnOXOR1, EnOXOR2, EnIMul, EnOMul, WrEnSignal : std_logic;
-signal WrAddrSignal : std_logic_vector(ADDR_REGISTER_BITS-1 downto 0);
 signal prevEnI : std_logic;
 
 signal lastIdx : integer; -- used for the multiplication process
@@ -128,7 +127,7 @@ EnIXOR1 <= EnOAEA when GCMPHASE /= GCM_PHASE_INIT else -- This only works when M
             '0'; -- Do not use xorUnit1 in init phase
 dIn1XOR1 <= dOutAEA;        -- in the diagram, xorUnit1 is the bottom xor in the final phase, in the payload phase it is the first xor
 dIn2XOR1 <= dIn when GCMPhase = GCM_PHASE_PAYLOAD else      
-            dOutMul; -- in GCM_PHASE_FINAL            
+            dOutMul; -- in GCM_PHASE_FINAL  
 
 
 
@@ -136,7 +135,6 @@ dIn2XOR1 <= dIn when GCMPhase = GCM_PHASE_PAYLOAD else
 EnIXOR2 <=  EnOXOR1 when GCMPhase = GCM_PHASE_PAYLOAD and encrypt = '1' else -- payload encryption
             '0' when GCMPhase = GCM_PHASE_INIT else            
             EnI; -- during Header and Final phase, and during payload decryption
-
 dIn1XOR2 <= Susp;
 dIn2XOR2 <= dOutXOR1 when GCMPhase = GCM_PHASE_PAYLOAD and encrypt = '1' else -- payload encryption
             dIn; -- in final phase and header phase and during payload decryption    
@@ -154,15 +152,12 @@ dInAEA <=   IV when GCMPhase /= GCM_PHASE_INIT else
 
 dOut <= dOutXOR1;
 EnO <=  EnOXOR1 when GCMPhase = GCM_PHASE_FINAL or (GCMPhase = GCM_PHASE_PAYLOAD and encrypt = '0') else -- final phase and payload phase, decryption
-        WrEnSignal when (GCMPhase = GCM_PHASE_INIT and prevEnI = '0') or GCMPhase = GCM_PHASE_HEADER else -- init phase (ignore first write to Susp), header phase
-        -- during payload phase with encryption:  EnO = WrEnSignal, however the first write to the IV should be ignored
-        WrEnSignal when (GCMPhase = GCM_PHASE_PAYLOAD and prevEnI = '0')  else
+        WrEnSignal when prevEnI = '0' else -- in all other cases, the last thing done is writing (ignore the first write though, only the last one counts)
         '0';
  
 prevEnI <= EnI when rising_edge(Clock);        
 
 WrEn <= WrEnSignal;
-WrAddr <= WrAddrSignal;
                
 -- process to write the new IV, Susp and H to the register set
 process(Clock)
@@ -170,19 +165,19 @@ begin
 if rising_edge(Clock) then
     WrEnSignal <= '0';
     if EnI = '1' and GCMPhase = GCM_PHASE_INIT then
-        WrAddrSignal <= std_logic_vector(to_unsigned(ADDR_SUSP, WrAddr'LENGTH));
+        WrAddr <= std_logic_vector(to_unsigned(ADDR_SUSP, WrAddr'LENGTH));
         WrData <= (others => '0');
         WrEnSignal <= '1';
     elsif EnOAEA = '1' and GCMPhase = GCM_PHASE_INIT then
-        WrAddrSignal <= std_logic_vector(to_unsigned(ADDR_H, WrAddr'LENGTH));
+        WrAddr <= std_logic_vector(to_unsigned(ADDR_H, WrAddr'LENGTH));
         WrData <= dOutAEA;
         WrEnSignal <= '1';
     elsif EnOMul = '1' and (GCMPhase = GCM_PHASE_HEADER or GCMPhase = GCM_PHASE_PAYLOAD) then 
-        WrAddrSignal <= std_logic_vector(to_unsigned(ADDR_SUSP, WrAddr'LENGTH));
+        WrAddr <= std_logic_vector(to_unsigned(ADDR_SUSP, WrAddr'LENGTH));
         WrData <= dOutMul;
         WrEnSignal <= '1';
     elsif EnI = '1' and GCMPhase = GCM_PHASE_PAYLOAD then
-        WrAddrSignal <= std_logic_vector(to_unsigned(ADDR_IV, WrAddr'LENGTH));
+        WrAddr <= std_logic_vector(to_unsigned(ADDR_IV, WrAddr'LENGTH));
         WrData <= incrementIV(IV);
         WrEnSignal <= '1';
     end if;
