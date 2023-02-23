@@ -86,7 +86,7 @@ encrypt <= not mode(1);
 -- Use an AddRoundKey unit as XOR
 xorUnit : AddRoundKey port map(dInXOR1, dOutXOR, dInXOR2, EnIXOR, EnOXOR, Clock, Resetn);
 
--- For CBC mode, during encryption the input of the AEA is the output of XOR
+-- Input of AEA differs for each chaining mode
 dInAEA <=   dOutXOR when chaining_mode = CHAINING_MODE_CBC and encrypt = '1' else
             IV when chaining_mode = CHAINING_MODE_CTR  else
             dIn;
@@ -118,29 +118,33 @@ EnO <=  EnOAEA when chaining_mode = CHAINING_MODE_ECB else
         WrEnSignal when (chaining_mode = CHAINING_MODE_CBC and encrypt = '1') else  -- wait until IV has been written until EnO is set
         EnOXOR;  -- CTR mode, CBC with decryption
 
-WrEn <= WrEnSignal;
+
+        
 
 
 -- update IV
-WrAddr <= std_logic_vector(to_unsigned(ADDR_IV, ADDR_WIDTH)); 
+WrAddr <= std_logic_vector(to_unsigned(ADDR_IV, WrAddr'LENGTH));
+WrEn <= WrEnSignal;
+
 process(Clock)
 begin
 if rising_edge(Clock) then 
     WrEnSignal <= '0';
-    -- For chaining mode CBC, write ciphertext once the AEA has finished
-    if EnOAEA = '1' and chaining_mode = CHAINING_MODE_CBC then
-        WrEnSignal <= '1';
-        if encrypt = '1' then
+    -- For chaining mode CBC
+    if chaining_mode = CHAINING_MODE_CBC then
+        -- When encrypting, wait until the AEA has finished
+        if encrypt = '1' and EnOAEA = '1' then
             WrData <= dOutAEA;
-        else
+            WrEnSignal <= '1';
+        -- For decrypting, we can write back the new IV immediately as it is the input (ciphertext)
+        elsif encrypt = '0' and EnI = '1' then
             WrData <= dIn;
+            WrEnSignal <= '1';
         end if;
     -- For chaining mode CTR, write the incremented IV back immediately
     elsif EnI = '1' and chaining_mode = CHAINING_MODE_CTR then
         WrEnSignal <= '1';
         WrData <= incrementIV(IV);
-    else
-        WrEnSignal <= '0';
     end if;
 end if;
 end process;

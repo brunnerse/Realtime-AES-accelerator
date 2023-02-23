@@ -104,10 +104,9 @@ roundAEA10 : AEA_Round port map(dInRound10, dOutRound10, roundKeys(10), encrypt,
 
 
 -- connect KeyExpansion so it runs when the enable signal comes in
--- for encryption, it runs parallel to it, for decryption, it runs before it (or doesnt run for keyExpandFlag=0)
--- Key Expansion does not run for encrypt=0 and keyExpandFlag=0
-EnIKeyExp <= EnI when encrypt='1' or keyExpandFlag = '1' else 
-            '0';
+-- for encryption, it runs parallel to it, for decryption+keyexpansion mode, it runs before it
+-- Key Expansion runs even in Decryption mode for simplicity; wouldn't be necessary, but doesn't change the result
+EnIKeyExp <= EnI;
 
 
 -- connect data signals
