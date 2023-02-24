@@ -127,7 +127,7 @@ void AES_SetGCMPhase(AES* InstancePtr, u32 channel, GCMPhase gcmPhase)
 
 void AES_SetPriority(AES* InstancePtr, u32 channel, u32 priority)
 {
-	Xil_AssertVoid(priority <= AES_MAX_PRIORITY);
+	Xil_AssertVoid(priority < (1<<PRIORITY_LEN));
 	u32 cr = InstancePtr->Registers[channel].CR;
     setBits(&cr, priority, PRIORITY_POS, PRIORITY_LEN);
 	InstancePtr->Registers[channel].CR = cr;

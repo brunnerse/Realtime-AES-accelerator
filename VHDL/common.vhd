@@ -47,7 +47,7 @@ constant ADDR_CHANNEL_BITS : integer := ADDR_WIDTH - ADDR_REGISTER_BITS;
 constant MAX_CHANNELS : integer := 2**ADDR_CHANNEL_BITS; 
 subtype num_channels_range is integer range 1 to MAX_CHANNELS;
 
-constant NUM_PRIORITY_BITS : integer := ADDR_CHANNEL_BITS;
+constant NUM_PRIORITY_BITS : integer := 8;
 
 constant REGSET_SIZE : integer := 84;
 

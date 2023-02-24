@@ -28,7 +28,7 @@ extern "C" {
 #define CCFIE_POS 17
 #define GCM_PHASE_POS 21
 #define CCFC_POS 31
-#define PRIORITY_POS 16
+#define PRIORITY_POS 8
 #define SR_IRQ_POS 24
 #define SR_CCF_POS 16
 #define SR_RDERR_POS 8
@@ -43,6 +43,7 @@ extern "C" {
 #define CCFIE_POS 9
 #define GCM_PHASE_POS 13
 #define CCFC_POS 7
+#define PRIORITY_POS 16
 #define SR_IRQ_POS 0
 #define SR_CCF_POS 8
 #define SR_RDERR_POS 16
@@ -58,7 +59,7 @@ extern "C" {
 #define CCFIE_LEN 1
 #define GCM_PHASE_LEN 2
 #define CCFC_LEN 1
-#define PRIORITY_LEN 3
+#define PRIORITY_LEN 8
 #define SR_IRQ_LEN 1
 #define SR_CCF_LEN 1
 #define SR_WRERR_LEN 1
