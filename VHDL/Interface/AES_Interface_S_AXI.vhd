@@ -280,7 +280,7 @@ begin
 	        axi_awlen_cntr <= (others => '0');
 	        axi_awburst <= S_AXI_AWBURST;
 	        axi_awlen <= S_AXI_AWLEN;
-	      elsif((axi_awlen_cntr <= axi_awlen) and axi_wready = '1' and S_AXI_WVALID = '1') then     
+	      elsif((axi_awlen_cntr < axi_awlen) and axi_wready = '1' and S_AXI_WVALID = '1') then
 	        axi_awlen_cntr <= std_logic_vector (unsigned(axi_awlen_cntr) + 1);
 
 	        case (axi_awburst) is
@@ -400,7 +400,7 @@ begin
 	        axi_arlen_cntr <= (others => '0');
 	        axi_arburst <= S_AXI_ARBURST;
 	        axi_arlen <= S_AXI_ARLEN;
-	      elsif((axi_arlen_cntr <= axi_arlen) and axi_rvalid = '1' and S_AXI_RREADY = '1') then     
+	      elsif((axi_arlen_cntr < axi_arlen) and axi_rvalid = '1' and S_AXI_RREADY = '1') then     
 	        axi_arlen_cntr <= std_logic_vector (unsigned(axi_arlen_cntr) + 1);
 	        case (axi_arburst) is
 	          when "00" =>  -- fixed burst
