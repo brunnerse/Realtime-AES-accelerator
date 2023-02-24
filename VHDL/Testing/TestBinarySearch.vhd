@@ -40,7 +40,7 @@ end TestBinarySearch;
 
 architecture Behavioral of TestBinarySearch is
 
-constant NUM_CHANNELS : integer := 128;
+constant NUM_CHANNELS : integer := 42;
 
 component BinarySearch is
     generic (
@@ -49,7 +49,6 @@ component BinarySearch is
     Port (
         EnI : in std_logic;
         EnO : out std_logic;  
-        size : in std_logic_vector(ADDR_CHANNEL_BITS downto 0);
         ChannelPriority: in PrioArrayType(NUM_CHANNELS-1 downto 0);
         ChannelEn : in std_logic_vector(NUM_CHANNELS-1 downto 0);
         avoidChannelIdx : in integer range NUM_CHANNELS-1 downto 0;
@@ -79,12 +78,12 @@ search : BinarySearch
     port map(
         EnI => EnIBS, EnO => EnOBS, ChannelPriority => Priority, ChannelEn => ChannelEn, highestChannel => highestChannel,
         avoidChannelIdx => avoidChannel,
-        size => size, Clock => Clock, Resetn => Resetn);
+        Clock => Clock, Resetn => Resetn);
 
 -- generate Priority to defaults
 GenPrio:        
 for i in NUM_CHANNELS-1 downto 0 generate
-    Priority(i) <= std_logic_vector(to_unsigned(NUM_CHANNELS-i, NUM_PRIORITY_BITS)) when i/= 31 else 
+    Priority(i) <= std_logic_vector(to_unsigned(i, NUM_PRIORITY_BITS)) when i < 31 else 
                    (others => '0');
 end generate;
 
@@ -111,8 +110,8 @@ wait for 30ns;
 if unsigned(size) = 0 then
     size <= std_logic_vector(to_unsigned(1, size'LENGTH));
 else
-    -- multiply size by 2
-    size <= std_logic_vector(to_unsigned(to_integer(unsigned(size)*2), size'LENGTH));
+    -- increase size
+    size <= std_logic_vector(to_unsigned(to_integer(unsigned(size)+2), size'LENGTH));
 end if;
 wait for 0ns;
 adjustEn(size);

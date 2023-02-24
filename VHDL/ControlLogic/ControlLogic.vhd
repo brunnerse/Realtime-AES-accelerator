@@ -98,13 +98,11 @@ architecture Behavioral of ControlLogic is
 
 component BinarySearch is
     generic (
-        NUM_CHANNELS : natural := 8;
-        SIZE_IS_POWER_OF_2 : boolean := false
+        NUM_CHANNELS : natural := 8
     );
     Port (
         EnI : in std_logic;
         EnO : out std_logic;
-        size : in std_logic_vector(ADDR_CHANNEL_BITS downto 0);
         ChannelPriority: in PrioArrayType(NUM_CHANNELS-1 downto 0);
         ChannelEn : in std_logic_vector(NUM_CHANNELS-1 downto 0);
         avoidChannelIdx : in integer range NUM_CHANNELS-1 downto 0;
@@ -316,12 +314,11 @@ prevCCF <= CCF when rising_edge(Clock);
 -- instantitate binary search component
 BinSearch: BinarySearch
     generic map(
-        NUM_CHANNELS => 2**log2(NUM_CHANNELS),
-        SIZE_IS_POWER_OF_2 => true)
+        NUM_CHANNELS => (2*NUM_CHANNELS+1)/2 -- round up NUM_CHANNELS to multiple of 2
+    ) 
     port map(
         EnI => EnISearch,
         EnO => EnOSearch, 
-        size => std_logic_vector(to_unsigned(2**log2(NUM_CHANNELS), ADDR_CHANNEL_BITS+1)),
         ChannelPriority => Priority,
         ChannelEn => En,
         avoidChannelIdx => highestChannel,
@@ -804,7 +801,7 @@ if rising_edge(Clock) then
         
         -- Write Port 3 : from RegMem Port
         -- Prepare to read M_RM_RdData into memory once RM_valid is asserted
-        if RM_Valid = '1' and RM_RdReady = '0' and RM_write = '1' then
+        if RM_Valid = '1' and RM_RdReady = '0' and RM_write = '0' then
             read_index <= (others => '0');
             RM_RdReady <= '1';
         elsif RM_RdReady = '1' and M_RM_RdValid = '1' then
