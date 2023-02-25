@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity AES_Interface_M_S_AXI is
+entity AES_Interface_S_AXI is
 	generic (
 		-- Users to add parameters here
         

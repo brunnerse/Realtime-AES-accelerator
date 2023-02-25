@@ -386,7 +386,7 @@ AES_Interface_S_AXI_inst : AES_Interface_S_AXI
         -- banked registers
         WrData => WrDataSignal,
 		RdData => RdDataSignal,
-		WrAddr => WrAddr,1
+		WrAddr => WrAddr,
 		RdAddr => RdAddr,
 		WrEn => WrEn,
 		RdEn => RdEn
