@@ -157,7 +157,7 @@ procedure waitUntilCCF(ch: channel_range) is
 begin
 rden <= '1';
 rdaddr <= std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
-wait until rddata(SR_POS_CCF) = '1'; 
+wait until rddata(SR_POS_CCF+ch) = '1'; 
 end procedure;
 
 procedure clearCCF(ch: channel_range) is
@@ -210,11 +210,12 @@ activateChannel(1);
 -- channel 2 starts; new search that channel 1 wins
 
 -- wait until search is over
-wait for 20ns;
+wait for 80ns;
 -- activate higher priorised channel to update nextHighestChannel
-activateChannel(4);
 
--- channel 4 executes
+activateChannel(3);
+
+-- channel 3 executes
 -- channel 1 executes
 wait;
 end process;
