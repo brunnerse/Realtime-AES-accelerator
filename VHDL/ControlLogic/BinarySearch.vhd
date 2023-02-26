@@ -84,8 +84,10 @@ if rising_edge(Clock) then
                 prio2 := InterPriority(idx2);
             end if;
 
-            if not (avoidChannelIdx = channelIdx2 or en2 = '0') and
-                    (avoidChannelIdx = channelIdx1 or en1 = '0' or unsigned(prio2) > unsigned(prio1)) then
+            if (avoidChannelIdx = channelIdx1) or 
+                    (avoidChannelIdx /= channelIdx2 and en2 = '1' and
+                        (en1 = '0' or unsigned(prio2) > unsigned(prio1))
+                    ) then
                 winnerIdx := channelIdx2;
                 channelIdx(i) <= channelIdx2;
                 InterPriority(i) <= prio2;
