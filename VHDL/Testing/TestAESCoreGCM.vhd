@@ -26,7 +26,7 @@ component AES_Core is
            H  : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            Susp : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            WrEn   : out STD_LOGIC;
-           WrAddr : out STD_LOGIC_VECTOR(ADDR_WIDTH-1 downto 0);
+           WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
            WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
            dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
@@ -47,7 +47,7 @@ signal EnCoreI, EnCoreO : std_logic;
 
 signal WrEn : std_logic;
 signal WrData : std_logic_vector(KEY_SIZE-1 downto 0);
-signal WrAddr  : std_logic_vector(ADDR_WIDTH-1 downto 0);
+signal WrAddr  : std_logic_vector(ADDR_REGISTER_BITS-1 downto 0);
 
 signal mode, GCMPhase : std_logic_vector(1 downto 0) := MODE_ENCRYPTION;
 signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0) := CHAINING_MODE_GCM;
