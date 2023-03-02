@@ -437,10 +437,10 @@ end procedure;
              
         case state is
             when Idle =>
-                -- switch channel to highestChannel
-                channel <= highestChannel;
                 -- start if the Enable signal switched to high and the channel is not already finished
                 if En(highestChannel) = '1' and CCF(highestChannel) = '0' and not waitForSearchEnd then
+                    -- switch channel to highestChannel
+                    channel <= highestChannel;
                     ChangeStateToLoadReg;               
                 end if;
            when LoadReg =>
