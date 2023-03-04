@@ -35,7 +35,7 @@ use ieee.std_logic_misc.or_reduce;
 entity ControlLogic is
   Generic (
     LITTLE_ENDIAN : boolean := true;
-    NUM_CHANNELS : integer range 1 to 128 := 16 -- upper bound must be MAX_CHANNELS, but Vivado doesn't synthesize then
+    NUM_CHANNELS : integer range 1 to 256 := 16 -- upper bound must be MAX_CHANNELS, but Vivado doesn't synthesize then
   );
   Port (    
 -- Ports to the AES interface: 
