@@ -639,6 +639,8 @@ if rising_edge(Clock) then
             -- Update highest Channel if the update channel has a higher priority than the current one 
             if unsigned(WrData1(CR_RANGE_PRIORITY)) > unsigned(Priority(highestChannel)) or En(highestChannel) = '0' then
                 highestChannel <= channelIdx;
+                 -- dont set nextHighestChannel directly, instead restart search
+                -- this prevents mistakes when the search is currently running
                 restartSearch;
             -- next, compare channelIdx to nextHighestChannel; if search is still running, restart it to include the new channel in the search
             elsif isSearchRunningVar then

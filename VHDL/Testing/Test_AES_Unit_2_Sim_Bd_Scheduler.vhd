@@ -11,7 +11,7 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity Test_AES_Unit_2_Sim_Bd_Scheduler is 
 generic (
-    NUM_CHANNELS : integer := 4;
+    NUM_CHANNELS : integer := 8;
     LITTLE_ENDIAN : boolean := true
     );
 end Test_AES_Unit_2_Sim_Bd_Scheduler;
@@ -118,9 +118,7 @@ signal priority : unsigned(NUM_PRIORITY_BITS-1 downto 0);
 begin
     CHANNEL_OFFSET(i) <= i * 128;
     chmode <= CHAINING_MODE_ECB;
-    priority <= to_unsigned(1, priority'LENGTH) when i = 2 else
-                to_unsigned(2, priority'LENGTH) when i = 1 else
-                to_unsigned(i, priority'LENGTH);
+    priority <= to_unsigned(NUM_CHANNELS-1-i, priority'LENGTH);
     CHANNEL_CR(i)(31 downto CR_RANGE_PRIORITY'HIGH+1) <= (others => '0');
     CHANNEL_CR(i)(CR_RANGE_PRIORITY) <= std_logic_vector(priority);        
     CHANNEL_CR(i)(15 downto 0) <= '0' & GCM_PHASE_INIT & "000" & "0" & "00" & chmode & MODE_KEYEXPANSION & "00" & '1';
@@ -178,45 +176,30 @@ end procedure;
 begin
 -- wait until reset is deasserted
 wait until Resetn = '1' and rising_edge(Clock);
-
-writeCR(0);
-writeCR(1);
-writeCR(2);
+for i in 0 to NUM_CHANNELS-1 loop
+    writeCR(i);
+end loop;
 wait for 50ns;
 activateChannel(0);
-
-
--- activate last channel shortly before first one is ready
-wait for 70ns;
+activateChannel(1);
 activateChannel(3);
-
--- wait until first channel is done
-waitUntilCCF(0);
-
--- channel 3 activates
--- search is running,
--- activate another channel to restart the search
-wait for 10ns;
+-- activate last channel shortly before first one is ready
+wait for 150ns;
 activateChannel(2);
 
+
+wait for 90ns;
+activateChannel(4);
 -- repeat activation several times, so that the search is aborted and restarted a few times
-for i in 0 to 9 loop
- -- wait for 10ns;
-  activateChannel(2);
+for i in 0 to 4 loop
+  wait for 10ns;
+  activateChannel(4);
 end loop;
 -- channel 1 activates after channel 3 finished, so the search isnt restarted again
-waitUntilCCF(3);
-activateChannel(1);
+wait for 80ns;
+activateChannel(0);
 -- channel 2 starts; new search that channel 1 wins
 
--- wait until search is over
-wait for 80ns;
--- activate higher priorised channel to update nextHighestChannel
-
-activateChannel(3);
-
--- channel 3 executes
--- channel 1 executes
 wait;
 end process;
 
