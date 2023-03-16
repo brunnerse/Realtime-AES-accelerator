@@ -326,11 +326,13 @@ end procedure;
             when Idle =>
                 -- Read CR register of highest channel
                 configReg := mem(highestChannel)(ADDR_CR/4); 
-                -- switch channel to highestChannel
-                channel <= highestChannel;
-                -- start if the Enable signal is high and the channel is not already finished
+                -- start if the Enable signal is high
                 -- and the search for the highest channel already finished
-                if En(highestChannel) = '1' and CCF(highestChannel) = '0' and not waitForSearchEnd then
+                -- to avoid restarting a channel that just finished, check CCF first
+                -- If a channel just restarted (i.e. prevEn='0'), we can start immediately
+                if En(highestChannel) = '1' and (CCF(highestChannel) = '0' or prevEn(highestChannel) = '0') and not waitForSearchEnd then
+                    -- switch channel to highestChannel
+                    channel <= highestChannel;
                     -- copy configuration signals
                     
                     -- if mode is decryption, the expanded roundkeys aren't valid yet 
