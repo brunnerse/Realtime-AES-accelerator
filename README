@@ -1,1 +1,41 @@
-Repository für Code
+# Masterarbeit Brunner Severin: Code
+
+## Repository-Organisation: Branches
+- phase1: Quellcode zur Basis-Implementierung
+- master: Quellcode zur Implementierung der Variante 1
+- phase3: Quellcode zur Implementierung der Variante 2
+
+## Datei-Organisation
+- c:
+	Skripte in der Sprache C, u.a. zum Generieren von Test-Speicherinhalten
+- python:
+	Skript in python zum Debuggen des AES_Core
+- Drivers:
+	Die Treiberdateien in Form von C-Code
+- Vitis:
+	Enthält die Testdateien in C, mit welchen in Vitis das Design getestet wurde
+- Vivado:
+	Enthält die Constraintsfile des Zedboards
+- VHDL:
+	Das Hauptverzeichnis; enthält sämtlichen VHDL-Code
+- VHDL/Testing:
+	Testskripte in VHDL für das Design bzw einzelne Module im Design
+- tiny-AES-C:
+	Eine AES-Implementierung in C, welche zum Debuggen des AES_Core verwendet wurde
+	Übernommen von https://github.com/kokke/tiny-AES-C
+
+## Ausführen
+In Vivado:
+	- Neues Projekt erstellen
+	- Sämtliche VHDL-Dateien aus dem Ordner VHDL und seinen Unterordnern importieren
+	- Blockdiagramm erstellen
+	- Das Modul AES_Unit.vhd zum Blockdiagramm hinzufügen
+	- Den Zynq-7000 IP zum Blockdiagramm hinzufügen
+	- Die Blöcke über die automatische Funktion miteinander verbinden
+	- Design synthethisieren und Bitstream generieren
+	- Design mit Bitstream exportieren
+In Vitis:
+	- Neues Projekt erstellen
+	- Die Treiberdateien aus dem Ordner Drivers importieren
+	- Die Testdateien aus dem Ordner Vitis importieren
+	- Testdatei ausführen
