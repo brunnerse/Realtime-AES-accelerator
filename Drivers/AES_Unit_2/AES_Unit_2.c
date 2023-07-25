@@ -138,6 +138,13 @@ void AES_SetInterruptEnabled(AES* InstancePtr, u32 channel, u32 en)
     AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
 }
 
+void AES_SetInterruptCallback(AES* InstancePtr, u32 channel, AES_CallbackFn callbackFn, void* callbackRef)
+{
+	InstancePtr->CallbackFn[channel] = callbackFn;
+	InstancePtr->CallbackRef[channel] = callbackRef;
+}
+
+
 /**
  * @brief Enables the AES Unit so it starts its calculation according to the configuration
  * 

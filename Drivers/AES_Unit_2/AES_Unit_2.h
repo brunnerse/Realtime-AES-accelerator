@@ -16,7 +16,7 @@ extern "C" {
 #define BLOCK_SIZE 16
 
 #define AES_BYTE_ORDER LITTLE_ENDIAN
-#define AES_NUM_CHANNELS 8
+#define AES_NUM_CHANNELS 15
 #define AES_ADDR_REGISTER_BITS 7
 
 #define AES_MAX_PRIORITY (AES_NUM_CHANNELS-1)
@@ -75,6 +75,8 @@ void AES_SetChainingMode(AES* InstancePtr, u32 channel, ChainingMode chainMode);
 void AES_SetGCMPhase(AES* InstancePtr, u32 channel, GCMPhase gcmPhase);
 void AES_SetPriority(AES* InstancePtr, u32 channel, u32 priority);
 void AES_SetInterruptEnabled(AES* InstancePtr, u32 channel, u32 en);
+
+void AES_SetInterruptCallback(AES* InstancePtr, u32 channel, AES_CallbackFn callbackFn, void* callbackRef);
 
 void AES_startComputation(AES* InstancePtr, u32 channel);
 

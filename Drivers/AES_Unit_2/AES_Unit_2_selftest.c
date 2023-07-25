@@ -65,7 +65,8 @@ XStatus AES_Mem_SelfTest(void * baseaddr_p)
 			Mem32Value = AES_mReadMemory(baseaddr + (channel<<AES_ADDR_REGISTER_BITS) + offset);
 			if ( Mem32Value != (0xDEADBEEF % offset  + (channel << 8)) )
 			{
-				xil_printf("   - write/read memory failed on address 0x%08x\n\r", baseaddr+offset);
+				xil_printf("   - write/read memory failed on address 0x%08x\n\r",
+								(baseaddr + (channel<<AES_ADDR_REGISTER_BITS) + offset));
 				return XST_FAILURE;
 			}
 			// Reset memory value to 0
