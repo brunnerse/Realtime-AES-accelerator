@@ -158,6 +158,8 @@ void AES_startComputation(AES* InstancePtr, u32 channel)
 }
 
 
+
+
 /**
  * @brief Get the susp register content, which holds intermediate results for the GCM calculation
  * 
@@ -430,7 +432,7 @@ void AES_waitUntilCompleted(AES* InstancePtr, u32 channel)
 int AES_isComputationCompleted(AES* InstancePtr, u32 channel)
 {
 	u32 CCF = getBits(AES_Read(InstancePtr, channel, AES_SR_OFFSET), SR_CCF_POS, SR_CCF_LEN);
-	return  (CCF & (1 << channel)) != 0;
+	return  (CCF & (1 << (channel%8))) != 0;
 }
 
 /*****************************************************************************/
@@ -446,7 +448,7 @@ int AES_isComputationCompleted(AES* InstancePtr, u32 channel)
 u32 AES_GetError(AES* InstancePtr, u32 channel)
 {
 	u32 sr = AES_Read(InstancePtr, channel, AES_SR_OFFSET);
-	return getBits(sr, SR_RDERR_POS+channel, 1) * ERROR_READ  |  getBits(sr, SR_WRERR_POS+channel, 1) * ERROR_WRITE;
+	return getBits(sr, SR_RDERR_POS+(channel%8), 1) * ERROR_READ  |  getBits(sr, SR_WRERR_POS+(channel%8), 1) * ERROR_WRITE;
 }
 
 
@@ -467,26 +469,23 @@ void AES_IntrHandler(void *HandlerRef)
 
 	/* Check what interrupts have fired
 	 */
-	u32 SR = AES_Read(InstancePtr, 0, AES_SR_OFFSET);
-	u32 Irq = getBits(SR, SR_IRQ_POS, SR_IRQ_LEN);
+    for (int channelIdx = 0; channelIdx < AES_NUM_CHANNELS; channelIdx += 8) {
+		u32 SR = AES_Read(InstancePtr, channelIdx, AES_SR_OFFSET);
+		u32 Irq = getBits(SR, SR_IRQ_POS, 8);
 
-	if (Irq == 0x0) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "Intr handler called, but no interrupt occured\r\n");
-		return;
-	}
+		// Clear interrupts by writing the Status register back
+		AES_Write(InstancePtr, channelIdx, AES_SR_OFFSET, SR);
 
-    // Clear interrupts by writing the Status register back
-    AES_Write(InstancePtr, 0, AES_SR_OFFSET, SR);
-
-    // Call Callback function for each interrupt
-    for (int i = 0; i < AES_NUM_CHANNELS; i++)
-    {
-        if ((Irq & (1 << i)) && InstancePtr->CallbackFn[i])
-        {
-            (InstancePtr->CallbackFn[i])(InstancePtr->CallbackRef[i]);
-			// Set CallbackFn to NULL so it isn't called later unintentionally
-            InstancePtr->CallbackFn[i] = NULL;
-        }
+		// Call Callback function for each interrupt
+		for (int i = 0; i < 8 && i + channelIdx < AES_NUM_CHANNELS; i++)
+		{
+			if ((Irq & (1 << i)) && InstancePtr->CallbackFn[i+channelIdx])
+			{
+				(InstancePtr->CallbackFn[i+channelIdx])(InstancePtr->CallbackRef[i+channelIdx]);
+				// Set CallbackFn to NULL so it isn't called later unintentionally
+				InstancePtr->CallbackFn[i+channelIdx] = NULL;
+			}
+		}
     }
 }
 
