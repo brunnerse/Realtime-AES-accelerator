@@ -592,70 +592,35 @@ begin
 end procedure;
 
 variable channelIdx : channel_range;
-variable nextHighestChannelVar : channel_range;
-variable isSearchRunningVar : boolean;
 begin
 if rising_edge(Clock) then
     EnISearch <= '0';
     
     if Resetn = '0' then
         highestChannel <= channel_range'LOW;
-        -- nextHighestChannel must always be different from highestChannel, so assign it a random other one
-        nextHighestChannel <= channel_range'HIGH; 
         isSearchRunning <= false;
-        waitForSearchEnd <= false;
     else
         if EnOSearch = '1' and EnISearch = '0' then
             isSearchRunning <= false;
-            isSearchRunningVar := false;
-            nextHighestChannel <= resultSearch;
-            nextHighestChannelVar := resultSearch;
-            -- in the case that nextHighestChannelVar is higher than highestChannel, replace it.
-            -- this can happen when the new highest channel arrived while waitForSearchEnd was set
-            if En(resultSearch) = '1' and 
-                    ( unsigned(Priority(resultSearch)) > unsigned(Priority(highestChannel)) or En(highestChannel) = '0' ) then
-                highestChannel <= resultSearch;
-                restartSearch;
-            end if;
-        else
-            isSearchRunningVar := isSearchRunning;
-            nextHighestChannelVar := nextHighestChannel;
+            -- TODO case that during search, a channel arrives that is higher than resultSearch but lower than the previous highestChannel 
+            highestChannel <= resultSearch;
         end if;
         
-        -- If nextHighestChannel completes (i.e. because it blocked highestChannel), restart search if not already running
-        if CCF(nextHighestChannel) = '1' and not isSearchRunning then --TODO either both Var or neither Var
-            restartSearch;
+         -- Check if highestChannel has just completed and start the search for the new highestChannel in that case 
+        if CCF(highestChannel) = '1' and prevCCF(highestChannel) = '0' then
+            -- TODO either remove avoidChannel from BinarySearch or set it to highestChannel if necessary to avoid checking it again 
+            restartSearch; 
         end if;
-        
-         -- Check if highestChannel has just completed, in that case set highestChannel to the next highest Channel
-         -- if the search is still running, assert waitForSearchEnd and wait until the search has finished
-        if (CCF(highestChannel) = '1' and prevCCF(highestChannel) = '0') or waitForSearchEnd then
-           -- if search finished this cycle
-           if not isSearchRunningVar then
-                highestChannel <= nextHighestChannelVar;
-                restartSearch;
-                waitForSearchEnd <= false;
-           else
-                waitForSearchEnd <= true;
-           end if;
-
         -- check if a new channel was just enabled
-        elsif WrEn1 = '1' and WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH)(addr_register_range)) and
+        if WrEn1 = '1' and WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH)(addr_register_range)) and
                 WrData1(CR_POS_EN) = '1' then
-
+                
             channelIdx := to_integer(unsigned(WrAddr1(addr_channel_range)));
-            -- Update highest Channel if the update channel has a higher priority than the current one 
-            if unsigned(WrData1(CR_RANGE_PRIORITY)) > unsigned(Priority(highestChannel)) or En(highestChannel) = '0' then
-                highestChannel <= channelIdx;
-                 -- dont set nextHighestChannel directly, instead restart search
-                -- this prevents mistakes when the search is currently running
-                restartSearch;
-            -- next, compare channelIdx to nextHighestChannel; if search is still running, restart it to include the new channel in the search
-            elsif isSearchRunningVar then
-                restartSearch;
-            -- if nextHighestChannel is known, do comparison         
-            elsif unsigned(WrData1(CR_RANGE_PRIORITY)) > unsigned(Priority(nextHighestChannelVar))  or En(nextHighestChannelVar) = '0' then 
-                    nextHighestChannel <= channelIdx;
+            -- Update highest Channel if the update channel has a higher priority than the current one, or if no channel is active yet
+            -- this means that if a high channel arrives during a search, the search is aborted and the high channel starts immediately
+            if  unsigned(WrData1(CR_RANGE_PRIORITY)) > unsigned(Priority(highestChannel))  or or_reduce(En) = '0' then 
+                highestChannel <= channelIdx; -- might have to check in EnoSearch if resultSearch has higher priority than highestChannel or En(highestChannel) = 0
+                restartSearch; -- this aborts any ongoing search
             end if;
         end if;
     end if;
