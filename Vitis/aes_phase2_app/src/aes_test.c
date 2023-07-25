@@ -1,5 +1,4 @@
 #include "xparameters.h"
-#include "xscutimer.h"
 #include "xgpiops.h"
 #include "xscugic.h"
 
@@ -9,9 +8,9 @@
 #include <stdio.h>
 #include <string.h>
 
-
-#include "AES_Unit_2.h"
 #include "AES_Unit_2_hw.h"
+#include "AES_Unit_2.h"
+
 
 #define SETUP_INTERRUPT_SYSTEM
 
@@ -21,7 +20,10 @@
 #define TEST_GCM
 
 
+
 volatile u32 interruptEvent = 0;
+
+
 
 void onInterrupt(void* number)
 {
@@ -58,6 +60,17 @@ void hexToStdOut(const u8* array, int len)
 }
 
 
+u8 passedAllTests = 1;
+const char* getMemEqual(const u8* block1, const u8* block2, const u32 size)
+{
+	if (memcmp(block1, block2, size) == 0) {
+		return "Yes";
+	} else {
+		passedAllTests = 0;
+		return "No";
+	}
+}
+
 #define AES_BASEADDR XPAR_AES_INTERFACE_M_0_S_AXI_BASEADDR
 #define DDR_BASEADDR XPAR_PS7_DDR_0_S_AXI_BASEADDR
 
@@ -78,6 +91,8 @@ u8 block3[BLOCK_SIZE] = {0xaf, 0xfe, 0xde, 0xad, 0xbe, 0xef, 0xda, 0xdc, 0xab, 0
 u8 IV[BLOCK_SIZE] = {0xf0, 0xe0, 0xd0, 0xc0, 0xb0, 0xa0, 0x90, 0x80, 0x70, 0x60, 0x50, 0x40, 0x30, 0x20, 0x10, 0x00};
 
 u8 trashDestBuffer[16];
+
+
 
 int main()
 {
@@ -184,13 +199,12 @@ int main()
 		hexToStdOut(DestBuffer, 16);
 		//Xil_DCacheFlushRange((UINTPTR)DestBuffer, 16);
 		//hexToStdOut(DestBuffer, 16);
-		xil_printf("[TEST] Channel %d successful:  %s\n\r", channel,
-				memcmp(block1, DestBuffer, BLOCK_SIZE) == 0 ? "Yes" : "No");
+		xil_printf("[TEST] Channel %d successful:  %s\n\r", channel, getMemEqual(block1, DestBuffer, BLOCK_SIZE));
 	}
 #endif
 #ifdef TEST_SIZE
     // Test with different sizes
-    u32 channel = 3;
+    u32 channel = 7;
     ChainingMode chmode = CHAINING_MODE_CBC;
 	xil_printf("\n====== Testing different data sizes =====\r\n");
 
@@ -208,7 +222,7 @@ int main()
 			*(u32*)plaintext += 1;
 		}
 		xil_printf("Starting encryption...\r\n");
-		AES_startComputationMode(&aes, channel, chmode, 1, plaintext_custom, ciphertext_custom, size, IV, NULL, NULL);
+		AES_startComputationMode(&aes, channel, chmode, 1, plaintext_custom, ciphertext_custom, size, IV, onInterrupt, (void*)channel);
 		AES_waitUntilCompleted(&aes, channel);
 
 		hexToStdOut(plaintext_custom, 32);
@@ -216,13 +230,13 @@ int main()
 
 		// Decrypt ciphertext inplace
 		xil_printf("Starting decryption...\r\n");
-		AES_startComputationMode(&aes, channel, chmode, 0, ciphertext_custom, ciphertext_custom, size, IV, NULL, NULL);
+		AES_startComputationMode(&aes, channel, chmode, 0, ciphertext_custom, ciphertext_custom, size, IV, onInterrupt, (void*)channel);
 		AES_waitUntilCompleted(&aes, channel);
 
 		hexToStdOut(ciphertext_custom, 32);
 
 		xil_printf("[TEST] Size %u (addresses 0x%p -> 0x%p) successful:  %s\n\r", size, plaintext_custom, ciphertext_custom,
-				memcmp(plaintext_custom, ciphertext_custom, size) == 0 ? "Yes" : "No");
+				getMemEqual(plaintext_custom, ciphertext_custom, size));
 	}
 #endif
 
@@ -233,7 +247,7 @@ int main()
 
 	// Generate test data for each channel
 	u8* baseAddr = (u8*)0x1000000;
-	u8 * baseAddrCiphertext = (u8*)0x1500000;
+	u8 * baseAddrCiphertext = (u8*)0x2500000;
 	u8* plaintextAddr[AES_NUM_CHANNELS];
     u8* ciphertextAddr[AES_NUM_CHANNELS];
     u32 size[AES_NUM_CHANNELS];
@@ -286,6 +300,10 @@ int main()
         }
 
 		AES_SetDataParameters(&aes, channel, plaintextAddr[channel], ciphertextAddr[channel], size[channel]);
+
+		// setup interrupt
+		AES_SetInterruptEnabled(&aes, channel, 1);
+		AES_SetInterruptCallback(&aes, channel, onInterrupt, (void*)channel);
     }
 
 	// Test the different modi while starting multiple channels immediately after each other
@@ -330,7 +348,7 @@ int main()
 	for (int channel = 0; channel < AES_NUM_CHANNELS; channel++)
 	{
 		xil_printf("[TEST] Channel %d successful:  %s\n\r", channel,
-			memcmp(plaintextAddr[channel], ciphertextAddr[channel], size[channel]) == 0 ? "Yes" : "No");
+			getMemEqual(plaintextAddr[channel], ciphertextAddr[channel], size[channel]));
 	}
 
 	xil_printf("\r\nCompleted Modi tests.\r\n");
@@ -417,44 +435,43 @@ int main()
 		xil_printf("Tag after decryption:\n\r");
 		hexToStdOut(decryptTag, 16);
 
-		if (AES_compareTags(tagAddr, decryptTag) == 0)
+		if (AES_compareTags(tagAddr, decryptTag) == 0) {
 			xil_printf("[TEST] Passed: Tags are equal\r\n");
-		else
+		} else {
 			xil_printf("[TEST] Failed: Tags are not equal\r\n");
+			passedAllTests = 0;
+		}
     }
 #endif
-
+    if (passedAllTests)
+    	xil_printf("\n\r[PASSED] ");
+    else
+    	xil_printf("\n\r[FAILED] ");
 	xil_printf("Processed all AES tests.\n\r");
+
 
 	// At the end, blink an LED for fun
     // Configure LED as output for
-    XGpioPs_Config *GPIO_Config = XGpioPs_LookupConfig(XPAR_PS7_GPIO_0_DEVICE_ID);
+    XGpioPs_Config *GPIO_Config = XGpioPs_LookupConfig(XPAR_PSU_GPIO_0_DEVICE_ID);
     XGpioPs my_Gpio;
     status = XGpioPs_CfgInitialize(&my_Gpio, GPIO_Config, GPIO_Config->BaseAddr);
-    XGpioPs_SetDirectionPin(&my_Gpio, 7, 1);
-    XGpioPs_WritePin(&my_Gpio, 7, 1);
+    XGpioPs_SetDirectionPin(&my_Gpio, 0, 1);
+    XGpioPs_WritePin(&my_Gpio, 0, 1);
 
-
-    // Configure timer
-    XScuTimer_Config *timerConfig = XScuTimer_LookupConfig(XPAR_PS7_SCUTIMER_0_DEVICE_ID);
-    XScuTimer timer;
-    status = XScuTimer_CfgInitialize(&timer, timerConfig, timerConfig->BaseAddr);
-
-    XScuTimer_LoadTimer(&timer, 100000000);
-    //print("Starting timer...\n\r");
-    XScuTimer_Start(&timer);
 
     // Switch LED on and off
     int isLedOn = 0;
     while(1)
     {
 	    isLedOn = !isLedOn;
-		XGpioPs_WritePin(&my_Gpio, 7, isLedOn);
-	    XScuTimer_RestartTimer(&timer);
-	    while (XScuTimer_GetCounterValue(&timer) > 0)
-				;
+		XGpioPs_WritePin(&my_Gpio, 0, isLedOn);
+		// pause
+		getchar();
+		xil_printf("Continue..\n\r");
 
      }
 
+
+    xil_printf("Successfully ran the application");
     return 0;
 }
