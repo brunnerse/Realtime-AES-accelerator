@@ -34,7 +34,7 @@ use ieee.std_logic_misc.or_reduce;
 entity ControlLogic is
   Generic (
     LITTLE_ENDIAN : boolean := true;
-    NUM_CHANNELS : integer range 1 to 8 := 8 -- upper bound must be MAX_CHANNELS, but Vivado doesn't synthesize then
+    NUM_CHANNELS : integer range 1 to 16 := 8 -- upper bound must be MAX_CHANNELS, but Vivado doesn't synthesize then
   );
   Port (    
 -- Ports to the AES interface: 
@@ -127,6 +127,7 @@ end component;
 constant DATA_WIDTH_BYTES : integer := DATA_WIDTH/8;
 -- range of the index for the channel
 subtype channel_range is integer range NUM_CHANNELS-1 downto 0;
+subtype channel_ext_range is integer range ((NUM_CHANNELS+7)/8)*8-1 downto 0; -- channel_range extended so it is divisible by 8
 
 -- definition of the address dimensions and which part of the address is the channel and which part the register
 subtype addr_channel_range is integer range ADDR_WIDTH-1 downto ADDR_REGISTER_BITS;
@@ -198,8 +199,10 @@ signal EnISearch, ENOSearch : std_logic;
 signal resultSearch : channel_range;
 
 -- status signals for each channel
-signal WRERR, RDERR, CCF : std_logic_vector(channel_range);
-signal prevCCF : std_logic_vector(channel_range);
+signal WRERR, RDERR, CCF : std_logic_vector(channel_ext_range);
+-- control signals
+signal interrupt, clearInterrupt : std_logic_vector(channel_ext_range);
+signal prevCCF : std_logic_vector(channel_ext_range);
 
 signal isChannelInterrupted : std_logic_vector(channel_range);
 
@@ -217,8 +220,7 @@ type dataCountArray is array (channel_range) of std_logic_vector(DATA_WIDTH-1 do
 signal dataCount : dataCountArray;
 signal dataSize : std_logic_vector(DATA_WIDTH-1 downto 0);
 signal sourceAddress, destAddress : std_logic_vector(M_RV_addr'LENGTH-1 downto 0);
--- control signals
-signal interrupt, clearInterrupt : std_logic_vector(channel_range); -- stores for each channel whether it request an interrupt
+
 signal CCFIE : std_logic;
 signal modeSignal : std_logic_vector(MODE_LEN-1 downto 0);
 signal chainingModeSignal : std_logic_vector(CHMODE_LEN-1 downto 0);
@@ -487,17 +489,20 @@ end process;
 -- read process
 process (Clock)
 variable channelIdx : integer;
+variable srIdx : integer;
 begin
 if rising_edge(Clock) then
     if RdEn = '1' then
         -- If address is in register SR, don't actually read from memory. This way the register appears read-only
         if RdAddr(addr_register_range) = std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)(addr_register_range)) then
+            -- divide channel bit by 8 to get the sr index
+            srIdx := to_integer(unsigned(RdAddr(addr_channel_range'HIGH downto addr_channel_range'LOW+3)));
             -- fill RdData :   WRERR | RDERR |  CCF  | IRQ
             RdData <= (others => '0');
-            RdData(SR_POS_IRQ+interrupt'HIGH downto SR_POS_IRQ) <= interrupt;
-            RdData(SR_POS_CCF+CCF'HIGH downto SR_POS_CCF) <= CCF;
-            RdData(SR_POS_RDERR+RDERR'HIGH downto SR_POS_RDERR) <= RDERR;
-            RdData(SR_POS_WRERR+WRERR'HIGH downto SR_POS_WRERR) <= WRERR;
+            RdData(SR_POS_IRQ+7 downto SR_POS_IRQ) <= interrupt(srIdx*8+7 downto srIdx*8);
+            RdData(SR_POS_CCF+7 downto SR_POS_CCF) <= CCF(srIdx*8+7 downto srIdx*8);
+            RdData(SR_POS_RDERR+7 downto SR_POS_RDERR) <= RDERR(srIdx*8+7 downto srIdx*8);
+            RdData(SR_POS_WRERR+7 downto SR_POS_WRERR) <= WRERR(srIdx*8+7 downto srIdx*8);
         else
             channelIdx :=  to_integer(unsigned(RdAddr(addr_channel_range)));
             RdData <= mem(channelIdx)(to_integer(unsigned(RdAddr(addr_register_range))));
@@ -511,7 +516,7 @@ end process;
 -- drives clearInterrupt
 process (Clock)
 variable channelIdx : integer;
-
+variable srIdx : integer;
 begin
 if rising_edge(Clock) then
     clearInterrupt <= (others => '0');
@@ -558,7 +563,8 @@ if rising_edge(Clock) then
           end if;
           -- if Write is to Status Register, it contains the Clear Interrupt Flags
           if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)(addr_register_range)) then
-                clearInterrupt <= WrData1(clearInterrupt'RANGE);
+                srIdx := to_integer(unsigned(WrAddr1(addr_channel_range'HIGH downto addr_channel_range'LOW+3)));
+                clearInterrupt(srIdx*8+7 downto srIdx*8) <= WrData1(SR_POS_IRQ+7 downto SR_POS_IRQ);
            end if;
         end if;
         -- Write port 2 (from the AES Core)

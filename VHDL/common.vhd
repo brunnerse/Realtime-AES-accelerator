@@ -38,7 +38,7 @@ constant GCM_PHASE_FINAL : std_logic_vector := "11";
 
 -- Control Logic write port definitions
 constant DATA_WIDTH : integer := 32;
-constant ADDR_WIDTH : integer := 10;
+constant ADDR_WIDTH : integer := 11;
 
 -- the 7 lowest bits of the address give the register
 constant ADDR_REGISTER_BITS : integer := 7;
