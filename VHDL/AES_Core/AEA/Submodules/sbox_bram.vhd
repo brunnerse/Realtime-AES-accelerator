@@ -8,7 +8,7 @@ use work.sbox_definition.ALL;
 
 entity sbox_bram is
 generic (
-    DATA    : integer := 32;
+    DATA    : integer := 8;
     ADDR    : integer := 8;
     ENCRYPT : boolean := true
 );
@@ -16,6 +16,7 @@ port (
     -- Port A
     clka   : in std_logic;
     wea    : in std_logic;
+    ena    : in std_logic;
     addra  : in std_logic_vector(ADDR-1 downto 0);
     dina   : in std_logic_vector(DATA-1 downto 0);
     douta  : out std_logic_vector(DATA-1 downto 0)
@@ -33,6 +34,7 @@ architecture rtl of sbox_bram is
         end if;
     end function;   
 
+   type mem_type is array (255 downto 0) of std_logic_vector(31 downto 0);
    signal mem : SBOX := initSBox;
 begin
 
@@ -45,7 +47,9 @@ begin
             mem(conv_integer(addra)) <= dina;
             report "Bram write-a " & integer'image(to_integer(unsigned(dina))) & " at " & integer'image(to_integer(unsigned(addra)));
         end if;
-        douta <= mem(conv_integer(addra));
+        if ena = '1' then
+            douta <= mem(conv_integer(addra));
+        end if;
     end if;
 end process;
 

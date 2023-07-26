@@ -28,7 +28,7 @@ use work.sbox_definition.ALL;
 -- arithmetic functions with Signed or Unsigned values
 use IEEE.NUMERIC_STD.ALL;
 
-entity SubBytes is
+entity SubBytes is -- TODO add generic whether to implement the s-box with block ram or logic
     Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            encrypt : in STD_LOGIC;
@@ -38,9 +38,62 @@ entity SubBytes is
            Resetn : in STD_LOGIC);
 end SubBytes;
 
+
+
 architecture Behavioral of SubBytes is
+
+component sbox_bram is -- TODO add En-Signal to sbox_bram so output doesnt change unless EnI is set
+generic (
+    DATA    : integer := 8; -- TODO make block ram shorter 
+    ADDR    : integer := 8; 
+    ENCRYPT : boolean := true
+);
+port (
+    -- Port A
+    clka   : in std_logic;
+    wea    : in std_logic;
+    ena    : in std_logic;
+    addra  : in std_logic_vector(ADDR-1 downto 0);
+    dina   : in std_logic_vector(DATA-1 downto 0);
+    douta  : out std_logic_vector(DATA-1 downto 0)
+);
+end component;
+
+type s_type is array (BLOCK_SIZE-1 downto 0) of std_logic_vector(7 downto 0);
+signal s_enc : s_type;
+signal s_dec : s_type;
 	  
 begin
+GEN_SBOX : 
+for i in 0 to BLOCK_SIZE-1 generate
+    -- encryption sbox
+    sbox_i : sbox_bram generic map (
+        ENCRYPT => true
+    ) port map (
+        clka => Clock,
+        wea => '0',
+        ena => EnI,
+        addra => dIn(i*8+7 downto i*8),
+        dina => (others => '0'),
+        douta => s_enc(i) 
+    );
+    -- decryption sbox
+    sbox_d_i : sbox_bram generic map (
+        ENCRYPT => false
+    ) port map (
+        clka => Clock,
+        wea => '0',
+        ena => EnI,
+        addra => dIn(i*8+7 downto i*8),
+        dina => (others => '0'),
+        douta => s_dec(i) -- TODO make block ram shorter  so this doesnt have to be used
+    );
+    
+    dout(i*8+7 downto i*8) <= s_enc(i)(7 downto 0) when encrypt = '1' else s_dec(i)(7 downto 0); 
+    
+end generate;
+
+
 
 process (Clock)
 begin
@@ -49,17 +102,6 @@ if rising_edge(Clock) then
         EnO <= '0';
     else
         EnO <= EnI;
-        if EnI = '1' then
-            if encrypt = '1' then    
-                for i in KEY_SIZE/8-1 downto 0 loop
-                    dout(i*8+7 downto i*8) <= sbox_encrypt(to_integer(unsigned(dIn(i*8+7 downto i*8))));
-                end loop;
-            else
-                for i in KEY_SIZE/8-1 downto 0 loop
-                    dout(i*8+7 downto i*8) <= sbox_decrypt(to_integer(unsigned(dIn(i*8+7 downto i*8))));
-                end loop;
-            end if;
-        end if;     
     end if;
 end if;
 end process;
