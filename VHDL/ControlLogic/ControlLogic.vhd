@@ -116,7 +116,6 @@ component BinarySearch is
         EnO : out std_logic;
         ChannelPriority: in PrioArrayType(NUM_CHANNELS-1 downto 0);
         ChannelEn : in std_logic_vector(NUM_CHANNELS-1 downto 0);
-        avoidChannelIdx : in integer range NUM_CHANNELS-1 downto 0;
         highestChannel : out integer range NUM_CHANNELS -1 downto 0;
         Clock : in std_logic;
         Resetn : in std_logic
@@ -257,7 +256,6 @@ BinSearch: BinarySearch
         EnO => EnOSearch, 
         ChannelPriority => Priority,
         ChannelEn => En,
-        avoidChannelIdx => highestChannel,
         highestChannel => resultSearch,
         Clock => Clock,
         Resetn => Resetn
