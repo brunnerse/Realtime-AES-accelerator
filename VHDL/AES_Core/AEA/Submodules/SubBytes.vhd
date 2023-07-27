@@ -48,8 +48,7 @@ architecture Behavioral of SubBytes is
 component sbox_bram is
 generic (
     DATA    : integer := 8;
-    ADDR    : integer := 8; 
-    ENCRYPT : boolean := true
+    ADDR    : integer := 9
 );
 port (
     -- Port A
@@ -60,36 +59,22 @@ port (
 );
 end component;
 
-type s_type is array (BLOCK_SIZE-1 downto 0) of std_logic_vector(7 downto 0);
-signal s_enc : s_type;
-signal s_dec : s_type;
+type s_addr is array (BLOCK_SIZE-1 downto 0) of std_logic_vector(8 downto 0);
+signal addr : s_addr;
 	  
 begin
 GEN_BRAM:
 if USE_BLOCK_RAM generate
 GEN_SBOX : 
 for i in 0 to BLOCK_SIZE-1 generate
+    addr(i) <= encrypt & dIn(i*8+7 downto i*8);
     -- encryption sbox
-    sbox_i : sbox_bram generic map (
-        ENCRYPT => true
-    ) port map (
+    sbox_i : sbox_bram port map (
         clka => Clock,
         ena => EnI,
-        addra => dIn(i*8+7 downto i*8),
-        douta => s_enc(i) 
-    );
-    -- decryption sbox
-    sbox_d_i : sbox_bram generic map (
-        ENCRYPT => false
-    ) port map (
-        clka => Clock,
-        ena => EnI,
-        addra => dIn(i*8+7 downto i*8),
-        douta => s_dec(i)
-    );
-    
-    dout(i*8+7 downto i*8) <= s_enc(i) when encrypt = '1' else s_dec(i);
-    
+        addra => addr(i),
+        douta => dout(i*8+7 downto i*8)
+    );   
 end generate;
 end generate;
 GEN_LOGIC:
