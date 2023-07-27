@@ -625,17 +625,12 @@ if rising_edge(Clock) then
             channelIdx := to_integer(unsigned(WrAddr1(addr_channel_range)));
             -- Update highest Channel if the update channel has a higher priority than the current one, or if no channel is active yet
             -- this means that if a high channel arrives during a search, the search is aborted and the high channel starts immediately
-            if unsigned(WrData1(CR_RANGE_PRIORITY)) > unsigned(Priority(highestChannel)) or or_reduce(En) = '0' then 
-                highestChannel <= channelIdx; -- might have to check in EnoSearch if resultSearch has higher priority than highestChannel or En(highestChannel) = 0
-                -- set duringChannel so that the search sets highestChannel to channelIdx (i.e. doesnt change it) once the search finishes
-                isDuringChannelSet <= true;
-                duringChannel <= channelIdx;
-            elsif isSearchRunning then
-                -- check if channelIdx has the highest priority of all channels that arrived during the search
+            if isSearchRunning then
+                 -- check if channelIdx has the highest priority of all channels that arrived during the search
                 if not isDuringChannelSet or unsigned(WrData1(CR_RANGE_PRIORITY)) > unsigned(Priority(duringChannel)) then  
                     -- check if search finishes in the same cycle
                     if EnOSearch = '1' then
-                        if unsigned(WrData1(CR_RANGE_PRIORITY)) > unsigned(Priority(resultSearch)) then
+                        if unsigned(WrData1(CR_RANGE_PRIORITY)) > unsigned(Priority(resultSearch)) or En(resultSearch) = '0' then
                             highestChannel <= channelIdx;
                         end if;
                     else
@@ -643,6 +638,8 @@ if rising_edge(Clock) then
                         duringChannel <= channelIdx;
                     end if;
                 end if; 
+            elsif unsigned(WrData1(CR_RANGE_PRIORITY)) > unsigned(Priority(highestChannel)) or or_reduce(En) = '0' then 
+                highestChannel <= channelIdx;
             end if;
         end if;
     end if;
