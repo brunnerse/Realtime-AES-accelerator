@@ -8,8 +8,7 @@ use work.sbox_definition.ALL;
 entity sbox_bram is
 generic (
     DATA    : integer := 8;
-    ADDR    : integer := 8;
-    ENCRYPT : boolean := true
+    ADDR    : integer := 9
 );
 port (
     -- Port A
@@ -22,17 +21,21 @@ end sbox_bram;
 
 architecture rtl of sbox_bram is
 
-    impure function initSBox return SBOX is
+   type mem_type is array (511 downto 0) of std_logic_vector(7 downto 0);
+
+    impure function initSBox return mem_type is
+    
+    variable mem_init : mem_type;
     begin
-        if ENCRYPT then
-            return sbox_encrypt;
-        else
-            return sbox_decrypt;
-        end if;
+        for i in 0 to 255 loop
+            mem_init(i) := sbox_decrypt(i);
+            mem_init(i+256) := sbox_encrypt(i);
+        end loop;
+        return mem_init;
     end function;   
 
-   type mem_type is array (255 downto 0) of std_logic_vector(31 downto 0);
-   signal mem : SBOX := initSBox;
+
+   signal mem : mem_type := initSBox;
 begin
 
 -- Port A
