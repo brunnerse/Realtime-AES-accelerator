@@ -581,13 +581,17 @@ end process;
 -- driver process for nextHighestChannel
 -- In each cycle, this process finds the enabled channel with the highest priority that is not currently active
 -- if no channel is enabled, channel 0 is selected
-process(Clock)
 
-procedure restartSearch is
+
+BLOCK_SCHEDULER:
+block
+-- signals to store any channels arriving during a search
+signal duringChannel : channel_range;
+signal isDuringChannelSet : boolean;
+
 begin
-    isSearchRunning <= true;
-    EnISearch <= '1';
-end procedure;
+
+process(Clock)
 
 variable channelIdx : channel_range;
 begin
@@ -598,16 +602,21 @@ if rising_edge(Clock) then
         highestChannel <= channel_range'LOW;
         isSearchRunning <= false;
     else
-        if EnOSearch = '1' and EnISearch = '0' then
+        if EnOSearch = '1' then -- and EnISearch = '0' then
             isSearchRunning <= false;
-            -- TODO case that during search, a channel arrives that is higher than resultSearch but lower than the previous highestChannel 
-            highestChannel <= resultSearch;
+            -- check if another channel arrived during the search and compare the priorities
+            if not isDuringChannelSet or (unsigned(Priority(resultSearch)) >= unsigned(Priority(duringChannel)) and En(resultSearch) = '1') then
+                highestChannel <= resultSearch;
+            elsif isDuringChannelSet then -- if clause technically not necessary
+                highestChannel <= duringChannel;
+            end if;
         end if;
         
          -- Check if highestChannel has just completed and start the search for the new highestChannel in that case 
         if CCF(highestChannel) = '1' and prevCCF(highestChannel) = '0' then
-            -- TODO either remove avoidChannel from BinarySearch or set it to highestChannel if necessary to avoid checking it again 
-            restartSearch; 
+            EnISearch <= '1';
+            isSearchRunning <= true;
+            isDuringChannelSet <= false;
         end if;
         -- check if a new channel was just enabled
         if WrEn1 = '1' and WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH)(addr_register_range)) and
@@ -616,13 +625,30 @@ if rising_edge(Clock) then
             channelIdx := to_integer(unsigned(WrAddr1(addr_channel_range)));
             -- Update highest Channel if the update channel has a higher priority than the current one, or if no channel is active yet
             -- this means that if a high channel arrives during a search, the search is aborted and the high channel starts immediately
-            if  unsigned(WrData1(CR_RANGE_PRIORITY)) > unsigned(Priority(highestChannel))  or or_reduce(En) = '0' then 
+            if unsigned(WrData1(CR_RANGE_PRIORITY)) > unsigned(Priority(highestChannel)) or or_reduce(En) = '0' then 
                 highestChannel <= channelIdx; -- might have to check in EnoSearch if resultSearch has higher priority than highestChannel or En(highestChannel) = 0
-                restartSearch; -- this aborts any ongoing search
+                -- set duringChannel so that the search sets highestChannel to channelIdx (i.e. doesnt change it) once the search finishes
+                isDuringChannelSet <= true;
+                duringChannel <= channelIdx;
+            elsif isSearchRunning then
+                -- check if channelIdx has the highest priority of all channels that arrived during the search
+                if not isDuringChannelSet or unsigned(WrData1(CR_RANGE_PRIORITY)) > unsigned(Priority(duringChannel)) then  
+                    -- check if search finishes in the same cycle
+                    if EnOSearch = '1' then
+                        if unsigned(WrData1(CR_RANGE_PRIORITY)) > unsigned(Priority(resultSearch)) then
+                            highestChannel <= channelIdx;
+                        end if;
+                    else
+                        isDuringChannelSet <= true;
+                        duringChannel <= channelIdx;
+                    end if;
+                end if; 
             end if;
         end if;
     end if;
 end if;
 end process;
+
+end block;
 
 end Behavioral;
