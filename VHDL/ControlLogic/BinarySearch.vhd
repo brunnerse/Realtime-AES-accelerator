@@ -6,15 +6,15 @@ use work.common.ALL;
 
 entity BinarySearch is
     generic (
-        NUM_CHANNELS : natural := 8
+        NUM_CHANNELS_IN : natural := 8
     );
     Port (
         EnI : in std_logic;
         EnO : out std_logic;
-        ChannelPriority: in PrioArrayType(NUM_CHANNELS-1 downto 0);
-        ChannelEn : in std_logic_vector(NUM_CHANNELS-1 downto 0);
-        avoidChannelIdx : in integer range NUM_CHANNELS-1 downto 0;
-        highestChannel : out integer range NUM_CHANNELS -1 downto 0;
+        avoidChannelIdx : in integer range NUM_CHANNELS_IN-1 downto 0;
+        ChannelPriority: in PrioArrayType(NUM_CHANNELS_IN-1 downto 0);
+        ChannelEn : in std_logic_vector(NUM_CHANNELS_IN-1 downto 0);
+        highestChannel : out integer range NUM_CHANNELS_IN -1 downto 0;
         Clock : in std_logic;
         Resetn : in std_logic
            );
@@ -22,9 +22,14 @@ end BinarySearch;
 
 architecture Behavioral of BinarySearch is
 
+constant NUM_CHANNELS: natural := (NUM_CHANNELS_IN+1)/2 * 2; -- Number of channels rounded up to multiple of 
+
 subtype channel_range is integer range NUM_CHANNELS-1 downto 0;
 type IdxArrayType is array(natural range<>) of integer range MAX_CHANNELS-1 downto 0;
 
+
+signal Priority : PrioArrayType(NUM_CHANNELS-1 downto 0);
+signal En       : std_logic_vector(NUM_CHANNELS-1 downto 0);
 
 signal channelIdx : IdxArrayType(NUM_CHANNELS/2-1 downto 0);
 signal InterPriority : PrioArrayType(NUM_CHANNELS/2-1 downto 0);
@@ -33,6 +38,17 @@ signal InterEn : std_logic_vector(NUM_CHANNELS/2-1 downto 0);
 signal size : std_logic_vector(ADDR_CHANNEL_BITS downto 0);  -- Big enough to at least store the number MAX_CHANNELS
   
 begin
+
+-- forward in priority from port to internal signal
+Priority(NUM_CHANNELS_IN-1 downto 0) <= ChannelPriority;
+En(NUM_CHANNELS_IN-1 downto 0) <= ChannelEn;
+
+-- if number of input channels is odd, add another dummy channel to make it even
+forwardIfOdd:
+if NUM_CHANNELS_IN /= NUM_CHANNELS generate
+    Priority(NUM_CHANNELS-1) <= (others => '1');
+    En(NUM_CHANNELS-1) <= '0'; -- dummy channel is always deactivated
+end generate;
 
 -- process that initializes a new search and does one search step per cycle.
 -- If EnI = '1' while a search is running, the search will be aborted and a new search will be started
@@ -67,8 +83,8 @@ if rising_edge(Clock) then
             -- use Port Input values during Initialization, else use the Intermediate results
             if idx1 >= NUM_CHANNELS/2 or EnI = '1' then
                 channelIdx1 := idx1;
-                en1 := ChannelEn(idx1);
-                prio1 := ChannelPriority(idx1);
+                en1 := En(idx1);
+                prio1 := Priority(idx1);
             else
                 channelIdx1 := channelIdx(idx1);
                 en1 := InterEn(idx1);
@@ -76,8 +92,8 @@ if rising_edge(Clock) then
             end if;
             if idx2 >= NUM_CHANNELS/2 or EnI = '1' then
                 channelidx2 := idx2;
-                en2 := ChannelEn(idx2);
-                prio2 := ChannelPriority(idx2);
+                en2 := En(idx2);
+                prio2 := Priority(idx2);
             else
                 channelidx2 := channelIdx(idx2);
                 en2 := InterEn(idx2);

@@ -109,15 +109,15 @@ end function;
 
 component BinarySearch is
     generic (
-        NUM_CHANNELS : natural := 8
+        NUM_CHANNELS_IN : natural := 8
     );
     Port (
         EnI : in std_logic;
         EnO : out std_logic;
-        ChannelPriority: in PrioArrayType(NUM_CHANNELS-1 downto 0);
-        ChannelEn : in std_logic_vector(NUM_CHANNELS-1 downto 0);
-        avoidChannelIdx : in integer range NUM_CHANNELS-1 downto 0;
-        highestChannel : out integer range NUM_CHANNELS -1 downto 0;
+        avoidChannelIdx : in integer range NUM_CHANNELS_IN-1 downto 0;
+        channelPriority: in PrioArrayType(NUM_CHANNELS_IN-1 downto 0);
+        ChannelEn : in std_logic_vector(NUM_CHANNELS_IN-1 downto 0);
+        highestChannel : out integer range NUM_CHANNELS_IN -1 downto 0;
         Clock : in std_logic;
         Resetn : in std_logic
            );
@@ -250,7 +250,7 @@ prevCCF <= CCF when rising_edge(Clock);
 -- instantitate binary search component
 BinSearch: BinarySearch
     generic map(
-        NUM_CHANNELS => (2*NUM_CHANNELS+1)/2    -- round up NUM_CHANNELS to multiple of 2
+        NUM_CHANNELS_IN => NUM_CHANNELS
     )
     port map(
         EnI => EnISearch,
