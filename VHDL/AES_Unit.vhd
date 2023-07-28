@@ -12,7 +12,7 @@ use IEEE.NUMERIC_STD.ALL;
 entity AES_Unit is
   Generic (
     LITTLE_ENDIAN : boolean := true;
-    NUM_CHANNELS : integer range 1 to 16 := 8; -- upper bound must be MAX_CHANNELS, but Vivado doesn't synthesize then
+    NUM_CHANNELS : integer range 1 to 128 := 8; -- upper bound must be MAX_CHANNELS, but Vivado doesn't synthesize then
     -- Parameters of Axi Slave Bus Interface S_AXI
     C_S_AXI_ID_WIDTH	: integer	:= 1;
     C_S_AXI_DATA_WIDTH	: integer	:= 32;

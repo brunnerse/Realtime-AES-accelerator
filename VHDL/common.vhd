@@ -38,7 +38,7 @@ constant GCM_PHASE_FINAL : std_logic_vector := "11";
 
 -- Control Logic write port definitions
 constant DATA_WIDTH : integer := 32;
-constant ADDR_WIDTH : integer := 11;
+constant ADDR_WIDTH : integer := 14;
 
 -- the 7 lowest bits of the address give the register
 constant ADDR_REGISTER_BITS : integer := 7;
@@ -48,7 +48,7 @@ constant ADDR_CHANNEL_BITS : integer := ADDR_WIDTH - ADDR_REGISTER_BITS;
 constant MAX_CHANNELS : integer := 2**ADDR_CHANNEL_BITS; 
 subtype num_channels_range is integer range 1 to MAX_CHANNELS;
 
-constant NUM_PRIORITY_BITS : integer := 3;
+constant NUM_PRIORITY_BITS : integer := ADDR_CHANNEL_BITS;
 type PrioArrayType is array(natural range<>) of std_logic_vector(NUM_PRIORITY_BITS-1 downto 0);
 
 end package;

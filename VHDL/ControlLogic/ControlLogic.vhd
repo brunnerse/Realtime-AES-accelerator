@@ -34,7 +34,7 @@ use ieee.std_logic_misc.or_reduce;
 entity ControlLogic is
   Generic (
     LITTLE_ENDIAN : boolean := true;
-    NUM_CHANNELS : integer range 1 to 16 := 8 -- upper bound must be MAX_CHANNELS, but Vivado doesn't synthesize then
+    NUM_CHANNELS : integer range 1 to 128 := 8 -- upper bound must be MAX_CHANNELS, but Vivado doesn't synthesize then
   );
   Port (    
 -- Ports to the AES interface: 
@@ -172,10 +172,6 @@ ATTRIBUTE X_INTERFACE_INFO of M_RV_write: SIGNAL is
 ATTRIBUTE X_INTERFACE_INFO of M_RV_error: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort error";
 
--- Define registers as array out of words with DATA_WIDTH bits
--- For each register, there is 2**ADDR_REGISTER_BITS ( = 2**7 = 128) bytes of memory, i.e. 128/4 words per channel
---type mem_type is array (0 to (2**ADDR_REGISTER_BITS) * NUM_CHANNELS / DATA_WIDTH_BYTES - 1) of std_logic_vector(DATA_WIDTH-1 downto 0);
---signal mem : mem_type;
 
 type single_mem_type is array (0 to (ADDR_HR3+4)/4-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
 type multi_mem_type is array (channel_range) of single_mem_type;

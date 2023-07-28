@@ -74,7 +74,7 @@ testKey <= x"000102030405060708090a0b0c0d0e0f";
 
 i_ControlLogic : entity work.ControlLogic(Behavioral)
     generic map (
-        NUM_CHANNELS => 7
+        NUM_CHANNELS => 17
     )
     port map(
         M_RV_ready => CL_ready,
