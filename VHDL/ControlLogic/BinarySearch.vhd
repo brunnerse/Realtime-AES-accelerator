@@ -11,7 +11,6 @@ entity BinarySearch is
     Port (
         EnI : in std_logic;
         EnO : out std_logic;
-        avoidChannelIdx : in integer range NUM_CHANNELS_IN-1 downto 0;
         ChannelPriority: in PrioArrayType(NUM_CHANNELS_IN-1 downto 0);
         ChannelEn : in std_logic_vector(NUM_CHANNELS_IN-1 downto 0);
         highestChannel : out integer range NUM_CHANNELS_IN -1 downto 0;
@@ -100,10 +99,7 @@ if rising_edge(Clock) then
                 prio2 := InterPriority(idx2);
             end if;
 
-            if (avoidChannelIdx = channelIdx1) or 
-                    (avoidChannelIdx /= channelIdx2 and en2 = '1' and
-                        (en1 = '0' or unsigned(prio2) > unsigned(prio1))
-                    ) then
+            if  en2 = '1' and (en1 = '0' or unsigned(prio2) > unsigned(prio1)) then
                 winnerIdx := channelIdx2;
                 channelIdx(i) <= channelIdx2;
                 InterPriority(i) <= prio2;

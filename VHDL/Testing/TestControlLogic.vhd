@@ -40,10 +40,10 @@ end TestControlLogic;
 architecture Behavioral of TestControlLogic is
 
 constant channel : unsigned(2 downto 0) := "011";
-constant CHANNEL_0_OFFSET : unsigned(ADDR_WIDTH-1 downto 0) := (others => '0');
-constant CHANNEL_3_OFFSET : unsigned(ADDR_WIDTH-1 downto 0) := channel & "0000000";
-constant CHANNEL_1_OFFSET : unsigned(ADDR_WIDTH-1 downto 0) := "001"   & "0000000";
-constant CHANNEL_6_OFFSET : unsigned(ADDR_WIDTH-1 downto 0) := "110"   & "0000000";
+constant CHANNEL_0_OFFSET : unsigned(9 downto 0) := (others => '0');
+constant CHANNEL_3_OFFSET : unsigned(9 downto 0) := channel & "0000000";
+constant CHANNEL_1_OFFSET : unsigned(9 downto 0) := "001"   & "0000000";
+constant CHANNEL_6_OFFSET : unsigned(9 downto 0) := "110"   & "0000000";
 
 signal Clock : std_logic := '1';
 signal Resetn : std_logic := '0';
@@ -51,7 +51,8 @@ signal Resetn : std_logic := '0';
 signal testPlaintext, testIV, testKey, testCiphertext, Susp, H, keyOut, din : std_logic_vector(KEY_SIZE-1 downto 0);
 signal EnICore, EnOCore, RdEnAHB, WrEnAHB, WrEnCore : std_logic;
 signal WrDataAHB, RdDataAHB : std_logic_vector(DATA_WIDTH-1 downto 0);
-signal WrAddrAHB, RdAddrAHB, WrAddrCore : std_logic_vector(ADDR_WIDTH-1 downto 0);
+signal WrAddrAHB, RdAddrAHB: std_logic_vector(ADDR_WIDTH-1 downto 0);
+signal WrAddrCore : std_logic_vector(6 downto 0);
 signal WrDataCore : std_logic_vector(KEY_SIZE-1 downto 0);
 
 
@@ -72,6 +73,9 @@ testKey <= x"000102030405060708090a0b0c0d0e0f";
 
 
 i_ControlLogic : entity work.ControlLogic(Behavioral)
+    generic map (
+        NUM_CHANNELS => 7
+    )
     port map(
         M_RV_ready => CL_ready,
         M_RV_valid => CL_valid,
@@ -89,7 +93,7 @@ i_ControlLogic : entity work.ControlLogic(Behavioral)
    
 
 core: entity work.AES_Core (Behavioral) 
-generic map(ADDR_IV => ADDR_IVR0, ADDR_SUSP => ADDR_SUSPR0, ADDR_H => ADDR_SUSPR4)
+generic map(ADDR_IV => ADDR_IVR0, ADDR_SUSP => ADDR_SUSPR0, ADDR_H => ADDR_HR0)
 port map (testKey, testIV, H, Susp, WrEnCore, WrAddrCore, WrDataCore, din, testCiphertext, EnICore, EnOCore, mode, chaining_mode, GCMPhase, Clock, Resetn);
 
 
@@ -128,7 +132,7 @@ end loop;
 -- set H
 for i in 0 to 3 loop
     WrDataAHB <= x"12341234";
-    WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_SUSPR4, ADDR_WIDTH) + CHANNEL_0_OFFSET + i*4);
+    WrAddrAHB <= std_logic_vector(to_unsigned(ADDR_HR0, ADDR_WIDTH) + CHANNEL_0_OFFSET + i*4);
     wait for 10ns;
 end loop;
 WrEnAHB <= '0';
