@@ -57,11 +57,11 @@ extern "C" {
 #define CCFIE_LEN 1
 #define GCM_PHASE_LEN 2
 #define CCFC_LEN 1
-#define PRIORITY_LEN 3
-#define SR_IRQ_LEN AES_NUM_CHANNELS
-#define SR_CCF_LEN AES_NUM_CHANNELS
-#define SR_WRERR_LEN AES_NUM_CHANNELS
-#define SR_RDERR_LEN AES_NUM_CHANNELS
+#define PRIORITY_LEN 8
+#define SR_IRQ_LEN 8
+#define SR_CCF_LEN 8
+#define SR_WRERR_LEN 8
+#define SR_RDERR_LEN 8
 
 
 #ifdef __cplusplus

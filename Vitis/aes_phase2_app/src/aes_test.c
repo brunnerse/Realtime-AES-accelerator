@@ -19,7 +19,7 @@
 #define TEST_MODI
 #define TEST_GCM
 
-
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 volatile u32 interruptEvent = 0;
 
@@ -204,7 +204,7 @@ int main()
 #endif
 #ifdef TEST_SIZE
     // Test with different sizes
-    u32 channel = 7;
+    u32 channel = AES_NUM_CHANNELS - 1; // use last channel
     ChainingMode chmode = CHAINING_MODE_CBC;
 	xil_printf("\n====== Testing different data sizes =====\r\n");
 
@@ -246,8 +246,7 @@ int main()
 	xil_printf("\n====== Configuring channels for different modi tests  =====\r\n");
 
 	// Generate test data for each channel
-	u8* baseAddr = (u8*)0x1000000;
-	u8 * baseAddrCiphertext = (u8*)0x2500000;
+
 	u8* plaintextAddr[AES_NUM_CHANNELS];
     u8* ciphertextAddr[AES_NUM_CHANNELS];
     u32 size[AES_NUM_CHANNELS];
@@ -258,15 +257,31 @@ int main()
     memcpy(testData+BLOCK_SIZE, block2, BLOCK_SIZE);
     memcpy(testData+2*BLOCK_SIZE, block3, BLOCK_SIZE);
 
+	u8* baseAddr = (u8*)0x1000000;
+	u8 * baseAddrCiphertext = baseAddr;
+
+    // set sizes and calculate ciphertext base address
+    for (u32 channel = 0; channel < AES_NUM_CHANNELS; channel++)
+    {
+		size[channel] = 100 * BLOCK_SIZE * (AES_NUM_CHANNELS - channel+1);
+		baseAddrCiphertext += size[channel];
+    }
+
     // Configure channels
     for (u32 channel = 0; channel < AES_NUM_CHANNELS; channel++)
     {
     	// Set data addresses for channel
-		plaintextAddr[channel] = baseAddr + BLOCK_SIZE * (channel + 1) * channel / 2;
-		ciphertextAddr[channel] = baseAddrCiphertext + BLOCK_SIZE * (channel + 1) * channel / 2;
-		size[channel] = BLOCK_SIZE * (channel+1);
+    	if (channel == 0) {
+    		plaintextAddr[channel] = baseAddr;
+    		ciphertextAddr[channel] = baseAddrCiphertext;
+    	} else {
+    		plaintextAddr[channel] = plaintextAddr[channel-1] + size[channel-1];
+    		ciphertextAddr[channel] = ciphertextAddr[channel-1] + size[channel-1];
+    	}
+
 		// initialize data for channel
 		testData[0] = channel;
+		// Small overflow here possible if size[channel] isn't divisible by BLOCK_SIZE*3, but that is not a real issue
 		for (u32 i = 0; i < size[channel]; i += BLOCK_SIZE * 3)
 		{
 			memcpy(plaintextAddr[channel] + i, testData, BLOCK_SIZE*3);
@@ -304,6 +319,8 @@ int main()
 		// setup interrupt
 		AES_SetInterruptEnabled(&aes, channel, 1);
 		AES_SetInterruptCallback(&aes, channel, onInterrupt, (void*)channel);
+
+		xil_printf("\t Channel %d:\tpriority %d,\t%4d = 0x%x bytes\n\r", channel, AES_GetPriority(&aes, channel), size[channel], size[channel]);
     }
 
 	// Test the different modi while starting multiple channels immediately after each other
@@ -317,7 +334,7 @@ int main()
 	{
 		AES_waitUntilCompleted(&aes, channel);
 		xil_printf("Channel %d finished encryption:\n\r", channel);
-		hexToStdOut(ciphertextAddr[channel], size[channel]);
+		hexToStdOut(ciphertextAddr[channel], MIN(size[channel], BLOCK_SIZE*3));
 
 		// Setup in-place decryption
 		AES_SetDataParameters(&aes, channel, ciphertextAddr[channel], ciphertextAddr[channel], size[channel]);
@@ -333,6 +350,9 @@ int main()
 		{
 			AES_SetIV(&aes, channel, IV, BLOCK_SIZE);
 		}
+		// setup interrupt
+		AES_SetInterruptEnabled(&aes, channel, 1);
+		AES_SetInterruptCallback(&aes, channel, onInterrupt, (void*)channel);
 	}
 
 	for (int channel = 0; channel < AES_NUM_CHANNELS; channel++)
@@ -376,7 +396,7 @@ int main()
 	u8 * baseAddrCiphertext = (u8*)0x1500000;
     for (u32 channel = 0; channel < 2; channel++)
     {
-    	printf("\r\nCHANNEL %lu\r\n", channel);
+    	printf("\r\nCHANNEL %u\r\n", channel);
     	// Change data slightly for each channel
     	IV[0] = channel;
 		testHeader[0] = channel;
@@ -455,8 +475,8 @@ int main()
     XGpioPs_Config *GPIO_Config = XGpioPs_LookupConfig(XPAR_PSU_GPIO_0_DEVICE_ID);
     XGpioPs my_Gpio;
     status = XGpioPs_CfgInitialize(&my_Gpio, GPIO_Config, GPIO_Config->BaseAddr);
-    XGpioPs_SetDirectionPin(&my_Gpio, 0, 1);
-    XGpioPs_WritePin(&my_Gpio, 0, 1);
+    XGpioPs_SetDirectionPin(&my_Gpio, 1, 1);
+    XGpioPs_WritePin(&my_Gpio, 1, 1);
 
 
     // Switch LED on and off
