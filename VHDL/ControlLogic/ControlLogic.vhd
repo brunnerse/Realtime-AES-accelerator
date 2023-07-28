@@ -184,18 +184,21 @@ signal mem : multi_mem_type;
 -- The current channel
 signal channel : channel_range;
 -- The channel with the highest priority that is active
-signal highestChannel, nextHighestChannel: channel_range;
+signal highestChannel: channel_range;
 -- the priorities of each channel
 signal Priority : PrioArrayType(channel_range);
 -- the enable signals of each channel
 signal En, prevEn : std_logic_vector(channel_range);
 
--- signals for the highestChannel search process
-signal isSearchRunning, waitForSearchEnd : boolean;
-
 -- signals for binary search
 signal EnISearch, ENOSearch : std_logic;
 signal resultSearch : channel_range;
+
+-- signals for scheduler to store any channels arriving during a search
+signal duringChannel : channel_range;
+signal isDuringChannelSet : boolean;
+signal isSearchRunning : boolean;
+
 
 -- status signals for each channel
 signal WRERR, RDERR, CCF : std_logic_vector(channel_ext_range);
@@ -330,7 +333,7 @@ end procedure;
                 -- and the search for the highest channel already finished
                 -- to avoid restarting a channel that just finished, check CCF first
                 -- If a channel just restarted (i.e. prevEn='0'), we can start immediately
-                if En(highestChannel) = '1' and (CCF(highestChannel) = '0' or prevEn(highestChannel) = '0') and not waitForSearchEnd then
+                if En(highestChannel) = '1' and (CCF(highestChannel) = '0' or prevEn(highestChannel) = '0') and not isSearchRunning then
                     -- switch channel to highestChannel
                     channel <= highestChannel;
                     -- copy configuration signals
@@ -578,19 +581,9 @@ end if;
 end process;
 
 
--- driver process for nextHighestChannel
+-- driver process for highestChannel
 -- In each cycle, this process finds the enabled channel with the highest priority that is not currently active
 -- if no channel is enabled, channel 0 is selected
-
-
-BLOCK_SCHEDULER:
-block
--- signals to store any channels arriving during a search
-signal duringChannel : channel_range;
-signal isDuringChannelSet : boolean;
-
-begin
-
 process(Clock)
 
 variable channelIdx : channel_range;
@@ -645,7 +638,5 @@ if rising_edge(Clock) then
     end if;
 end if;
 end process;
-
-end block;
 
 end Behavioral;
