@@ -1,0 +1,158 @@
+<?xml version="1.0"?>
+<Index Version="1" Minor="0">
+	<Repository value="c:/Users/Severin/Git_Repositories/_MasterCode/Vivado/ip_repo">
+	</Repository>
+	<IP>
+		<VLNV value="xilinx.com:user:AES_Interface:1.0">
+		</VLNV>
+		<DisplayName value="AES_Interface_v1.0">
+		</DisplayName>
+		<Description value="Interface to the AXI Core">
+		</Description>
+		<CoreRevision value="24">
+		</CoreRevision>
+		<ComponentPath value="AES_Interface_1.0/component.xml">
+		</ComponentPath>
+		<Families>
+			<Family name="zynq">
+				<Part status="Production" name="ALL">
+				</Part>
+			</Family>
+		</Families>
+		<Taxonomies>
+			<Taxonomy value="AXI_Peripheral">
+			</Taxonomy>
+		</Taxonomies>
+		<Interfaces>
+			<Interface value="AXI4">
+			</Interface>
+		</Interfaces>
+	</IP>
+	<IP>
+		<VLNV value="xilinx.com:user:AES_Interface_M:1.0">
+		</VLNV>
+		<DisplayName value="AES_Interface_M_v1.0">
+		</DisplayName>
+		<Description value="AES_Interface with Master and Slave AXI Port">
+		</Description>
+		<CoreRevision value="38">
+		</CoreRevision>
+		<ComponentPath value="AES_Interface_M_1.0/component.xml">
+		</ComponentPath>
+		<Families>
+			<Family name="zynq">
+				<Part status="Production" name="ALL">
+				</Part>
+			</Family>
+		</Families>
+		<Taxonomies>
+			<Taxonomy value="AXI_Peripheral">
+			</Taxonomy>
+		</Taxonomies>
+		<Interfaces>
+			<Interface value="AXI4">
+			</Interface>
+		</Interfaces>
+	</IP>
+	<IP>
+		<VLNV value="xilinx.com:user:AES_Unit_0:1.0">
+		</VLNV>
+		<DisplayName value="AES_Unit_0_v1.0">
+		</DisplayName>
+		<Description value="AES_Unit Baseline (no channels)">
+		</Description>
+		<CoreRevision value="4">
+		</CoreRevision>
+		<ComponentPath value="AES_Unit_0_1.0/component.xml">
+		</ComponentPath>
+		<Families>
+			<Family name="zynq">
+				<Part status="Production" name="ALL">
+				</Part>
+			</Family>
+		</Families>
+		<Taxonomies>
+			<Taxonomy value="AXI_Peripheral">
+			</Taxonomy>
+		</Taxonomies>
+		<Interfaces>
+			<Interface value="AXI4">
+			</Interface>
+		</Interfaces>
+	</IP>
+	<IP>
+		<VLNV value="xilinx.com:user:AES_Unit_2:1.0">
+		</VLNV>
+		<DisplayName value="AES_Unit_2_v1.0">
+		</DisplayName>
+		<Description value="AES Unit Phase 2 IP">
+		</Description>
+		<CoreRevision value="5">
+		</CoreRevision>
+		<ComponentPath value="AES_Unit_2_1.0/component.xml">
+		</ComponentPath>
+		<Families>
+			<Family name="zynq">
+				<Part status="Production" name="ALL">
+				</Part>
+			</Family>
+		</Families>
+		<Taxonomies>
+			<Taxonomy value="AXI_Peripheral">
+			</Taxonomy>
+		</Taxonomies>
+		<Interfaces>
+			<Interface value="AXI4">
+			</Interface>
+		</Interfaces>
+	</IP>
+	<BUSDEF>
+		<VLNV value="xilinx.com:user:ReadWritePort:1.0">
+		</VLNV>
+		<Description value="">
+		</Description>
+		<XMLFile value="ReadWritePort.xml">
+		</XMLFile>
+	</BUSDEF>
+	<BUSDEF>
+		<VLNV value="xilinx.com:user:ReadyValid_RegMem_Port:1.0">
+		</VLNV>
+		<Description value="">
+		</Description>
+		<XMLFile value="ReadyValid_RegMem_Port.xml">
+		</XMLFile>
+	</BUSDEF>
+	<BUSDEF>
+		<VLNV value="xilinx.com:user:ReadyValid_RW_Port:1.0">
+		</VLNV>
+		<Description value="">
+		</Description>
+		<XMLFile value="ReadyValid_RW_Port.xml">
+		</XMLFile>
+	</BUSDEF>
+	<BUSABS>
+		<VLNV value="xilinx.com:user:ReadWritePort_rtl:1.0">
+		</VLNV>
+		<Description value="">
+		</Description>
+		<XMLFile value="ReadWritePort_rtl.xml">
+		</XMLFile>
+	</BUSABS>
+	<BUSABS>
+		<VLNV value="xilinx.com:user:ReadyValid_RegMem_Port_rtl:1.0">
+		</VLNV>
+		<Description value="">
+		</Description>
+		<XMLFile value="ReadyValid_RegMem_Port_rtl.xml">
+		</XMLFile>
+	</BUSABS>
+	<BUSABS>
+		<VLNV value="xilinx.com:user:ReadyValid_RW_Port_rtl:1.0">
+		</VLNV>
+		<Description value="">
+		</Description>
+		<XMLFile value="ReadyValid_RW_Port_rtl.xml">
+		</XMLFile>
+	</BUSABS>
+</Index>
+
