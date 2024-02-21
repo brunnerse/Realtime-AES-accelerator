@@ -145,7 +145,7 @@ printAsHex(tagDecrypt)
 
 print("\n\n======\nSIM TESTS\n=======\n")
 
-numChannels = 3
+numChannels = 6
 for channel in range(0, numChannels):
     keyC = bytes([channel]) + key[1:]
     IVC = bytes([channel]) + IV[1:]
