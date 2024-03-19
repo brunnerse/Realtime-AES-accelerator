@@ -1,8 +1,8 @@
 
 
 /***************************** Include Files *******************************/
-#include "AES_Unit_2.h"
-#include "AES_Unit_2_hw.h"
+#include "AES_Unit.h"
+#include "AES_Unit_hw.h"
 #include "xparameters.h"
 #include "xdebug.h"
 #include "xil_assert.h"
@@ -14,9 +14,9 @@
 /**************************   Private variables **********************/
 AES_Config config =
 {
-		XPAR_AES_UNIT_2_0_DEVICE_ID,
-		XPAR_AES_UNIT_2_0_S_AXI_BASEADDR,
-		AES_NUM_CHANNELS
+	XPAR_AES_UNIT_1_0_DEVICE_ID, // if this constant is not automatically generated, set it manually (e.g. to 0)
+	XPAR_AES_UNIT_1_0_S_AXI_BASEADDR, // set this constant to the base address of the AES Unit in your design 
+	AES_NUM_CHANNELS
 };
 
 /*************************** Private Function declarations **********************/
@@ -160,6 +160,7 @@ void AES_startComputation(AES* InstancePtr, u32 channel)
 
 
 
+#if !AES_REG_KEY_WRITEONLY
 /**
  * @brief Get the susp register content, which holds intermediate results for the GCM calculation
  * 
@@ -183,6 +184,7 @@ void AES_GetKey(AES *InstancePtr, u32 channel, u8 outKey[BLOCK_SIZE])
    for (int i = 0; i < BLOCK_SIZE; i+=4)
         *(u32*)(outKey+i) = AES_Read(InstancePtr, channel, AES_KEYR0_OFFSET+i);
 }
+#endif
 
 Mode AES_GetMode(AES *InstancePtr, u32 channel)
 {
@@ -227,7 +229,6 @@ u32 AES_isActive(AES* InstancePtr, u32 channel)
 {
 	return getBits(AES_Read(InstancePtr, channel, AES_CR_OFFSET), EN_POS, EN_LEN);
 }
-
 
 
 void AES_PerformKeyExpansion(AES *InstancePtr, u32 channel)
@@ -448,7 +449,7 @@ int AES_isComputationCompleted(AES* InstancePtr, u32 channel)
 u32 AES_GetError(AES* InstancePtr, u32 channel)
 {
 	u32 sr = AES_Read(InstancePtr, channel, AES_SR_OFFSET);
-	return getBits(sr, SR_RDERR_POS+(channel%8), 1) * ERROR_READ  |  getBits(sr, SR_WRERR_POS+(channel%8), 1) * ERROR_WRITE;
+	return getBits(sr, SR_RDERR_POS+(channel%8), 1) * AES_ERROR_READ  |  getBits(sr, SR_WRERR_POS+(channel%8), 1) * AES_ERROR_WRITE;
 }
 
 

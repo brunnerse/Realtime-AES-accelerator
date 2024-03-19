@@ -1,12 +1,17 @@
 
 /***************************** Include Files *******************************/
-#include "AES_Unit_2.h"
-#include "AES_Unit_2_hw.h"
+#include "AES_Unit.h"
+#include "AES_Unit_hw.h"
 #include "xparameters.h"
 #include "stdio.h"
 #include "xil_io.h"
 
 /************************** Constant Definitions ***************************/
+#if AES_REG_KEY_WRITEONLY
+#define AES_SELFTEST_REGSET_LENGTH AES_KEYR0_OFFSET
+#else
+#define AES_SELFTEST_REGSET_LENGTH AES_SR_OFFSET
+#endif
 
 /************************** Function Definitions ***************************/
 /**
@@ -50,7 +55,7 @@ XStatus AES_Mem_SelfTest(void * baseaddr_p)
 
 	for (u32 channel = 0; channel < AES_NUM_CHANNELS; channel++)
 	{
-		for (offset = 0; offset < AES_SR_OFFSET; offset += 4)
+		for (offset = 0; offset < AES_SELFTEST_REGSET_LENGTH; offset += 4)
 		{
 			// Careful not to accidentally enable the unit here while writing to CR
 			AES_mWriteMemory(baseaddr + (channel<<AES_ADDR_REGISTER_BITS) + offset,
@@ -60,7 +65,7 @@ XStatus AES_Mem_SelfTest(void * baseaddr_p)
 
 	for (u32 channel = 0; channel < AES_NUM_CHANNELS; channel++)
 	{
-		for (offset = 0; offset < AES_SR_OFFSET; offset += 4)
+		for (offset = 0; offset < AES_SELFTEST_REGSET_LENGTH; offset += 4)
 		{
 			Mem32Value = AES_mReadMemory(baseaddr + (channel<<AES_ADDR_REGISTER_BITS) + offset);
 			if ( Mem32Value != (0xDEADBEEF % offset  + (channel << 8)) )

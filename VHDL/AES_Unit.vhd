@@ -11,9 +11,10 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity AES_Unit is
   Generic (
-    LITTLE_ENDIAN : boolean := true;
-    NUM_CHANNELS : integer range 1 to 128 := 8; -- upper bound must be MAX_CHANNELS, but Vivado doesn't synthesize then
-    -- Parameters of Axi Slave Bus Interface S_AXI
+    LITTLE_ENDIAN : boolean := true; -- whether the AXI bus data signals use little endian byte order
+    REG_KEY_WRITEONLY : boolean := true; -- whether the registers Key, IV, Susp and H are not allowed to be read for security 
+    NUM_CHANNELS : integer range 1 to 128 := 8; -- the number of channels; the upper bound is equal to MAX_CHANNELS defined in common.vhd 
+    -- Parameters of the AXI Slave Bus Interface S_AXI
     C_S_AXI_ID_WIDTH	: integer	:= 1;
     C_S_AXI_DATA_WIDTH	: integer	:= 32;
     C_S_AXI_ADDR_WIDTH	: integer	:= ADDR_WIDTH;
@@ -22,7 +23,7 @@ entity AES_Unit is
     C_S_AXI_WUSER_WIDTH	: integer	:= 1;
     C_S_AXI_RUSER_WIDTH	: integer	:= 1;
     C_S_AXI_BUSER_WIDTH	: integer	:= 1;
-    -- Parameters of Axi Master Bus Interface M_AXI
+    -- Parameters of AXI Master Bus Interface M_AXI
     C_M_AXI_ID_WIDTH	: integer	:= 1;
     C_M_AXI_ADDR_WIDTH	: integer	:= 32;
     C_M_AXI_DATA_WIDTH	: integer	:= 32;
@@ -299,6 +300,7 @@ i_AES_Interface : entity work.AES_Interface(arch_imp)
 i_ControlLogic : entity work.ControlLogic(Behavioral)
     generic map(
         LITTLE_ENDIAN => LITTLE_ENDIAN,
+    	REG_KEY_WRITEONLY => REG_KEY_WRITEONLY, 
         NUM_CHANNELS => NUM_CHANNELS)
     port map(
         M_RV_valid => M_RV_valid,

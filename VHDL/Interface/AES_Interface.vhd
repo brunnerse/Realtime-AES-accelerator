@@ -485,6 +485,7 @@ AES_Interface_M_AXI_inst : AES_Interface_M_AXI
             end generate;
             -- ReadyValid_RW_Port
            GenReadyValid_RV_Port_Data:
+		   	-- The port data signals are 128 bits wide; swap byte order of the 2/4 words comprising the 128 bits
             for j in 128/C_M_AXI_DATA_WIDTH-1 downto 0 generate
                 -- for each of the 32/64 bit words, reverse the byte positions
                 InnerLoop: 

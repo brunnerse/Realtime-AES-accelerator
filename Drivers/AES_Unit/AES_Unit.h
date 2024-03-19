@@ -16,14 +16,15 @@ extern "C" {
 #define BLOCK_SIZE 16
 
 #define AES_BYTE_ORDER LITTLE_ENDIAN
+#define AES_REG_KEY_WRITEONLY 1
 #define AES_NUM_CHANNELS 15
-#define AES_ADDR_REGISTER_BITS 7
 
+#define AES_ADDR_REGISTER_BITS 7
 #define AES_MAX_PRIORITY (AES_NUM_CHANNELS-1)
 
-#define ERROR_NONE 0
-#define ERROR_READ 1
-#define ERROR_WRITE 2
+#define AES_ERROR_NONE 0
+#define AES_ERROR_READ 1
+#define AES_ERROR_WRITE 2
 
 typedef void (*AES_CallbackFn)(void* CallbackRef);
 
@@ -83,16 +84,17 @@ void AES_startComputation(AES* InstancePtr, u32 channel);
 void AES_SetIV(AES* InstancePtr, u32 channel, u8 *IV, u32 IVLen);
 void AES_SetSusp(AES* InstancePtr, u32 channel, u8 Susp[BLOCK_SIZE*2]);
 
-
-void AES_GetKey(AES *InstancePtr, u32 channel, u8 outKey[BLOCK_SIZE]);
 Mode AES_GetMode(AES *InstancePtr, u32 channel);
 ChainingMode AES_GetChainingMode(AES* InstancePtr, u32 channel);
 GCMPhase AES_GetGCMPhase(AES* InstancePtr, u32 channel);
 u32 AES_GetPriority(AES* InstancePtr, u32 channel);
 u32 AES_GetInterruptEnabled(AES* InstancePtr, u32 channel);
 
+#if !AES_REG_KEY_WRITEONLY
+void AES_GetKey(AES *InstancePtr, u32 channel, u8 outKey[BLOCK_SIZE]);
 void AES_GetIV(AES* InstancePtr, u32 channel, u8 outIV[BLOCK_SIZE]);
 void AES_GetSusp(AES* InstancePtr, u32 channel, u8 outSusp[BLOCK_SIZE*2]);
+#endif
 
 u32 AES_isActive(AES* InstancePtr, u32 channel);
 

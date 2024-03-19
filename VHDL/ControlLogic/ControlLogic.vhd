@@ -34,6 +34,7 @@ use ieee.std_logic_misc.or_reduce;
 entity ControlLogic is
   Generic (
     LITTLE_ENDIAN : boolean := true;
+    REG_KEY_WRITEONLY : boolean := true; -- whether the registers Key, IV, Susp and H are not allowed to be read for security 
     NUM_CHANNELS : integer range 1 to 128 := 8 -- upper bound must be MAX_CHANNELS, but Vivado doesn't synthesize then
   );
   Port (    
@@ -500,7 +501,9 @@ if rising_edge(Clock) then
             RdData(SR_POS_CCF+7 downto SR_POS_CCF) <= CCF(srIdx*8+7 downto srIdx*8);
             RdData(SR_POS_RDERR+7 downto SR_POS_RDERR) <= RDERR(srIdx*8+7 downto srIdx*8);
             RdData(SR_POS_WRERR+7 downto SR_POS_WRERR) <= WRERR(srIdx*8+7 downto srIdx*8);
-        else
+        -- If address is another register, check first whether the register is writeonly (i.e. Key registers and above)
+        elsif not REG_KEY_WRITEONLY or
+             unsigned(RdAddr(addr_register_range)) < to_unsigned(ADDR_KEYR0, ADDR_WIDTH)(addr_register_range) then
             channelIdx :=  to_integer(unsigned(RdAddr(addr_channel_range)));
             RdData <= mem(channelIdx)(to_integer(unsigned(RdAddr(addr_register_range))));
         end if;

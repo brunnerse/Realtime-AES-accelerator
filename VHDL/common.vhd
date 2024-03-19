@@ -36,7 +36,7 @@ constant GCM_PHASE_HEADER : std_logic_vector := "01";
 constant GCM_PHASE_PAYLOAD : std_logic_vector := "10";
 constant GCM_PHASE_FINAL : std_logic_vector := "11";
 
--- Control Logic write port definitions
+-- Control Logic write port definitions TODO other name
 constant DATA_WIDTH : integer := 32;
 constant ADDR_WIDTH : integer := 14;
 
