@@ -1,15 +1,12 @@
-#include "xparameters.h"
-#include "xgpiops.h"
 #include "xscugic.h"
-
 #include "xil_cache.h"
 #include "xil_assert.h"
-#include "xil_printf.h"
+
 #include <stdio.h>
 #include <string.h>
 
-#include "AES_Unit_2_hw.h"
-#include "AES_Unit_2.h"
+#include "AES_Unit_hw.h"
+#include "AES_Unit.h"
 
 
 #define SETUP_INTERRUPT_SYSTEM
@@ -27,7 +24,7 @@ volatile u32 interruptEvent = 0;
 
 void onInterrupt(void* number)
 {
-	xil_printf("=> Interrupt called for channel %u!\n\r", (u32)number);
+	printf("=> Interrupt called for channel %u!\n\r", (UINTPTR)number);
 	interruptEvent += 1;
 }
 
@@ -37,31 +34,31 @@ void waitForInterrupt()
 		;
 	// Reset interruptCount
 	interruptEvent = 0;
-	xil_printf("=>      Returning after interrupt...");
+	printf("=>      Returning after interrupt...");
 }
 
 
-void hexToString(const u8 *array, int len, char* outStr)
+void hexToString(const char *array, int len, char* outStr)
 {
     for (int i = 0; i < len; i++)
             sprintf(outStr+i*3, "%02x ", array[i]);
 }
 
-void hexToStdOut(const u8* array, int len)
+void hexToStdOut(const char* array, int len)
 {
-	xil_printf("\t");
+	printf("\t");
     for (int i = 0; i < len; i++)
     {
-            xil_printf("%02x ", array[i]);
+            printf("%02x ", array[i]);
             if ((i+1) % BLOCK_SIZE == 0)
-            	xil_printf("\n\r\t");
+            	printf("\n\r\t");
     }
-    xil_printf("\n\r");
+    printf("\n\r");
 }
 
 
-u8 passedAllTests = 1;
-const char* getMemEqual(const u8* block1, const u8* block2, const u32 size)
+char passedAllTests = 1;
+const char* getMemEqual(const char* block1, const char* block2, const u32 size)
 {
 	if (memcmp(block1, block2, size) == 0) {
 		return "Yes";
@@ -71,26 +68,23 @@ const char* getMemEqual(const u8* block1, const u8* block2, const u32 size)
 	}
 }
 
-#define AES_BASEADDR XPAR_AES_INTERFACE_M_0_S_AXI_BASEADDR
-#define DDR_BASEADDR XPAR_PS7_DDR_0_S_AXI_BASEADDR
-
 
 /* Source and Destination buffer
  */
 #define BUFFER_BYTESIZE 48
-//static u8 SrcBuffer[BUFFER_BYTESIZE] __attribute__ ((aligned (64)));
-static u8 DestBuffer[BUFFER_BYTESIZE] __attribute__ ((aligned (64)));
+//static char SrcBuffer[BUFFER_BYTESIZE] __attribute__ ((aligned (64)));
+static char DestBuffer[BUFFER_BYTESIZE] __attribute__ ((aligned (64)));
 
-u8 plaintext[BLOCK_SIZE] = {0x00, 0x10, 0x20, 0x30, 0x01, 0x11, 0x21, 0x31, 0x02, 0x12, 0x22, 0x32, 0x03, 0x13, 0x23, 0x33 };
-u8 key[BLOCK_SIZE] =  {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
+char plaintext[BLOCK_SIZE] = {0x00, 0x10, 0x20, 0x30, 0x01, 0x11, 0x21, 0x31, 0x02, 0x12, 0x22, 0x32, 0x03, 0x13, 0x23, 0x33 };
+char key[BLOCK_SIZE] =  {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
 
-u8 block1[BLOCK_SIZE] __attribute__ ((aligned (64))) = {0x00, 0x10, 0x20, 0x30, 0x01, 0x11, 0x21, 0x31, 0x02, 0x12, 0x22, 0x32, 0x03, 0x13, 0x23, 0x33};
-u8 block2[BLOCK_SIZE] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f};
-u8 block3[BLOCK_SIZE] = {0xaf, 0xfe, 0xde, 0xad, 0xbe, 0xef, 0xda, 0xdc, 0xab, 0xbe, 0xad, 0xbe, 0xec, 0x0c, 0xab, 0xad};
+char block1[BLOCK_SIZE] __attribute__ ((aligned (64))) = {0x00, 0x10, 0x20, 0x30, 0x01, 0x11, 0x21, 0x31, 0x02, 0x12, 0x22, 0x32, 0x03, 0x13, 0x23, 0x33};
+char block2[BLOCK_SIZE] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f};
+char block3[BLOCK_SIZE] = {0xaf, 0xfe, 0xde, 0xad, 0xbe, 0xef, 0xda, 0xdc, 0xab, 0xbe, 0xad, 0xbe, 0xec, 0x0c, 0xab, 0xad};
 
-u8 IV[BLOCK_SIZE] = {0xf0, 0xe0, 0xd0, 0xc0, 0xb0, 0xa0, 0x90, 0x80, 0x70, 0x60, 0x50, 0x40, 0x30, 0x20, 0x10, 0x00};
+char IV[BLOCK_SIZE] = {0xf0, 0xe0, 0xd0, 0xc0, 0xb0, 0xa0, 0x90, 0x80, 0x70, 0x60, 0x50, 0x40, 0x30, 0x20, 0x10, 0x00};
 
-u8 trashDestBuffer[16];
+char trashDestBuffer[16];
 
 
 
@@ -99,7 +93,7 @@ int main()
 
 	Xil_DCacheDisable();
 
-    xil_printf("Running AES_Unit_2 test file %s\n\r", __FILE__);
+    printf("Running AES_Unit test file %s\n\r", __FILE__);
 
 
 
@@ -108,7 +102,7 @@ int main()
 
 #ifdef SETUP_INTERRUPT_SYSTEM
 	// Initialize exceptions and the Interrupt Controller on the ARM processor
-    xil_printf("Enabling exceptions..\n\r");
+    printf("Enabling exceptions..\n\r");
     XScuGic IntCtrl;
 
 	Xil_ExceptionInit();
@@ -143,23 +137,23 @@ int main()
 
 	// Set up the AES unit
 
-    AES_Config *aesConfigPtr = AES_LookupConfig(XPAR_AES_UNIT_2_0_DEVICE_ID);
+    AES_Config *aesConfigPtr = AES_LookupConfig(0);
     status = AES_CfgInitialize(&aes, aesConfigPtr);
     Xil_AssertNonvoid(status == XST_SUCCESS);
     status = AES_Mem_SelfTest((void*)(aes.BaseAddress));
     Xil_AssertNonvoid(status == XST_SUCCESS);
 
 #ifdef SETUP_INTERRUPT_SYSTEM
-	xil_printf("\n====== Testing Interrupt enable/disable =====\r\n");
-    xil_printf("Starting Encryption with Interrupt enabled...\r\n");
+	printf("\n====== Testing Interrupt enable/disable =====\r\n");
+    printf("Starting Encryption with Interrupt enabled...\r\n");
     AES_SetInterruptEnabled(&aes, 0, 1);
     AES_startComputationECB(&aes, 0, 1, plaintext, DestBuffer, 16, onInterrupt, (void*)0);
     AES_waitUntilCompleted(&aes, 0);
-	xil_printf("Starting KeyExpansion with Interrupt disabled...\r\n");
+	printf("Starting KeyExpansion with Interrupt disabled...\r\n");
     AES_SetInterruptEnabled(&aes, 0, 0);
 	AES_PerformKeyExpansion(&aes, 0);
     AES_waitUntilCompleted(&aes, 0);
-    xil_printf("Starting KeyExpansion with Interrupt enabled...\r\n");
+    printf("Starting KeyExpansion with Interrupt enabled...\r\n");
 	AES_SetInterruptEnabled(&aes, 0, 1);
     aes.CallbackFn[0] = onInterrupt;
     aes.CallbackRef[0] = (void*)1337;
@@ -170,72 +164,72 @@ int main()
 
 #ifdef TEST_ECB
     // Test simple ECB encryption for each channel
-	xil_printf("\n====== Testing simple ECB encryption for each channel =====\r\n");
-	xil_printf("Plaintext:\r\n");
+	printf("\n====== Testing simple ECB encryption for each channel =====\r\n");
+	printf("Plaintext:\r\n");
 	hexToStdOut(block1, 16);
 
 	for (u32 channel = 0; channel < AES_NUM_CHANNELS; channel++)
 	{
-		xil_printf("Channel %d:\r\n", channel);
-		u8 keyC[BLOCK_SIZE];
+		printf("Channel %d:\r\n", channel);
+		char keyC[BLOCK_SIZE];
 		memcpy(keyC, key, BLOCK_SIZE);
 		keyC[0] = channel;
 		AES_SetInterruptEnabled(&aes, channel, 1);
 		AES_SetKey(&aes, channel, keyC);
 
-		AES_startComputationECB(&aes, channel, 1, block1, DestBuffer, BLOCK_SIZE, onInterrupt, (void*)channel);
+		AES_startComputationECB(&aes, channel, 1, block1, DestBuffer, BLOCK_SIZE, onInterrupt, (void*)(UINTPTR)channel);
 	    AES_waitUntilCompleted(&aes, channel);
 		//Xil_DCacheInvalidateRange((UINTPTR)DestBuffer, 16);
 		hexToStdOut(DestBuffer, 16);
 		// Use a different key for testing the KeyExpand functionality during decryption
-		xil_printf("\tEncrypt with different key:\r\n\t");
+		printf("\tEncrypt with different key:\r\n\t");
 		AES_SetKey(&aes, channel, key);
 		AES_processDataECB(&aes, channel, 1, block1, trashDestBuffer, BLOCK_SIZE);
 		hexToStdOut(trashDestBuffer, 16);
-		xil_printf("\tDecrypt with same key:\r\n");
+		printf("\tDecrypt with same key:\r\n");
 		AES_SetKey(&aes, channel, keyC);
-		AES_startComputationECB(&aes, channel, 0, DestBuffer, DestBuffer, BLOCK_SIZE, onInterrupt, (void*)channel);
+		AES_startComputationECB(&aes, channel, 0, DestBuffer, DestBuffer, BLOCK_SIZE, onInterrupt, (void*)(UINTPTR)channel);
 		AES_waitUntilCompleted(&aes, channel);
 		hexToStdOut(DestBuffer, 16);
 		//Xil_DCacheFlushRange((UINTPTR)DestBuffer, 16);
 		//hexToStdOut(DestBuffer, 16);
-		xil_printf("[TEST] Channel %d successful:  %s\n\r", channel, getMemEqual(block1, DestBuffer, BLOCK_SIZE));
+		printf("[TEST] Channel %d successful:  %s\n\r", channel, getMemEqual(block1, DestBuffer, BLOCK_SIZE));
 	}
 #endif
 #ifdef TEST_SIZE
     // Test with different sizes
     u32 channel = AES_NUM_CHANNELS - 1; // use last channel
     ChainingMode chmode = CHAINING_MODE_CBC;
-	xil_printf("\n====== Testing different data sizes =====\r\n");
+	printf("\n====== Testing different data sizes =====\r\n");
 
 	for (u32 size = BLOCK_SIZE * 8; size < (32 << 20); size <<= 1)
 	{
 		//u32 size = BLOCK_SIZE * 100; //(u32)(1 << 10) * 1; // 1 MiB
-		u8* plaintext_custom = (u8*)0x1000000;
-		u8* ciphertext_custom = plaintext_custom + size;
+		char* plaintext_custom = (char*)0x1000000;
+		char* ciphertext_custom = plaintext_custom + size;
 
 		// init plaintext
-		for (u8* addr = plaintext_custom; addr < plaintext_custom + size; addr += BLOCK_SIZE)
+		for (char* addr = plaintext_custom; addr < plaintext_custom + size; addr += BLOCK_SIZE)
 		{
 			memcpy(addr, plaintext, BLOCK_SIZE);
 			// Change plaintext slightly
 			*(u32*)plaintext += 1;
 		}
-		xil_printf("Starting encryption...\r\n");
-		AES_startComputationMode(&aes, channel, chmode, 1, plaintext_custom, ciphertext_custom, size, IV, onInterrupt, (void*)channel);
+		printf("Starting encryption...\r\n");
+		AES_startComputationMode(&aes, channel, chmode, 1, plaintext_custom, ciphertext_custom, size, IV, onInterrupt, (void*)(UINTPTR)channel);
 		AES_waitUntilCompleted(&aes, channel);
 
 		hexToStdOut(plaintext_custom, 32);
 		hexToStdOut(ciphertext_custom, 32);
 
 		// Decrypt ciphertext inplace
-		xil_printf("Starting decryption...\r\n");
-		AES_startComputationMode(&aes, channel, chmode, 0, ciphertext_custom, ciphertext_custom, size, IV, onInterrupt, (void*)channel);
+		printf("Starting decryption...\r\n");
+		AES_startComputationMode(&aes, channel, chmode, 0, ciphertext_custom, ciphertext_custom, size, IV, onInterrupt, (void*)(UINTPTR)channel);
 		AES_waitUntilCompleted(&aes, channel);
 
 		hexToStdOut(ciphertext_custom, 32);
 
-		xil_printf("[TEST] Size %u (addresses 0x%p -> 0x%p) successful:  %s\n\r", size, plaintext_custom, ciphertext_custom,
+		printf("[TEST] Size %u (addresses 0x%p -> 0x%p) successful:  %s\n\r", size, plaintext_custom, ciphertext_custom,
 				getMemEqual(plaintext_custom, ciphertext_custom, size));
 	}
 #endif
@@ -243,22 +237,22 @@ int main()
 #ifdef TEST_MODI
 
 { // Encapsulate in block for variable scope
-	xil_printf("\n====== Configuring channels for different modi tests  =====\r\n");
+	printf("\n====== Configuring channels for different modi tests  =====\r\n");
 
 	// Generate test data for each channel
 
-	u8* plaintextAddr[AES_NUM_CHANNELS];
-    u8* ciphertextAddr[AES_NUM_CHANNELS];
+	char* plaintextAddr[AES_NUM_CHANNELS];
+    char* ciphertextAddr[AES_NUM_CHANNELS];
     u32 size[AES_NUM_CHANNELS];
     ChainingMode chMode[AES_NUM_CHANNELS];
 
-    u8 testData[BLOCK_SIZE*3];
+    char testData[BLOCK_SIZE*3];
     memcpy(testData, block1, BLOCK_SIZE);
     memcpy(testData+BLOCK_SIZE, block2, BLOCK_SIZE);
     memcpy(testData+2*BLOCK_SIZE, block3, BLOCK_SIZE);
 
-	u8* baseAddr = (u8*)0x1000000;
-	u8 * baseAddrCiphertext = baseAddr;
+	char* baseAddr = (char*)0x1000000;
+	char * baseAddrCiphertext = baseAddr;
 
     // set sizes and calculate ciphertext base address
     for (u32 channel = 0; channel < AES_NUM_CHANNELS; channel++)
@@ -318,13 +312,13 @@ int main()
 
 		// setup interrupt
 		AES_SetInterruptEnabled(&aes, channel, 1);
-		AES_SetInterruptCallback(&aes, channel, onInterrupt, (void*)channel);
+		AES_SetInterruptCallback(&aes, channel, onInterrupt, (void*)(UINTPTR)channel);
 
-		xil_printf("\t Channel %d:\tpriority %d,\t%4d = 0x%x bytes\n\r", channel, AES_GetPriority(&aes, channel), size[channel], size[channel]);
+		printf("\t Channel %d:\tpriority %2d,\t%6d = 0x%04x bytes\n\r", channel, AES_GetPriority(&aes, channel), size[channel], size[channel]);
     }
 
 	// Test the different modi while starting multiple channels immediately after each other
-	xil_printf("======================= Testing the different modi ====================\n\r");
+	printf("======================= Testing the different modi ====================\n\r");
 	// Start all channels
 	for (int channel = 0; channel < AES_NUM_CHANNELS; channel++)
 	{
@@ -333,7 +327,7 @@ int main()
 	for (int channel = 0; channel < AES_NUM_CHANNELS; channel++)
 	{
 		AES_waitUntilCompleted(&aes, channel);
-		xil_printf("Channel %d finished encryption:\n\r", channel);
+		printf("Channel %d finished encryption:\n\r", channel);
 		hexToStdOut(ciphertextAddr[channel], MIN(size[channel], BLOCK_SIZE*3));
 
 		// Setup in-place decryption
@@ -352,7 +346,7 @@ int main()
 		}
 		// setup interrupt
 		AES_SetInterruptEnabled(&aes, channel, 1);
-		AES_SetInterruptCallback(&aes, channel, onInterrupt, (void*)channel);
+		AES_SetInterruptCallback(&aes, channel, onInterrupt, (void*)(UINTPTR)channel);
 	}
 
 	for (int channel = 0; channel < AES_NUM_CHANNELS; channel++)
@@ -362,28 +356,28 @@ int main()
 	for (int channel = 0; channel < AES_NUM_CHANNELS; channel++)
 	{
 		AES_waitUntilCompleted(&aes, channel);
-		xil_printf("Channel %d finished decryption.\n\r", channel);
+		printf("Channel %d finished decryption.\n\r", channel);
 	}
 
 	for (int channel = 0; channel < AES_NUM_CHANNELS; channel++)
 	{
-		xil_printf("[TEST] Channel %d successful:  %s\n\r", channel,
+		printf("[TEST] Channel %d successful:  %s\n\r", channel,
 			getMemEqual(plaintextAddr[channel], ciphertextAddr[channel], size[channel]));
 	}
 
-	xil_printf("\r\nCompleted Modi tests.\r\n");
+	printf("\r\nCompleted Modi tests.\r\n");
 }
 #endif
 
 
 #ifdef TEST_GCM
-	xil_printf("\n================== GCM =====================\n\r");
+	printf("\n================== GCM =====================\n\r");
 
 	const u32 headerLen = BLOCK_SIZE*2;
 	const u32 payloadLen = BLOCK_SIZE*3;
 
 
-	u8 testData[BLOCK_SIZE*3], testHeader[BLOCK_SIZE*2];
+	char testData[BLOCK_SIZE*3], testHeader[BLOCK_SIZE*2];
 	// setup header =  block1 | block3
     memcpy(testHeader, block1, BLOCK_SIZE);
     memcpy(testHeader+BLOCK_SIZE, block3, BLOCK_SIZE);
@@ -392,8 +386,8 @@ int main()
     memcpy(testData+BLOCK_SIZE, block1, BLOCK_SIZE);
     memcpy(testData+2*BLOCK_SIZE, block2, BLOCK_SIZE);
 
-    u8 *baseAddr = (u8*)0x1100000;
-	u8 * baseAddrCiphertext = (u8*)0x1500000;
+    char *baseAddr = (char*)0x1100000;
+	char * baseAddrCiphertext = (char*)0x1500000;
     for (u32 channel = 0; channel < 2; channel++)
     {
     	printf("\r\nCHANNEL %u\r\n", channel);
@@ -416,82 +410,60 @@ int main()
 
 		// Setup data
 		AES_SetKey(&aes, channel, key);
-		u8* headerAddr = baseAddr + BLOCK_SIZE * 6 * channel;
-		u8* plaintextAddr = baseAddr + BLOCK_SIZE * 6 * channel + BLOCK_SIZE*2;
-		u8* ciphertextAddr = baseAddrCiphertext + BLOCK_SIZE * 6 * channel;
-		u8* tagAddr = baseAddrCiphertext + BLOCK_SIZE * 6 * channel + BLOCK_SIZE*5;
+		char* headerAddr = baseAddr + BLOCK_SIZE * 6 * channel;
+		char* plaintextAddr = baseAddr + BLOCK_SIZE * 6 * channel + BLOCK_SIZE*2;
+		char* ciphertextAddr = baseAddrCiphertext + BLOCK_SIZE * 6 * channel;
+		char* tagAddr = baseAddrCiphertext + BLOCK_SIZE * 6 * channel + BLOCK_SIZE*5;
 
 		memcpy(headerAddr, testHeader, BLOCK_SIZE*2);
 		memcpy(plaintextAddr, testData, BLOCK_SIZE*3);
 
 
-
-		u8 Susp[BLOCK_SIZE*2];
-
 		AES_startComputationGCM(&aes, channel, 1, headerAddr, headerLen, NULL, NULL, 0, IV, NULL, NULL);
 		AES_waitUntilCompleted(&aes, channel);
+
+#if !AES_REG_KEY_WRITEONLY
+		char Susp[BLOCK_SIZE*2];
 		AES_GetSusp(&aes, channel, Susp);
 		printf("Susp after header phase: \r\n");
 		hexToStdOut(Susp, BLOCK_SIZE*2);
-
+#endif
 		AES_startComputationGCM(&aes, channel, 1, headerAddr, headerLen, plaintextAddr, ciphertextAddr, payloadLen, IV, NULL, NULL);
 		AES_waitUntilCompleted(&aes, channel);
-
+#if !AES_REG_KEY_WRITEONLY
 		AES_GetSusp(&aes, channel, Susp);
 		printf("Susp after payload phase: \r\n");
 		hexToStdOut(Susp, BLOCK_SIZE*2);
-
+#endif
 		// Make test with in-place decryption afterwards
 		AES_processDataGCM(&aes, channel, 1, headerAddr, headerLen, plaintextAddr, ciphertextAddr, payloadLen, IV, tagAddr);
 		printf("Ciphertext:\r\n");
 		hexToStdOut(ciphertextAddr, BLOCK_SIZE*3);
-		xil_printf("Tag after encryption:\n\r");
+		printf("Tag after encryption:\n\r");
 		hexToStdOut(tagAddr, 16);
 		// decryption
-		u8 decryptTag[16];
+		char decryptTag[16];
 		AES_processDataGCM(&aes, channel, 0, headerAddr, headerLen, ciphertextAddr, ciphertextAddr, payloadLen, IV, decryptTag);
-		xil_printf("Deciphered Ciphertext:\n\r");
+		printf("Deciphered Ciphertext:\n\r");
 		hexToStdOut(ciphertextAddr, 16*3);
-		xil_printf("Tag after decryption:\n\r");
+		printf("Tag after decryption:\n\r");
 		hexToStdOut(decryptTag, 16);
 
 		if (AES_compareTags(tagAddr, decryptTag) == 0) {
-			xil_printf("[TEST] Passed: Tags are equal\r\n");
+			printf("[TEST] Passed: Tags are equal\r\n");
 		} else {
-			xil_printf("[TEST] Failed: Tags are not equal\r\n");
+			printf("[TEST] Failed: Tags are not equal\r\n");
 			passedAllTests = 0;
 		}
     }
 #endif
-    if (passedAllTests)
-    	xil_printf("\n\r[PASSED] ");
-    else
-    	xil_printf("\n\r[FAILED] ");
-	xil_printf("Processed all AES tests.\n\r");
+    if (passedAllTests) {
+    	printf("\n\r[PASSED] ");
+	} else {
+    	printf("\n\r[FAILED] ");
+    }
+	printf("Processed all AES tests.\n\r");
 
 
-	// At the end, blink an LED for fun
-    // Configure LED as output for
-    XGpioPs_Config *GPIO_Config = XGpioPs_LookupConfig(XPAR_PSU_GPIO_0_DEVICE_ID);
-    XGpioPs my_Gpio;
-    status = XGpioPs_CfgInitialize(&my_Gpio, GPIO_Config, GPIO_Config->BaseAddr);
-    XGpioPs_SetDirectionPin(&my_Gpio, 1, 1);
-    XGpioPs_WritePin(&my_Gpio, 1, 1);
-
-
-    // Switch LED on and off
-    int isLedOn = 0;
-    while(1)
-    {
-	    isLedOn = !isLedOn;
-		XGpioPs_WritePin(&my_Gpio, 0, isLedOn);
-		// pause
-		getchar();
-		xil_printf("Continue..\n\r");
-
-     }
-
-
-    xil_printf("Successfully ran the application");
     return 0;
 }
