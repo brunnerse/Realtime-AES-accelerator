@@ -1,5 +1,5 @@
-#ifndef AES_INTERFACE_M_HW_H_
-#define AES_INTERFACE_M_HW_H_
+#ifndef AES_UNIT_HW_H
+#define AES_UNIT_HW_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -68,4 +68,4 @@ extern "C" {
 }
 #endif
 
-#endif
+#endif // AES_UNIT_HW_H

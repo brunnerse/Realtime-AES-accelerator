@@ -1,31 +1,42 @@
-
-
 /***************************** Include Files *******************************/
 #include "AES_Unit.h"
 #include "AES_Unit_hw.h"
-#include "xparameters.h"
-#include "xdebug.h"
-#include "xil_assert.h"
+
+// Xilinx file for making assertions
+#include "xil_assert.h" // Comment out if file not found
+#ifdef Xil_AssertVoid
+#define AssertVoid(cond) Xil_AssertVoid(cond)
+#else
+#define AssertVoid(cond) {if (!(cond))return;}
+#endif
+
+#ifndef NULL
+#define NULL ((void*)0)
+#endif
+
 /************************** Function Definitions ***************************/
 
 
 
-
 /**************************   Private variables **********************/
+// Parameter file that should contain the constants in the config;
+// Comment it out if it does not exist
+//#include "xparameters.h"
+
 AES_Config config =
 {
-	XPAR_AES_UNIT_1_0_DEVICE_ID, // if this constant is not automatically generated, set it manually (e.g. to 0)
-	XPAR_AES_UNIT_1_0_S_AXI_BASEADDR, // set this constant to the base address of the AES Unit in your design 
+	0, // if this constant is not automatically generated, set it manually (e.g. to 0)
+	0xA0000000, // set this constant to the base address of the AES Unit in your design
 	AES_NUM_CHANNELS
 };
 
 /*************************** Private Function declarations **********************/
-u32 getBits(u32 val, u32 lowestBitIndex, u32 bitLen);
-void setBits(u32* ptr, u32 bits, u32 lowestBitIndex, u32 bitLen);
+uint32_t getBits(uint32_t val, uint32_t lowestBitIndex, uint32_t bitLen);
+void setBits(uint32_t* ptr, uint32_t bits, uint32_t lowestBitIndex, uint32_t bitLen);
 
 /*************************** Function definitions **********************/
 
-AES_Config *AES_LookupConfig(u16 DeviceId)
+AES_Config *AES_LookupConfig(uint16_t DeviceId)
 {
 	if (DeviceId == config.DeviceId)
 		return &config;
@@ -33,34 +44,34 @@ AES_Config *AES_LookupConfig(u16 DeviceId)
 		return NULL;
 }
 
-s32 AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr)
+int32_t AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr)
 {
     InstancePtr->BaseAddress = ConfigPtr->BaseAddress;
-	for (u32 i = 0; i < AES_NUM_CHANNELS; i++)
+	for (uint32_t i = 0; i < AES_NUM_CHANNELS; i++)
 	{
 		InstancePtr->CallbackFn[i] = NULL;
 		InstancePtr->CallbackRef[i] = NULL;
 	}
-    return (s32)(XST_SUCCESS);
+    return 0;
 }
 
 
-void AES_SetKey(AES *InstancePtr, u32 channel, u8 key[BLOCK_SIZE])
+void AES_SetKey(AES *InstancePtr, uint32_t channel, char key[BLOCK_SIZE])
 {
-   for (u32 i = 0; i < BLOCK_SIZE; i+=4)
-        AES_Write(InstancePtr, channel, AES_KEYR0_OFFSET+i, *(u32*)(key+i));
+   for (uint32_t i = 0; i < BLOCK_SIZE; i+=4)
+        AES_Write(InstancePtr, channel, AES_KEYR0_OFFSET+i, *(uint32_t*)(key+i));
 }
 
-void AES_SetIV(AES* InstancePtr, u32 channel, u8 *IV, u32 IVLen)
+void AES_SetIV(AES* InstancePtr, uint32_t channel, void *IV, uint32_t IVLen) // TODO somehow no IVLen?
 {
-	for (u32 i = 0; i < IVLen; i+=4)
-		AES_Write(InstancePtr, channel, AES_IVR0_OFFSET+i, *(u32*)(IV+i));
+	for (uint32_t i = 0; i < IVLen; i+=4)
+		AES_Write(InstancePtr, channel, AES_IVR0_OFFSET+i, *(uint32_t*)(IV+i));
 }
 
-void AES_SetSusp(AES* InstancePtr, u32 channel, u8 Susp[BLOCK_SIZE*2])
+void AES_SetSusp(AES* InstancePtr, uint32_t channel, char Susp[BLOCK_SIZE*2])
 {
-	for (u32 i = 0; i < BLOCK_SIZE*2; i+=4)
-		AES_Write(InstancePtr, channel, AES_SUSPR0_OFFSET+i, *(u32*)(Susp+i));
+	for (uint32_t i = 0; i < BLOCK_SIZE*2; i+=4)
+		AES_Write(InstancePtr, channel, AES_SUSPR0_OFFSET+i, *(uint32_t*)(Susp+i));
 }
 
 /**
@@ -72,19 +83,19 @@ void AES_SetSusp(AES* InstancePtr, u32 channel, u8 Susp[BLOCK_SIZE*2])
  * @param enabled 
  * @param gcmPhase 
  */
-void AES_Setup(AES* InstancePtr, u32 channel, Mode mode, ChainingMode chainMode, u32 enabled, GCMPhase gcmPhase)
+void AES_Setup(AES* InstancePtr, uint32_t channel, Mode mode, ChainingMode chainMode, uint32_t enabled, GCMPhase gcmPhase)
 {  
 	// Need to read old cr to not overwrite other configuration data like the priority
-    u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
+    uint32_t cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
 
     // Set mode
-    setBits(&cr, (u32)mode, MODE_POS, MODE_LEN);
+    setBits(&cr, (uint32_t)mode, MODE_POS, MODE_LEN);
     // Set chaining mode: Set bit 5 and 6
-    setBits(&cr, (u32)chainMode & 0x3, CHAIN_MODE_POS, CHAIN_MODE_LEN);
+    setBits(&cr, (uint32_t)chainMode & 0x3, CHAIN_MODE_POS, CHAIN_MODE_LEN);
     // Set chaining mode: Set bit 16
-    //setBits(&cr, (u32)chainMode >> 2, CHAIN_MODE_POS2, CHAIN_MODE_LEN2);
+    //setBits(&cr, (uint32_t)chainMode >> 2, CHAIN_MODE_POS2, CHAIN_MODE_LEN2);
     // Set GCMPhase
-    setBits(&cr, (u32)gcmPhase, GCM_PHASE_POS, GCM_PHASE_LEN);
+    setBits(&cr, (uint32_t)gcmPhase, GCM_PHASE_POS, GCM_PHASE_LEN);
     // Set enabled
     setBits(&cr, enabled, EN_POS, EN_LEN);
 
@@ -92,36 +103,36 @@ void AES_Setup(AES* InstancePtr, u32 channel, Mode mode, ChainingMode chainMode,
 }
 
 
-void AES_SetMode(AES *InstancePtr, u32 channel, Mode mode)
+void AES_SetMode(AES *InstancePtr, uint32_t channel, Mode mode)
 {
-    u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
-    setBits(&cr, (u32)mode, MODE_POS, MODE_LEN);
+    uint32_t cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
+    setBits(&cr, (uint32_t)mode, MODE_POS, MODE_LEN);
     AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
 }
 
 
-void AES_SetChainingMode(AES* InstancePtr, u32 channel, ChainingMode chainMode)
+void AES_SetChainingMode(AES* InstancePtr, uint32_t channel, ChainingMode chainMode)
 {
-    u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
+    uint32_t cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
     // Set bit 5 and 6
-    setBits(&cr, (u32)chainMode & 0x3, CHAIN_MODE_POS, CHAIN_MODE_LEN);
-    // Set bit 16
-    //setBits(&cr, (u32)chainMode >> 2, CHAIN_MODE_POS2, CHAIN_MODE_LEN2);
+    setBits(&cr, (uint32_t)chainMode & 0x3, CHAIN_MODE_POS, CHAIN_MODE_LEN);
+    // Set bit 16; would only be necessary if chainMode could be >= 4
+    //setBits(&cr, (uint32_t)chainMode >> 2, CHAIN_MODE_POS2, CHAIN_MODE_LEN2);
     AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
 }
 
-void AES_SetGCMPhase(AES* InstancePtr, u32 channel, GCMPhase gcmPhase)
+void AES_SetGCMPhase(AES* InstancePtr, uint32_t channel, GCMPhase gcmPhase)
 {
-    u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
-    setBits(&cr, (u32)gcmPhase, GCM_PHASE_POS, GCM_PHASE_LEN);
+    uint32_t cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
+    setBits(&cr, (uint32_t)gcmPhase, GCM_PHASE_POS, GCM_PHASE_LEN);
 
     AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
 }
 
-void AES_SetPriority(AES* InstancePtr, u32 channel, u32 priority)
+void AES_SetPriority(AES* InstancePtr, uint32_t channel, uint32_t priority)
 {
-	Xil_AssertVoid(priority <= AES_MAX_PRIORITY);
-	u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
+	AssertVoid(priority <= AES_MAX_PRIORITY);
+	uint32_t cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
     setBits(&cr, priority, PRIORITY_POS, PRIORITY_LEN);
     AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
 }
@@ -131,14 +142,14 @@ void AES_SetPriority(AES* InstancePtr, u32 channel, u32 priority)
  * @param InstancePtr 
  * @param en 1 for enabling, 0 for disabling interrupts
  */
-void AES_SetInterruptEnabled(AES* InstancePtr, u32 channel, u32 en)
+void AES_SetInterruptEnabled(AES* InstancePtr, uint32_t channel, uint32_t en)
 {
-	u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
+	uint32_t cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
     setBits(&cr, en, CCFIE_POS, CCFIE_LEN);
     AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
 }
 
-void AES_SetInterruptCallback(AES* InstancePtr, u32 channel, AES_CallbackFn callbackFn, void* callbackRef)
+void AES_SetInterruptCallback(AES* InstancePtr, uint32_t channel, AES_CallbackFn callbackFn, void* callbackRef)
 {
 	InstancePtr->CallbackFn[channel] = callbackFn;
 	InstancePtr->CallbackRef[channel] = callbackRef;
@@ -150,9 +161,9 @@ void AES_SetInterruptCallback(AES* InstancePtr, u32 channel, AES_CallbackFn call
  * 
  * @param InstancePtr 
  */
-void AES_startComputation(AES* InstancePtr, u32 channel)
+void AES_startComputation(AES* InstancePtr, uint32_t channel)
 {
-    u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
+    uint32_t cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
     setBits(&cr, 1, EN_POS, EN_LEN);
     AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
 }
@@ -167,55 +178,55 @@ void AES_startComputation(AES* InstancePtr, u32 channel)
  * @param InstancePtr 
  * @param outSusp 
  */
-void AES_GetSusp(AES* InstancePtr, u32 channel, u8 outSusp[BLOCK_SIZE*2])
+void AES_GetSusp(AES* InstancePtr, uint32_t channel, char outSusp[32])
 {
-	for (u32 i = 0; i < BLOCK_SIZE*2; i+=4)
-		*(u32*)(outSusp+i) = AES_Read(InstancePtr, channel, AES_SUSPR0_OFFSET+i);
+	for (uint32_t i = 0; i < BLOCK_SIZE*2; i+=4)
+		*(uint32_t*)(outSusp+i) = AES_Read(InstancePtr, channel, AES_SUSPR0_OFFSET+i);
 }
 
-void AES_GetIV(AES* InstancePtr, u32 channel, u8 outIV[BLOCK_SIZE])
+void AES_GetIV(AES* InstancePtr, uint32_t channel, char outIV[BLOCK_SIZE])
 {
-	for (u32 i = 0; i < BLOCK_SIZE; i+=4)
-		*(u32*)(outIV+i) = AES_Read(InstancePtr, channel, AES_IVR0_OFFSET+i);
+	for (uint32_t i = 0; i < BLOCK_SIZE; i+=4)
+		*(uint32_t*)(outIV+i) = AES_Read(InstancePtr, channel, AES_IVR0_OFFSET+i);
 }
 
-void AES_GetKey(AES *InstancePtr, u32 channel, u8 outKey[BLOCK_SIZE])
+void AES_GetKey(AES *InstancePtr, uint32_t channel, char outKey[BLOCK_SIZE])
 {
    for (int i = 0; i < BLOCK_SIZE; i+=4)
-        *(u32*)(outKey+i) = AES_Read(InstancePtr, channel, AES_KEYR0_OFFSET+i);
+        *(uint32_t*)(outKey+i) = AES_Read(InstancePtr, channel, AES_KEYR0_OFFSET+i);
 }
 #endif
 
-Mode AES_GetMode(AES *InstancePtr, u32 channel)
+Mode AES_GetMode(AES *InstancePtr, uint32_t channel)
 {
     return (Mode)getBits(AES_Read(InstancePtr, channel, AES_CR_OFFSET), MODE_POS, MODE_LEN);
 }
 
-ChainingMode AES_GetChainingMode(AES* InstancePtr, u32 channel)
+ChainingMode AES_GetChainingMode(AES* InstancePtr, uint32_t channel)
 {
-    u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
+    uint32_t cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
 	// read bit 5 and 6
-	u32 chMode = getBits(cr, CHAIN_MODE_POS, CHAIN_MODE_LEN);
+	uint32_t chMode = getBits(cr, CHAIN_MODE_POS, CHAIN_MODE_LEN);
 	// read bit 16
 	//chMode |= getBits(cr, CHAIN_MODE_POS2, CHAIN_MODE_LEN2) << CHAIN_MODE_LEN;
     return (ChainingMode)chMode;
 }
 
-GCMPhase AES_GetGCMPhase(AES* InstancePtr, u32 channel)
+GCMPhase AES_GetGCMPhase(AES* InstancePtr, uint32_t channel)
 {
-    u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
+    uint32_t cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
     return (GCMPhase)getBits(cr, GCM_PHASE_POS, GCM_PHASE_LEN);
 }
 
-u32 AES_GetPriority(AES* InstancePtr, u32 channel)
+uint32_t AES_GetPriority(AES* InstancePtr, uint32_t channel)
 {
-    u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
+    uint32_t cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
     return getBits(cr, PRIORITY_POS, PRIORITY_LEN);
 }
 
-u32 AES_GetInterruptEnabled(AES* InstancePtr, u32 channel)
+uint32_t AES_GetInterruptEnabled(AES* InstancePtr, uint32_t channel)
 {
-	u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
+	uint32_t cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
     return getBits(cr, CCFIE_POS, CCFIE_LEN);
 }
 
@@ -223,15 +234,15 @@ u32 AES_GetInterruptEnabled(AES* InstancePtr, u32 channel)
  * @brief Whether the AES unit has a pending computation job for this channel
  * 
  * @param InstancePtr 
- * @return u32 1 when active, 0 when inactive
+ * @return uint32_t 1 when active, 0 when inactive
  */
-u32 AES_isActive(AES* InstancePtr, u32 channel)
+uint32_t AES_isActive(AES* InstancePtr, uint32_t channel)
 {
 	return getBits(AES_Read(InstancePtr, channel, AES_CR_OFFSET), EN_POS, EN_LEN);
 }
 
 
-void AES_PerformKeyExpansion(AES *InstancePtr, u32 channel)
+void AES_PerformKeyExpansion(AES *InstancePtr, uint32_t channel)
 {
 	Mode prevMode = AES_GetMode(InstancePtr, channel);
 	AES_SetMode(InstancePtr, channel, MODE_KEYEXPANSION);
@@ -245,10 +256,10 @@ void AES_PerformKeyExpansion(AES *InstancePtr, u32 channel)
  * @param chmode   The chaining mode. Only ECB, CBC and CTR are supported
  * @param IV       The initialization vector. In ECB, it is ignored, in CTR mode, the last 4 bytes are ignored
 */
-void AES_startComputationMode(AES* InstancePtr, u32 channel, ChainingMode chmode, int encrypt, u8* data, u8* outData, u32 size, u8 IV[BLOCK_SIZE],
- AES_CallbackFn callbackFn, void* callbackRef)
+void AES_startComputationMode(AES* InstancePtr, uint32_t channel, ChainingMode chmode, int encrypt, void* data, void* outData, uint32_t size,
+	 char IV[BLOCK_SIZE], AES_CallbackFn callbackFn, void* callbackRef)
 {
-	Xil_AssertVoid(chmode != CHAINING_MODE_GCM);
+	AssertVoid(chmode != CHAINING_MODE_GCM);
 
 	InstancePtr->CallbackFn[channel] = callbackFn;
 	InstancePtr->CallbackRef[channel] = callbackRef;
@@ -269,7 +280,8 @@ void AES_startComputationMode(AES* InstancePtr, u32 channel, ChainingMode chmode
 }
 
 
-void AES_startComputationECB(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size, AES_CallbackFn callbackFn, void* callbackRef)
+void AES_startComputationECB(AES* InstancePtr, uint32_t channel, int encrypt, void* data, void* outData, uint32_t size,
+ 	AES_CallbackFn callbackFn, void* callbackRef)
 {	
 	InstancePtr->CallbackFn[channel] = callbackFn;
 	InstancePtr->CallbackRef[channel] = callbackRef;
@@ -279,7 +291,8 @@ void AES_startComputationECB(AES* InstancePtr, u32 channel, int encrypt, u8* dat
 	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_DECRYPTION, CHAINING_MODE_ECB, 1, GCM_PHASE_INIT);
 }
 
-void AES_startComputationCBC(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size, u8 IV[BLOCK_SIZE], AES_CallbackFn callbackFn, void* callbackRef)
+void AES_startComputationCBC(AES* InstancePtr, uint32_t channel, int encrypt, void* data, void* outData, uint32_t size,
+	 char IV[BLOCK_SIZE], AES_CallbackFn callbackFn, void* callbackRef)
 {
 	InstancePtr->CallbackFn[channel] = callbackFn;
 	InstancePtr->CallbackRef[channel] = callbackRef;
@@ -293,7 +306,8 @@ void AES_startComputationCBC(AES* InstancePtr, u32 channel, int encrypt, u8* dat
 /*
  * Chaining mode CTR.  As encryption and decryption are the same operation, this function doesnt have an encrypt parameter
 */
-void AES_startComputationCTR(AES* InstancePtr, u32 channel, u8* data, u8* outData, u32 size, u8 IV[12], AES_CallbackFn callbackFn, void* callbackRef)
+void AES_startComputationCTR(AES* InstancePtr, uint32_t channel, void* data, void* outData, uint32_t size,
+	 char IV[BLOCK_SIZE-4], AES_CallbackFn callbackFn, void* callbackRef)
 {
 	InstancePtr->CallbackFn[channel] = callbackFn;
 	InstancePtr->CallbackRef[channel] = callbackRef;
@@ -306,7 +320,8 @@ void AES_startComputationCTR(AES* InstancePtr, u32 channel, u8* data, u8* outDat
 	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_CTR, 1, GCM_PHASE_INIT);
 }
 
-void AES_startComputationGCM(AES* InstancePtr, u32 channel, int encrypt, u8* header, u32 headerLen, u8* payload, u8* outProcessedPayload, u32 payloadLen, u8 IV[12], AES_CallbackFn callbackFn, void* callbackRef)
+void AES_startComputationGCM(AES* InstancePtr, uint32_t channel, int encrypt, void* header, uint32_t headerLen,
+	 void* payload, void* outProcessedPayload, uint32_t payloadLen, char IV[12], AES_CallbackFn callbackFn, void* callbackRef)
 {
 	AES_SetIV(InstancePtr, channel, IV, 12);
 	// Write last word of the IV manually
@@ -342,7 +357,15 @@ void AES_startComputationGCM(AES* InstancePtr, u32 channel, int encrypt, u8* hea
 	}
 }
 
-void AES_calculateTagGCM(AES* InstancePtr, u32 channel, u32 headerLen, u32 payloadLen, u8 outTag[BLOCK_SIZE])
+uint32_t prvEndianSwap32(uint32_t i) {
+	uint32_t x = (i & 0xff) << 24;
+	x |= (i & 0xff00) << 8;
+	x |= (i & 0xff0000) >> 8;
+	x |= (i & 0xff000000) >> 24;
+	return x;
+}
+
+void AES_calculateTagGCM(AES* InstancePtr, uint32_t channel, uint32_t headerLen, uint32_t payloadLen, char outTag[BLOCK_SIZE])
 {
 	AES_SetGCMPhase(InstancePtr, channel, GCM_PHASE_FINAL);
 	// Set the IV in the final round:  First 12 bytes are the Nonce, last 4 bytes are 0x000000001
@@ -350,15 +373,15 @@ void AES_calculateTagGCM(AES* InstancePtr, u32 channel, u32 headerLen, u32 paylo
 	AES_Write(InstancePtr, channel, AES_IVR0_OFFSET+12, MODE_GCM_IV_FINAL);
 
 	// Use headerLen (64 bit) ||  payloadLen(64 bit) as data block in final round
-	u8 finalData[BLOCK_SIZE];
-	*(u32*)finalData = 0;
-	*(u32*)(finalData+8) = 0;
+	char finalData[BLOCK_SIZE];
+	*(uint32_t*)finalData = 0;
+	*(uint32_t*)(finalData+8) = 0;
 #if AES_BYTE_ORDER == LITTLE_ENDIAN
-	*(u32*)(finalData+4) = Xil_EndianSwap32(headerLen*8);
-	*(u32*)(finalData+12) = Xil_EndianSwap32(payloadLen*8);
+	*(uint32_t*)(finalData+4) = prvEndianSwap32(headerLen*8);
+	*(uint32_t*)(finalData+12) = prvEndianSwap32(payloadLen*8);
 #else
-	*(u32*)(finalData+4) = headerLen*8;
-	*(u32*)(finalData+12) = payloadLen*8;
+	*(uint32_t*)(finalData+4) = headerLen*8;
+	*(uint32_t*)(finalData+12) = payloadLen*8;
 #endif
 	AES_SetDataParameters(InstancePtr, channel, finalData, outTag, BLOCK_SIZE);
 	AES_startComputation(InstancePtr, channel);
@@ -366,44 +389,45 @@ void AES_calculateTagGCM(AES* InstancePtr, u32 channel, u32 headerLen, u32 paylo
 }
 
 
-void AES_SetDataParameters(AES* InstancePtr, u32 channel, volatile u8* source, volatile u8* dest, u32 size)
+void AES_SetDataParameters(AES* InstancePtr, uint32_t channel, void* source, void* dest, uint32_t size)
 {
-	AES_Write(InstancePtr, channel, AES_DINR_ADDR_OFFSET, (u32)source);
-	AES_Write(InstancePtr, channel, AES_DOUTR_ADDR_OFFSET, (u32)dest);
+	AES_Write(InstancePtr, channel, AES_DINR_ADDR_OFFSET, (uintptr_t)source);
+	AES_Write(InstancePtr, channel, AES_DOUTR_ADDR_OFFSET, (uintptr_t)dest);
 	AES_Write(InstancePtr, channel, AES_DATASIZE_OFFSET, size);
 }
 
-void AES_processDataECB(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size)
+void AES_processDataECB(AES* InstancePtr, uint32_t channel, int encrypt, void* data, void* outData, uint32_t size)
 {
 	AES_startComputationECB(InstancePtr, channel, encrypt, data, outData, size, NULL, NULL);
 	AES_waitUntilCompleted(InstancePtr, channel);
 }
 
-void AES_processDataCBC(AES* InstancePtr, u32 channel, int encrypt, u8* data, u8* outData, u32 size, u8 IV[BLOCK_SIZE])
+void AES_processDataCBC(AES* InstancePtr, uint32_t channel, int encrypt, void* data, void* outData, uint32_t size, char IV[BLOCK_SIZE])
 {
 	AES_startComputationCBC(InstancePtr, channel, encrypt, data, outData, size, IV, NULL, NULL);
 	AES_waitUntilCompleted(InstancePtr, channel);
 }
 
-void AES_processDataCTR(AES* InstancePtr, u32 channel,  u8* data, u8* outData, u32 size, u8 IV[12])
+void AES_processDataCTR(AES* InstancePtr, uint32_t channel, void* data, void* outData, uint32_t size, char IV[BLOCK_SIZE-4])
 {
 	AES_startComputationCTR(InstancePtr, channel, data, outData, size, IV, NULL, NULL);
 	AES_waitUntilCompleted(InstancePtr, channel); 
 }
 
-void AES_processDataGCM(AES* InstancePtr, u32 channel, int encrypt, u8* header, u32 headerLen, u8* payload, u8* outProcessedPayload, u32 payloadLen, u8 IV[12], u8 outTag[BLOCK_SIZE])
+void AES_processDataGCM(AES* InstancePtr, uint32_t channel, int encrypt, void* header, uint32_t headerLen, 
+	void* payload, void* outProcessedPayload, uint32_t payloadLen, char IV[12], char outTag[BLOCK_SIZE])
 {
 	AES_startComputationGCM(InstancePtr, channel, encrypt, header, headerLen, payload, outProcessedPayload, payloadLen, IV, NULL, NULL);
 	AES_waitUntilCompleted(InstancePtr, channel);
 	AES_calculateTagGCM(InstancePtr, channel, headerLen, payloadLen, outTag);
 }
 
-int AES_compareTags(u8 tag1[BLOCK_SIZE], u8 tag2[BLOCK_SIZE])
+int AES_compareTags(char tag1[BLOCK_SIZE], char tag2[BLOCK_SIZE])
 {
-	for (u32 i = 0; i < BLOCK_SIZE; i += 4)
+	for (uint32_t i = 0; i < BLOCK_SIZE; i += 4)
 	{
-	    // Compare four bytes at once by casting to u32
-		if (*(u32*)(tag1+i) != *(u32*)(tag2+i))
+	    // Compare four bytes at once by casting to uint32_t
+		if (*(uint32_t*)(tag1+i) != *(uint32_t*)(tag2+i))
 			return -1;
 	}
 	return 0;
@@ -415,24 +439,24 @@ int AES_compareTags(u8 tag1[BLOCK_SIZE], u8 tag2[BLOCK_SIZE])
  * @param InstancePtr 
  * @param channel 
  */
-void AES_clearCompletedStatus(AES* InstancePtr, u32 channel)
+void AES_clearCompletedStatus(AES* InstancePtr, uint32_t channel)
 {
-    u32 cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
+    uint32_t cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
     setBits(&cr, 1, CCFC_POS, CCFC_LEN);
     AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
     setBits(&cr, 0, CCFC_POS, CCFC_LEN);
     AES_Write(InstancePtr, channel, AES_CR_OFFSET, cr);
 }
 
-void AES_waitUntilCompleted(AES* InstancePtr, u32 channel)
+void AES_waitUntilCompleted(AES* InstancePtr, uint32_t channel)
 {
 	while (AES_isComputationCompleted(InstancePtr, channel) == 0)
 		;
 }
 
-int AES_isComputationCompleted(AES* InstancePtr, u32 channel)
+int AES_isComputationCompleted(AES* InstancePtr, uint32_t channel)
 {
-	u32 CCF = getBits(AES_Read(InstancePtr, channel, AES_SR_OFFSET), SR_CCF_POS, SR_CCF_LEN);
+	uint32_t CCF = getBits(AES_Read(InstancePtr, channel, AES_SR_OFFSET), SR_CCF_POS, SR_CCF_LEN);
 	return  (CCF & (1 << (channel%8))) != 0;
 }
 
@@ -446,9 +470,9 @@ int AES_isComputationCompleted(AES* InstancePtr, u32 channel)
  * 			The ERROR_WRITE bit indicates a write error, the ERROR_READ bit indicates a read error
  *
  *****************************************************************************/
-u32 AES_GetError(AES* InstancePtr, u32 channel)
+uint32_t AES_GetError(AES* InstancePtr, uint32_t channel)
 {
-	u32 sr = AES_Read(InstancePtr, channel, AES_SR_OFFSET);
+	uint32_t sr = AES_Read(InstancePtr, channel, AES_SR_OFFSET);
 	return getBits(sr, SR_RDERR_POS+(channel%8), 1) * AES_ERROR_READ  |  getBits(sr, SR_WRERR_POS+(channel%8), 1) * AES_ERROR_WRITE;
 }
 
@@ -471,8 +495,8 @@ void AES_IntrHandler(void *HandlerRef)
 	/* Check what interrupts have fired
 	 */
     for (int channelIdx = 0; channelIdx < AES_NUM_CHANNELS; channelIdx += 8) {
-		u32 SR = AES_Read(InstancePtr, channelIdx, AES_SR_OFFSET);
-		u32 Irq = getBits(SR, SR_IRQ_POS, 8);
+		uint32_t SR = AES_Read(InstancePtr, channelIdx, AES_SR_OFFSET);
+		uint32_t Irq = getBits(SR, SR_IRQ_POS, 8);
 
 		// Clear interrupts by writing the Status register back
 		AES_Write(InstancePtr, channelIdx, AES_SR_OFFSET, SR);
@@ -498,18 +522,18 @@ void AES_IntrHandler(void *HandlerRef)
 // -------------
 // private functions
 // --------------
-inline u32 getBits(u32 val, u32 lowestBitIndex, u32 bitLen)
+inline uint32_t getBits(uint32_t val, uint32_t lowestBitIndex, uint32_t bitLen)
 {
-	u32 highBits = (1 << bitLen) - 1; // has bitLen ones, e.g. 0b00000111 for bitLen=3
+	uint32_t highBits = (1 << bitLen) - 1; // has bitLen ones, e.g. 0b00000111 for bitLen=3
 	return (val >> lowestBitIndex) & highBits;
 }
 
 // Sets the bits at lowestBitIndex to lowestBitIndex+bitLen-1 to bits.
-inline void setBits(u32* ptr, u32 bits, u32 lowestBitIndex, u32 bitLen)
+inline void setBits(uint32_t* ptr, uint32_t bits, uint32_t lowestBitIndex, uint32_t bitLen)
 {
-	u32 highBits = (1 << bitLen) - 1; // has bitLen ones, e.g. 0b00000111 for bitLen=3
+	uint32_t highBits = (1 << bitLen) - 1; // has bitLen ones, e.g. 0b00000111 for bitLen=3
 	// Clear bits
-	u32 clearMask = ~(highBits << lowestBitIndex);
+	uint32_t clearMask = ~(highBits << lowestBitIndex);
 	*ptr &= clearMask;
 	// Set the bits
 	*ptr |= (bits & highBits) << lowestBitIndex;

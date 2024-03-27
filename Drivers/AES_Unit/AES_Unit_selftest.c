@@ -2,9 +2,7 @@
 /***************************** Include Files *******************************/
 #include "AES_Unit.h"
 #include "AES_Unit_hw.h"
-#include "xparameters.h"
 #include "stdio.h"
-#include "xil_io.h"
 
 /************************** Constant Definitions ***************************/
 #if AES_REG_KEY_WRITEONLY
@@ -22,38 +20,36 @@
  * If the hardware system is not built correctly, this function may never
  * return to the caller.
  *
- * @param   baseaddr_p is the base address of the AES_INTERFACE_Minstance to be worked on.
+ * @param   baseaddr_p is the base address of the AES instance to be worked on.
  *
  * @return
  *
- *    - XST_SUCCESS   if all self-test code passed
- *    - XST_FAILURE   if any self-test code failed
+ *    - 0   if all self-test code passed
+ *    - 1   if any self-test code failed
  *
  * @note    Caching must be turned off for this function to work.
  * @note    Self test may fail if data memory and device are not on the same bus.
  *
  */
-XStatus AES_Mem_SelfTest(void * baseaddr_p)
+int32_t AES_Mem_SelfTest(void * baseaddr_p)
 {
 	int offset;
-	u32 baseaddr;
-	u32 Mem32Value;
+	uint32_t Mem32Value;
+	uintptr_t baseaddr = (uintptr_t)baseaddr_p;
 
-	baseaddr = (u32) baseaddr_p;
-
-	xil_printf("******************************\n\r");
-	xil_printf("* User Peripheral Self Test\n\r");
-	xil_printf("******************************\n\n\r");
+	printf("******************************\n\r");
+	printf("* User Peripheral Self Test Of AES Unit\n\r");
+	printf("******************************\n\n\r");
 
 	/*
 	 * Write data to user logic BRAMs and read back
 	 */
-	xil_printf("User logic memory test...\n\r");
-	xil_printf("   - local memory address is 0x%08x\n\r", baseaddr);
-	xil_printf("   - write pattern to local BRAM and read back\n\r");
+	printf("User logic memory test...\n\r");
+	printf("   - local memory address is 0x%08x\n\r", (uint32_t)baseaddr);
+	printf("   - write pattern to local BRAM and read back\n\r");
 	
 
-	for (u32 channel = 0; channel < AES_NUM_CHANNELS; channel++)
+	for (uint32_t channel = 0; channel < AES_NUM_CHANNELS; channel++)
 	{
 		for (offset = 0; offset < AES_SELFTEST_REGSET_LENGTH; offset += 4)
 		{
@@ -63,22 +59,22 @@ XStatus AES_Mem_SelfTest(void * baseaddr_p)
 		}
 	}
 
-	for (u32 channel = 0; channel < AES_NUM_CHANNELS; channel++)
+	for (uint32_t channel = 0; channel < AES_NUM_CHANNELS; channel++)
 	{
 		for (offset = 0; offset < AES_SELFTEST_REGSET_LENGTH; offset += 4)
 		{
 			Mem32Value = AES_mReadMemory(baseaddr + (channel<<AES_ADDR_REGISTER_BITS) + offset);
 			if ( Mem32Value != (0xDEADBEEF % offset  + (channel << 8)) )
 			{
-				xil_printf("   - write/read memory failed on address 0x%08x\n\r",
-								(baseaddr + (channel<<AES_ADDR_REGISTER_BITS) + offset));
-				return XST_FAILURE;
+				printf("   - write/read memory failed on address 0x%08x\n\r",
+								(uint32_t)(baseaddr + (channel<<AES_ADDR_REGISTER_BITS) + offset));
+				return 1;
 			}
 			// Reset memory value to 0
 			AES_mWriteMemory(baseaddr + (channel<<AES_ADDR_REGISTER_BITS) + offset, 0);
 		}
 	}
-	xil_printf("   - write/read memory passed\n\n\r");
+	printf("   - write/read memory passed\n\n\r");
 
-	return XST_SUCCESS;
+	return 0;
 }
