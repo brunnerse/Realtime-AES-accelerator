@@ -13,7 +13,8 @@ entity AES_Unit is
   Generic (
     LITTLE_ENDIAN : boolean := true; -- whether the AXI bus data signals use little endian byte order
     REG_KEY_WRITEONLY : boolean := true; -- whether the registers Key, IV, Susp and H are not allowed to be read for security 
-    NUM_CHANNELS : integer range 1 to 128 := 8; -- the number of channels; the upper bound is equal to MAX_CHANNELS defined in common.vhd 
+    NO_REG_WRITE_WHEN_ENABLED : boolean := true; -- whether writing to a channel is only possible when the channel is not enabled 
+    NUM_CHANNELS : integer range 1 to 256 := 8; -- the number of channels; the upper bound is equal to MAX_CHANNELS defined in common.vhd 
     -- Parameters of the AXI Slave Bus Interface S_AXI
     C_S_AXI_ID_WIDTH	: integer	:= 1;
     C_S_AXI_DATA_WIDTH	: integer	:= 32;
@@ -301,6 +302,7 @@ i_ControlLogic : entity work.ControlLogic(Behavioral)
     generic map(
         LITTLE_ENDIAN => LITTLE_ENDIAN,
     	REG_KEY_WRITEONLY => REG_KEY_WRITEONLY, 
+    	NO_REG_WRITE_WHEN_ENABLED => NO_REG_WRITE_WHEN_ENABLED, 
         NUM_CHANNELS => NUM_CHANNELS)
     port map(
         M_RV_valid => M_RV_valid,

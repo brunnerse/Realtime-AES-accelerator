@@ -35,6 +35,7 @@ entity ControlLogic is
   Generic (
     LITTLE_ENDIAN : boolean := true;
     REG_KEY_WRITEONLY : boolean := true; -- whether the registers Key, IV, Susp and H are not allowed to be read for security 
+    NO_REG_WRITE_WHEN_ENABLED : boolean := true; -- whether writing to a channel is only possible when the channel is not enabled 
     NUM_CHANNELS : integer range 1 to 128 := 8 -- upper bound must be MAX_CHANNELS, but Vivado doesn't synthesize then
   );
   Port (    
@@ -335,7 +336,7 @@ end procedure;
                     channel <= highestChannel;
                     -- copy configuration signals
                     
-                    -- if mode is decryption, the expanded roundkeys aren't valid yet 
+                    -- if mode is decryption, the expanded roundkeys are not valid yet 
                     --     therefore start in keyexpansion_and_decryption mode
                     if configReg(CR_RANGE_MODE) = MODE_DECRYPTION then
                         modeSignal <= MODE_KEYEXPANSION_AND_DECRYPTION;
@@ -356,8 +357,8 @@ end procedure;
                         sourceAddrVar := SwapEndian(mem(highestChannel)(ADDR_DINADDR/4));
                         dataSize <= SwapEndian(mem(highestChannel)(ADDR_DATASIZE/4));
                     end if;
-                     -- Make sure dataCounter is divisible by 16
-                    dataSize(3 downto 0) <= (others => '0');
+                     -- Make sure dataCounter is divisible by BLOCK_SIZE
+                    dataSize(BLOCK_SIZE/8-1 downto 0) <= (others => '0');
                     
                     -- add dataCount to addresses, reset dataCount if necessary
                     if isChannelInterrupted(highestChannel) = '1' then
@@ -515,7 +516,7 @@ end process;
 -- drives the En and Priority signals; if there's a write to the CR register, it copies the values to En and Priority
 -- drives clearInterrupt
 process (Clock)
-variable channelIdx : integer;
+variable channelIdx : channel_range;
 variable srIdx : integer;
 begin
 if rising_edge(Clock) then
@@ -539,11 +540,15 @@ if rising_edge(Clock) then
             En(channel) <= '0';
         end if;
         
-        -- Write port 1 (from the Interface)
-        if WrEn1 = '1' then
-           channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
-           -- Write to mem, but only if the address is still in the mem region
-           if unsigned(WrAddr1(addr_register_range)) < to_unsigned(ADDR_SR,ADDR_WIDTH)(addr_register_range) then
+        -- Write port 1 (from the Register Interface)
+        channelIdx :=  to_integer(unsigned(WrAddr1(addr_channel_range)));
+        if WrEn1 = '1' and not (NO_REG_WRITE_WHEN_ENABLED and En(channelIdx) = '1') then
+           -- if Write is to Status Register, it contains the Clear Interrupt Flags
+           if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)(addr_register_range)) then
+                srIdx := to_integer(unsigned(WrAddr1(addr_channel_range'HIGH downto addr_channel_range'LOW+3)));
+                clearInterrupt(srIdx*8+7 downto srIdx*8) <= WrData1(SR_POS_IRQ+7 downto SR_POS_IRQ);
+           else 
+           -- If another register, write to mem; Do not test if the address is still in the mem region, simply leads to undefined behavior
                for i in 3 downto 0 loop
                     if WrStrb1(i) = '1' then
                         mem(channelIdx)(to_integer(unsigned(WrAddr1(addr_register_range))))(i*8+7 downto i*8) <= WrData1(i*8+7 downto i*8);
@@ -552,20 +557,14 @@ if rising_edge(Clock) then
            end if;
            -- Set enable and priority signals if it was a write to the CR register
            if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH)(addr_register_range)) then
-                -- WriteStrobe ignored for simplicity; 
-                -- Because of that, WriteStrobes other than 1111 for the CR register have to be prevented in the driver
-                --if WrStrb1(0) = '1' then
+                -- Only update En and Priority if the corresponding WrStrb bit is set 
+                if WrStrb1(CR_POS_EN/8) = '1' then
                     En(channelIdx) <= WrData1(CR_POS_EN);
-                --end if;
-                --if WrStrb1(2) = '1' then
+                end if;
+                if WrStrb1(CR_RANGE_PRIORITY'LOW/8) = '1' then
                     Priority(channelIdx) <= WrData1(CR_RANGE_PRIORITY);
-                --end if;
-          end if;
-          -- if Write is to Status Register, it contains the Clear Interrupt Flags
-          if WrAddr1(addr_register_range) = std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH)(addr_register_range)) then
-                srIdx := to_integer(unsigned(WrAddr1(addr_channel_range'HIGH downto addr_channel_range'LOW+3)));
-                clearInterrupt(srIdx*8+7 downto srIdx*8) <= WrData1(SR_POS_IRQ+7 downto SR_POS_IRQ);
-           end if;
+                end if;
+            end if;
         end if;
         -- Write port 2 (from the AES Core)
         if WrEn2 = '1' then
@@ -584,7 +583,6 @@ end process;
 -- In each cycle, this process finds the enabled channel with the highest priority that is not currently active
 -- if no channel is enabled, channel 0 is selected
 process(Clock)
-
 variable channelIdx : channel_range;
 begin
 if rising_edge(Clock) then
