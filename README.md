@@ -2,8 +2,6 @@
 
 <a id="readme-top"></a>
 
-----------------------------
-
 
 This repository contains the HDL design of an AES hardware accelerator built for real-time systems.
 The accelerator features an internal scheduler managing the execution of simultaneous requests in priority order, thereby ensuring that contentions between requests are transparent to the requesting software tasks. 
@@ -14,14 +12,13 @@ By construction, the timing behavior of the accelerator is straightforward to pr
 *Features:*
 
 > Implemented in VHDL-2002
-
+    
 > Interface via AXI bus 
 
-> 	Driver written in C
+> Driver written in C
 
->	Tested using Vivado 2025.2 on a Zynq Ultrascale ZCU-104
+> Tested using Vivado 2025.2 on a Zynq Ultrascale ZCU-104
 
-----------------------------------------
 
 <br>
 
@@ -31,12 +28,8 @@ By construction, the timing behavior of the accelerator is straightforward to pr
 | | |  
 |----------|------------|  
 | `master` |  The official design  |  
-| | |
-| `baseArch` |  Base design of the accelerator which features no support for simultaneous requests.  
-|   | This design replicates the AES accelerator of the [STM32G4 microcontroller series](https://www.st.com/resource/en/reference_manual/rm0440-stm32g4-series-advanced-armbased-32bit-mcus-stmicroelectronics.pdf) |
-| | |
-| `extendArch` | A variant of the design which stores channel data on the connected RAM instead of in hardware.  |
-| | This enables support for a far higher number of channels with minimal increasing hardware costs, however as data need to be transferred from and to the RAM the delays are much higher. |
+| `baseArch` |  Base design of the accelerator which features no support for simultaneous requests.     This design replicates the AES accelerator of the [STM32G4 microcontroller series](https://www.st.com/resource/en/reference_manual/rm0440-stm32g4-series-advanced-armbased-32bit-mcus-stmicroelectronics.pdf) |  
+| `extendArch` | A variant of the design which stores channel data on the connected RAM instead of in hardware. This enables support for a far higher number of channels with minimal increasing hardware costs, however as data need to be transferred from and to the RAM the delays are much higher. |
 
 
 #### Folder structure
@@ -67,9 +60,8 @@ By construction, the timing behavior of the accelerator is straightforward to pr
 	C programs which test the accelerator's functionalities via the driver functions.
 
 
-<br>
 
---------------------
+<br>
 
 ## Getting started
 
