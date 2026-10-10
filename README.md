@@ -50,7 +50,7 @@ By construction, the timing behavior of the accelerator is straightforward to pr
 	The driver of the accelerator, written in C.    
 	*AES_Unit.h* contains all function and struct definitions implemented by the driver. 
 
-- *helper_scripts*:   
+- *scripts aes*:   
 	 C and python scripts used during development as an aid to implement and verify the AES core.
 
 - *Diagrams*:  

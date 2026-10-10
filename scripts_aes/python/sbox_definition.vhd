@@ -522,7 +522,7 @@ constant sbox_decrypt : SBOX := (
 	253 => x"21",
 	254 => x"0c",
 	255 => x"7d"
-        );
+);
 
 
 end package;
