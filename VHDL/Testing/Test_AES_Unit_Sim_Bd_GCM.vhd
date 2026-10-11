@@ -107,8 +107,8 @@ DUT: component AES_Unit_Sim_Bd port map (
 );
 
 
-Clock <= not Clock after 5ns;
-Resetn <= '1' after 50ns;
+Clock <= not Clock after 5 ns;
+Resetn <= '1' after 50 ns;
 
 
 channel_gen:
@@ -150,7 +150,7 @@ begin
     wrdata <= CHANNEL_CR(ch);
     wrdata(CR_RANGE_GCMPHASE) <= phase;
     wren <= '1';
-    wait for 10ns;
+    wait for 10 ns;
     wren <= '0';
 end procedure;
 
@@ -159,13 +159,13 @@ begin
     wren <= '1';
     wraddr <= std_logic_vector(to_unsigned(ADDR_DINADDR, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
     wrdata <= SwapEndian(std_logic_vector(to_unsigned(source, 32)));
-    wait for 10ns;
+    wait for 10 ns;
     wraddr <= std_logic_vector(to_unsigned(ADDR_DOUTADDR, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
     wrdata <= SwapEndian(std_logic_vector(to_unsigned(dest, 32)));
-    wait for 10ns;
+    wait for 10 ns;
     wraddr <= std_logic_vector(to_unsigned(ADDR_DATASIZE, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
     wrdata <= SwapEndian(std_logic_vector(to_unsigned(size, 32)));
-    wait for 10ns;
+    wait for 10 ns;
     wren <= '0';
 end procedure;
 
@@ -175,7 +175,7 @@ begin
     wren <= '1';
     wraddr <= std_logic_vector(to_unsigned(regaddr, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
     wrdata <= data;
-    wait for 10ns;
+    wait for 10 ns;
     wren <= '0';
 end procedure;
 
@@ -186,16 +186,16 @@ begin
     -- set source addr
     wraddr <= std_logic_vector(to_unsigned(ADDR_DINADDR, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
     wrdata <= SwapEndian(std_logic_vector(to_unsigned(plainAddr + ((ch+1)*ch/2)*BLOCK_SIZE, 32)));
-    wait for 10ns;
+    wait for 10 ns;
     report "Set as sourceaddr for channel " & integer'image(ch) & ": " & to_hstring(to_bitvector(wrdata));
     -- set dest addr
     wraddr <= std_logic_vector(to_unsigned(ADDR_DOUTADDR, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
     wrdata <= SwapEndian(std_logic_vector(to_unsigned(cipherAddr + (ch/2*(ch+1))*BLOCK_SIZE, 32)));
-    wait for 10ns;
+    wait for 10 ns;
     -- set size
     wraddr <= std_logic_vector(to_unsigned(ADDR_DATASIZE, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
     wrdata <= SwapEndian(std_logic_vector(to_unsigned((ch+1)*BLOCK_SIZE, 32)));
-    wait for 10ns;
+    wait for 10 ns;
     -- set key
     longval := key;
     longval(127 downto 120) := std_logic_vector(to_unsigned(ch, 8));
@@ -203,7 +203,7 @@ begin
         wren <= '1';
         wraddr <= std_logic_vector(to_unsigned(ADDR_KEYR0, ADDR_WIDTH) + i*4 + CHANNEL_OFFSET(ch));
         wrdata <= longval(127-i*32 downto 96-i*32);
-        wait for 10ns;
+        wait for 10 ns;
     end loop;
     -- set IV
     longval := testIV;
@@ -216,7 +216,7 @@ begin
         wren <= '1';
         wraddr <= std_logic_vector(to_unsigned(ADDR_IVR0, ADDR_WIDTH) + i*4 + CHANNEL_OFFSET(ch));
         wrdata <= longval(127-i*32 downto 96-i*32);
-        wait for 10ns;
+        wait for 10 ns;
     end loop;
     wren <= '0';
 end procedure;
@@ -229,7 +229,7 @@ rdaddr <= std_logic_vector(to_unsigned(ADDR_SR, ADDR_WIDTH) + CHANNEL_OFFSET(ch)
 report "Checking Pos " & integer'image(SR_POS_CCF +ch);
 while  rddata(SR_POS_CCF+ch) /= '1' loop
     report "RdData: " & to_hstring(to_bitvector(rddata))&  "\t" & std_logic'image(rddata(SR_POS_CCF+ch));
-    wait for 10ns;
+    wait for 10 ns;
 end loop;
 --wait until rddata(SR_POS_CCF+ch) = '1'; 
 end procedure;
@@ -241,10 +241,10 @@ wraddr <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_OFFSET(ch)
 wrdata <= CHANNEL_CR(ch);
 wrdata(7) <= '1'; -- set CCFC flag
 wrdata(0) <= '0'; -- deassert EN
-wait for 10ns;
+wait for 10 ns;
 -- deassert CCFC flag again
 wrdata(7) <= '0';
-wait for 10ns;
+wait for 10 ns;
 wren <= '0';
 end procedure;
 
@@ -268,7 +268,7 @@ setDataParameters(0, CHANNEL_HDRADDR(0), 0, BLOCK_SIZE*2);
 activateChannel(0, GCM_PHASE_HEADER);
 
 -- meanwhile, activate Channel 1
-wait for 10ns;
+wait for 10 ns;
 activateChannel(1, GCM_PHASE_INIT);
 waitUntilCCF(1);
 
@@ -285,7 +285,7 @@ activateChannel(0, GCM_PHASE_PAYLOAD);
 
 
 -- activate Channel 1 payload phase
-wait for 700ns;
+wait for 700 ns;
 waitUntilCCF(1);
 setDataParameters(1, CHANNEL_PAYLDADDR(1), CHANNEL_CIPHERADDR(1), BLOCK_SIZE*3);
 -- init IV

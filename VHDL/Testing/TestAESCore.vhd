@@ -60,23 +60,29 @@ component AES_Core is
            );
 end component;
 
+
+-- Test mode and chaining_mode for the AES Core
+signal mode : std_logic_vector(MODE_LEN-1 downto 0) := MODE_KEYEXPANSION_AND_DECRYPTION;
+signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0) := CHAINING_MODE_ECB;
+
+
 constant key : std_logic_vector(KEY_SIZE-1 downto 0) := x"000102030405060708090a0b0c0d0e0f";
 constant plaintext1 : std_logic_vector(KEY_SIZE-1 downto 0) := x"00102030011121310212223203132333";
 constant plaintext2 : std_logic_vector(KEY_SIZE-1 downto 0) := x"000102030405060708090a0b0c0d0e0f";
 constant plaintext3 : std_logic_vector(KEY_SIZE-1 downto 0) := x"affedeadbeefdadcabbeadbeec0cabad";
 
+
+
 signal Clock : std_logic := '1';
 signal Resetn : std_logic := '0';
 
-signal testPlaintext, testIV, IV, testKey, testCiphertext, testDecCiphertext, newIV, Susp, H : std_logic_vector(KEY_SIZE-1 downto 0);
+signal testPlaintext, testIV, IV, testKey, testCiphertext, Susp, H : std_logic_vector(KEY_SIZE-1 downto 0);
 signal EnCoreI, EnCoreO : std_logic;
 
 signal WrEn : std_logic;
 signal WrData : std_logic_vector(KEY_SIZE-1 downto 0);
 signal WrAddr  : std_logic_vector(ADDR_REGISTER_BITS-1 downto 0);
 
-signal mode : std_logic_vector(MODE_LEN-1 downto 0) := MODE_KEYEXPANSION_AND_DECRYPTION;
-signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0) := CHAINING_MODE_CBC;
 
 begin
 
@@ -91,39 +97,50 @@ core: AES_Core
 
 
 -- processes for Clock and reset signal
-Clock <= not Clock after 5ns;
+Clock <= not Clock after 5 ns;
 process begin
-wait for 10 ns;
+wait for 10  ns;
 Resetn <= '1'; wait;
 end process;
 
 
+process begin
+    wait until rising_edge(Clock);
+    if EnCoreI = '1' then
+        report "Started AES with input " & to_hstring(testPlaintext);
+    end if;
+    if EnCoreO = '1' then
+        report "AES finished with output " & to_hstring(testCiphertext);
+    end if;
+end process;
 
 -- Enable encryption three times
 process begin
-EnCoreI <= '0'; wait for 50ns; -- Wait until Resetn is over
+EnCoreI <= '0'; 
+wait for 50 ns; -- Wait until Resetn is over
 EnCoreI <= '1'; 
 testPlaintext <= plaintext1;
 testIV <= IV;
-wait for 10 ns;
+wait until EnCoreO = '1';
+wait for 10  ns;
 EnCoreI <= '0';
-wait for 1000 ns; -- Wait at least until key expansion is finished is over
+wait for 1000  ns; -- Wait at least until key expansion is finished is over
 EnCoreI <= '1';
 testIV <= IV; 
 testPlaintext <= plaintext2;
-wait for 10 ns;
+wait for 10  ns;
 EnCoreI <= '0';
-wait for 1000 ns; -- Wait at least until key expansion is finished is over
+wait for 1000  ns; -- Wait at least until key expansion is finished is over
 EnCoreI <= '1';
 testIV <= IV; 
 testPlaintext <= plaintext3;
-wait for 10 ns;
+wait for 10  ns;
 EnCoreI <= '0'; 
 wait;
 end process;
 
 -- process to update the IV
-process (Resetn, Clock, WrEn) 
+process (all) 
 begin
 -- initialize IV
 if Resetn = '0' then

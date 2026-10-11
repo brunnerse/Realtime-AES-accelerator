@@ -129,8 +129,8 @@ DUT: component AES_Unit_Sim_Bd port map (
 );
 
 
-Clock <= not Clock after 5ns;
-Resetn <= '1' after 50ns;
+Clock <= not Clock after 5 ns;
+Resetn <= '1' after 50 ns;
 
 
 channel_gen:
@@ -177,7 +177,7 @@ begin
 wraddr <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
 wrdata <= CHANNEL_CR(ch);
 wren <= '1';
-wait for 10ns;
+wait for 10 ns;
 wren <= '0';
 end procedure;
 
@@ -188,16 +188,16 @@ wren <= '1';
 -- set source addr
 wraddr <= std_logic_vector(to_unsigned(ADDR_DINADDR, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
 wrdata <= SwapEndian(std_logic_vector(to_unsigned(plainAddr + ((ch+1)*ch/2)*BLOCK_SIZE, 32)));
-wait for 10ns;
+wait for 10 ns;
 report "Set as sourceaddr for channel " & integer'image(ch) & ": " & to_hstring(to_bitvector(wrdata));
 -- set dest addr
 wraddr <= std_logic_vector(to_unsigned(ADDR_DOUTADDR, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
 wrdata <= SwapEndian(std_logic_vector(to_unsigned(cipherAddr + (ch/2*(ch+1))*BLOCK_SIZE, 32)));
-wait for 10ns;
+wait for 10 ns;
 -- set size
 wraddr <= std_logic_vector(to_unsigned(ADDR_DATASIZE, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
 wrdata <= SwapEndian(std_logic_vector(to_unsigned((ch+1)*BLOCK_SIZE, 32)));
-wait for 10ns;
+wait for 10 ns;
 -- set key
 longval := key;
 longval(127 downto 120) := std_logic_vector(to_unsigned(ch, 8));
@@ -205,7 +205,7 @@ for i in 0 to 3 loop
     wren <= '1';
     wraddr <= std_logic_vector(to_unsigned(ADDR_KEYR0, ADDR_WIDTH) + i*4 + CHANNEL_OFFSET(ch));
     wrdata <= longval(127-i*32 downto 96-i*32);
-    wait for 10ns;
+    wait for 10 ns;
 end loop;
 -- set IV
 longval := testIV;
@@ -218,7 +218,7 @@ for i in 0 to 3 loop
     wren <= '1';
     wraddr <= std_logic_vector(to_unsigned(ADDR_IVR0, ADDR_WIDTH) + i*4 + CHANNEL_OFFSET(ch));
     wrdata <= longval(127-i*32 downto 96-i*32);
-    wait for 10ns;
+    wait for 10 ns;
 end loop;
 wren <= '0';
 end procedure;
@@ -238,10 +238,10 @@ wraddr <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_OFFSET(ch)
 wrdata <= CHANNEL_CR(ch);
 wrdata(7) <= '1'; -- set CCFC flag
 wrdata(0) <= '0'; -- deassert EN
-wait for 10ns;
+wait for 10 ns;
 -- deassert CCFC flag again
 wrdata(7) <= '0';
-wait for 10ns;
+wait for 10 ns;
 wren <= '0';
 end procedure;
 
@@ -260,15 +260,15 @@ report "[INFO] Configured all channels.";
 
 
 activateChannel(0);
-wait for 10ns;
+wait for 10 ns;
 
 activateChannel(1);
 
 -- Wait, then setup channel 2
-wait for 100ns;
+wait for 100 ns;
 activateChannel(2);
 
-wait for 800ns;
+wait for 800 ns;
 activateChannel(3);
 
 -- wait until CCF of channel 1 is set

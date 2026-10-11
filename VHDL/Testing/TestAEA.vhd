@@ -38,18 +38,6 @@ end TestAEA;
 
 architecture Behavioral of TestAEA is
 
-component PipelinedAEA is
-    Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           encrypt : in STD_LOGIC;
-           keyExpandFlag : in STD_LOGIC; 
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Resetn : in STD_LOGIC);
-end component;
-
 component AEA is
     Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
            dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
@@ -62,71 +50,79 @@ component AEA is
            Resetn : in STD_LOGIC);
 end component;
 
-component AES_Core is
-    Port ( Key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           --SaveRestore : inout std_logic;
-           EnI : in std_logic;
-           EnO : out std_logic;
-           mode : in std_logic_vector (MODE_LEN-1 downto 0);
-           chaining_mode : in std_logic_vector (CHMODE_LEN-1 downto 0);
-           Clock : in std_logic;
-           Resetn : in std_logic
-           );
-end component;
+signal Clock, Resetn : std_logic := '0';
 
-signal Clock, Resetn : std_logic;
-
-signal testPlaintext, testKey, testCiphertext, testDecCiphertext : std_logic_vector(KEY_SIZE-1 downto 0);
-signal EnEncI, EnEncO, EnDecI, EnDecO : std_logic;
-
-signal keyExpandFlagEnc, keyExpandFlagDec : std_logic;
+signal dIn, testKey, dOut: std_logic_vector(KEY_SIZE-1 downto 0);
+signal EnI, EnO : std_logic := '0';
+signal encrypt : std_logic := '1';
+signal keyExpandFlag : std_logic := '0';
 
 begin
 
-
---testPlaintext <= x"00102030011121310212223203132333";
 testKey <= x"000102030405060708090a0b0c0d0e0f";
 
-aeaEnc : AEA port map (testPlaintext, testCiphertext, testKey, '1', keyExpandFlagEnc, EnEncI, EnEncO, Clock, Resetn);
-aeaDec : AEA port map (testCiphertext, testDecCiphertext, testKey, '0', keyExpandFlagDec, EnDecI, EnDecO, Clock, Resetn);
+aeaEnc : AEA port map (dIn, dOut, testKey, encrypt, keyExpandFlag, EnI, EnO, 
+    Clock => Clock, Resetn => Resetn);
 
-EnDecI <= EnEncO;
-
-
-process begin
-Clock <= '1'; wait for 5 ns;
-Clock <= '0'; wait for 5 ns;
-end process;
-process begin
-report "Starting";
-Resetn <= '0'; wait for 20 ns;
-report "Deactivating reset...";
-Resetn <= '1'; wait;
-end process;
+Clock <= not Clock after 5 ns;
 
 process begin
-keyExpandFlagEnc <= '0';
-keyExpandFlagDec <= '1';
-wait for 150 ns;
-report "Time is " & time'image(now);
+Resetn <= '0';
+EnI <= '0'; 
+wait for 30 ns;
+Resetn <= '1';
+--wait for 50  ns; -- Wait until Resetn is over
+EnI <= '1'; 
+encrypt <= '1';
+dIn <= x"00102030011121310212223203132333";
+wait for 10  ns;
+report "Started encryption with dIn = " & to_hstring(dIn);
+EnI <= '0'; 
+wait until EnO = '1';
+report "Encryption finished with dOut = " & to_hstring(dOut);
+
+wait for 20 ns;
+EnI <= '1';
+dIn <= dOut;
+encrypt <= '0';
+keyExpandFlag <= '0';
+wait for 10 ns;
+EnI <= '0';
+report "Started decryption with dIn = " & to_hstring(dIn);
+wait until EnO = '1';
+report "Decryption finished with dOut = " & to_hstring(dOut);
+
+report "Resetting round keys...";
+Resetn <= '0'; -- Reset round keys
+wait for 30 ns;
+Resetn <= '1'; 
+EnI <= '1';
+--dIn <= dOut; -- dIn should keep its value
+encrypt <= '0';
+keyExpandFlag <= '0';
+wait for 10 ns;
+EnI <= '0';
+report "Started decryption (keyexp=0) with dIn = " & to_hstring(dIn);
+wait until EnO = '1';
+report "Decryption finished with dOut = " & to_hstring(dOut);
+
+report "Resetting round keys...";
+Resetn <= '0'; -- Reset round keys
+wait for 30 ns;
+Resetn <= '1'; 
+--dIn <= dOut;
+EnI <= '1';
+encrypt <= '0';
+keyExpandFlag <= '1';
+wait for 10 ns;
+EnI <= '0';
+report "Started decryption (keyexp=1) with dIn = " & to_hstring(dIn);
+wait until EnO = '1';
+report "Decryption finished with dOut = " & to_hstring(dOut);
+
+--testPlaintext <= x"affedeadbeefdadcabbeadbeec0cabad";
+--wait for 10  ns;
 wait;
-end process;
-
--- Enable encryption once at the start, then disable it
-process begin
-EnEncI <= '0'; wait for 50 ns; -- Wait until Resetn is over
-EnEncI <= '1'; 
-testPlaintext <= x"00102030011121310212223203132333";
-wait for 10 ns;
-EnEncI <= '0'; wait for 110 ns;
-wait for 1000ns;
-EnEncI <= '1'; 
-testPlaintext <= x"affedeadbeefdadcabbeadbeec0cabad";
-wait for 10 ns;
-EnEncI <= '0'; wait;
 end process;
 
 

@@ -1,27 +1,27 @@
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.std_logic_unsigned.all;
+use ieee.numeric_std.ALL;
 
 use work.common.ALL;
 use work.sbox_definition.ALL;
 
 entity sbox_bram is
 generic (
-    DATA    : integer := 8;
-    ADDR    : integer := 9
+    DATA_LEN    : integer := 8;
+    ADDR_LEN    : integer := 9
 );
 port (
     -- Port A
     clka   : in std_logic;
     ena    : in std_logic;
-    addra  : in std_logic_vector(ADDR-1 downto 0);
-    douta  : out std_logic_vector(DATA-1 downto 0)
+    addra  : in std_logic_vector(ADDR_LEN-1 downto 0);
+    douta  : out std_logic_vector(DATA_LEN-1 downto 0)
 );
 end sbox_bram;
 
 architecture rtl of sbox_bram is
 
-   type mem_type is array (511 downto 0) of std_logic_vector(7 downto 0);
+   type mem_type is array (511 downto 0) of std_logic_vector(DATA_LEN-1 downto 0);
 
     impure function initSBox return mem_type is
     
@@ -41,9 +41,9 @@ begin
 -- Port A
 process(clka)
 begin
-    if(clka'event and clka='1') then
+    if rising_edge(clka) then
         if ena = '1' then
-            douta <= mem(conv_integer(addra));
+            douta <= mem(to_integer(unsigned(addra)));
         end if;
     end if;
 end process;

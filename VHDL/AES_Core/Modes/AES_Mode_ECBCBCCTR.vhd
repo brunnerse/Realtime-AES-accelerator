@@ -67,9 +67,9 @@ component AddRoundKey is
 end component;
 
 
-function incrementIV(IV : std_logic_vector(KEY_SIZE-1 downto 0)) return std_logic_vector is
+function incrementIV(IV_val : std_logic_vector(KEY_SIZE-1 downto 0)) return std_logic_vector is
 begin
-    return IV(KEY_SIZE-1 downto 32) & std_logic_vector(unsigned(IV(31 downto 0)) + to_unsigned(1,32));
+    return IV_val(KEY_SIZE-1 downto 32) & std_logic_vector(unsigned(IV_val(31 downto 0)) + to_unsigned(1,32));
 end function;
 
 

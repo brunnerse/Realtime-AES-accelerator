@@ -108,8 +108,8 @@ DUT: component AES_Unit_Sim_Bd port map (
 );
 
 
-Clock <= not Clock after 5ns;
-Resetn <= '1' after 50ns;
+Clock <= not Clock after 5 ns;
+Resetn <= '1' after 50 ns;
 
 channel_gen:
 for i in channel_range generate
@@ -125,8 +125,8 @@ begin
 
 end generate;
 
-Clock <= not Clock after 5ns;
-Resetn <= '1' after 50ns;
+Clock <= not Clock after 5 ns;
+Resetn <= '1' after 50 ns;
 
 
 
@@ -137,7 +137,7 @@ begin
 wraddr <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
 wrdata <= CHANNEL_CR(ch);
 wren <= '1';
-wait for 10ns;
+wait for 10 ns;
 wren <= '0';
 end procedure;
 
@@ -147,7 +147,7 @@ wraddr <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_OFFSET(ch)
 wrdata <= CHANNEL_CR(ch);
 wrdata(CR_POS_EN) <= '0';
 wren <= '1';
-wait for 10ns;
+wait for 10 ns;
 wren <= '0';
 end procedure;
 
@@ -165,10 +165,10 @@ wraddr <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH) + CHANNEL_OFFSET(ch)
 wrdata <= CHANNEL_CR(ch);
 wrdata(7) <= '1'; -- set CCFC flag
 wrdata(0) <= '0'; -- deassert EN
-wait for 10ns;
+wait for 10 ns;
 -- deassert CCFC flag again
 wrdata(7) <= '0';
-wait for 10ns;
+wait for 10 ns;
 wren <= '0';
 end procedure;
 
@@ -179,26 +179,26 @@ wait until Resetn = '1' and rising_edge(Clock);
 for i in 0 to NUM_CHANNELS-1 loop
     writeCR(i);
 end loop;
-wait for 50ns;
+wait for 50 ns;
 --activateChannel(0);
 activateChannel(1);
 activateChannel(3);
-wait for 160ns;
+wait for 160 ns;
 activateChannel(0);
 -- activate last channel shortly before first one is ready
-wait for 150ns;
+wait for 150 ns;
 activateChannel(2);
 
 
-wait for 90ns;
+wait for 90 ns;
 activateChannel(4);
 -- repeat activation several times, so that the search is aborted and restarted a few times
 for i in 0 to 4 loop
-  wait for 10ns;
+  wait for 10 ns;
   activateChannel(4);
 end loop;
 -- channel 1 activates after channel 3 finished, so the search isnt restarted again
-wait for 80ns;
+wait for 80 ns;
 activateChannel(0);
 -- channel 2 starts; new search that channel 1 wins
 

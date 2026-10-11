@@ -61,7 +61,7 @@ if rising_edge(Clock) then
     EnO <= '0';
     if Resetn = '0' then
         for i in keys'RANGE loop
-            keys(i) <= ( others=> '0');
+            keys(i) <= ( others=> '-');
         end loop;
         keyIndex <= 1;
         RCon <= x"01";

@@ -15,26 +15,27 @@ type ROUNDKEYARRAY is array(1 to NUM_ROUNDS) of STD_LOGIC_VECTOR(KEY_SIZE-1 down
 -- AEA column table. The table has always 4 rows, the number of columns depends on the key size
 type TABLE is array(0 to KEY_SIZE/32-1) of STD_LOGIC_VECTOR(31 downto 0);
 
+subtype mode_t is std_logic_vector(1 downto 0);
 
 -- AES Core definitions
-constant MODE_ENCRYPTION : std_logic_vector := "00";
-constant MODE_KEYEXPANSION : std_logic_vector := "01";
-constant MODE_DECRYPTION : std_logic_vector := "10";
-constant MODE_KEYEXPANSION_AND_DECRYPTION : std_logic_vector := "11";
+constant MODE_ENCRYPTION : mode_t := "00";
+constant MODE_KEYEXPANSION : mode_t := "01";
+constant MODE_DECRYPTION : mode_t := "10";
+constant MODE_KEYEXPANSION_AND_DECRYPTION : mode_t := "11";
 
-constant CHAINING_MODE_ECB : std_logic_vector := "00";
-constant CHAINING_MODE_CBC : std_logic_vector := "01";
-constant CHAINING_MODE_CTR : std_logic_vector := "10";
-constant CHAINING_MODE_GCM : std_logic_vector := "11";
+constant CHAINING_MODE_ECB : mode_t := "00";
+constant CHAINING_MODE_CBC : mode_t := "01";
+constant CHAINING_MODE_CTR : mode_t := "10";
+constant CHAINING_MODE_GCM : mode_t := "11";
 
 constant MODE_LEN : integer := 2;
 constant CHMODE_LEN : integer := 2;
 
 -- Galois Counter-Mode Phase definitions
-constant GCM_PHASE_INIT : std_logic_vector := "00";
-constant GCM_PHASE_HEADER : std_logic_vector := "01";
-constant GCM_PHASE_PAYLOAD : std_logic_vector := "10";
-constant GCM_PHASE_FINAL : std_logic_vector := "11";
+constant GCM_PHASE_INIT : mode_t := "00";
+constant GCM_PHASE_HEADER : mode_t := "01";
+constant GCM_PHASE_PAYLOAD : mode_t := "10";
+constant GCM_PHASE_FINAL : mode_t := "11";
 
 -- Control Logic write port definitions TODO other name
 constant DATA_WIDTH : integer := 32;

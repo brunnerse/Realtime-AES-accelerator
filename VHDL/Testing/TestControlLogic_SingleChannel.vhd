@@ -90,9 +90,9 @@ port map (testKey, testIV, H, Susp, WrEnCore, WrAddrCore, WrDataCore, din, testC
 
 
 -- processes for Clock and reset signal
-Clock <= not Clock after 5ns;
+Clock <= not Clock after 5 ns;
 process begin
-wait for 20 ns;
+wait for 20  ns;
 Resetn <= '1'; wait;
 end process;
 
@@ -101,11 +101,11 @@ end process;
 process
 begin
 CL_ready <= '0';
-wait for 10ns;
+wait for 10 ns;
 if CL_valid = '1' then
-    wait for 150ns;
+    wait for 150 ns;
     CL_ready <= '1';
-    wait for 10ns;
+    wait for 10 ns;
 end if;
 end process;
 
@@ -118,24 +118,24 @@ WrEnAXI <= '1';
 for i in 0 to 3 loop
     WrDataAXI <= testKey(127-(3-i)*32 downto 96 - (3-i)*32);
     WrAddrAXI <= std_logic_vector(to_unsigned(ADDR_KEYR0, ADDR_WIDTH)+i*4);
-    wait for 10ns;
+    wait for 10 ns;
 end loop;
 -- set IV
 for i in 0 to 3 loop
     WrDataAXI <= x"deadbeef";
     WrAddrAXI <= std_logic_vector(to_unsigned(ADDR_IVR0, ADDR_WIDTH) + i*4);
-    wait for 10ns;
+    wait for 10 ns;
 end loop;
 -- overwrite last IV word with 0x002
 WrDataAXI <= x"00000002";
-wait for 10ns;
+wait for 10 ns;
 
 -- Start GCM Init Phase
 WrDataAXI <= x"0000" & '0' & GCM_PHASE_INIT & "000" & "1" & "00" & CHAINING_MODE_GCM & MODE_ENCRYPTION & "00" & '1';
 WrAddrAXI <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
-wait for 10 ns;
+wait for 10  ns;
 WrEnAXI <= '0';
-wait for 10ns;
+wait for 10 ns;
 
 -- wait until CCF is given
 RdEnAXI <= '1';
@@ -148,14 +148,14 @@ wait until RdDataAXI(8) = '1';
 WrDataAXI <= x"20000000";
 WrAddrAXI <= std_logic_vector(to_unsigned(ADDR_DATASIZE, ADDR_WIDTH));
 WrEnAXI <= '1';
-wait for 10ns;
+wait for 10 ns;
 
 -- Start Header phase
 WrDataAXI <= x"0000" & '0' & GCM_PHASE_HEADER & "000" & "1" & "00" & CHAINING_MODE_GCM & MODE_ENCRYPTION & "00" & '1';
 WrAddrAXI <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
-wait for 10 ns;
+wait for 10  ns;
 WrEnAXI <= '0';
-wait for 10ns;
+wait for 10 ns;
 
 -- wait until CCF is given
 RdEnAXI <= '1';
@@ -167,13 +167,13 @@ wait until RdDataAXI(8) = '1';
 WrDataAXI <= x"30000000";
 WrAddrAXI <= std_logic_vector(to_unsigned(ADDR_DATASIZE, ADDR_WIDTH));
 WrEnAXI <= '1';
-wait for 10ns;
+wait for 10 ns;
 
 WrDataAXI <= x"0000" & '0' & GCM_PHASE_PAYLOAD & "000" & "1" & "00" & CHAINING_MODE_GCM & MODE_ENCRYPTION & "00" & '1';
 WrAddrAXI <= std_logic_vector(to_unsigned(ADDR_CR, ADDR_WIDTH));
-wait for 10 ns;
+wait for 10  ns;
 WrEnAXI <= '0';
-wait for 10ns;
+wait for 10 ns;
 
 -- wait until CCF is given
 RdEnAXI <= '1';
@@ -186,7 +186,7 @@ wait until RdDataAXI(8) = '1';
 WrDataAXI <= x"30000000";
 WrAddrAXI <= std_logic_vector(to_unsigned(ADDR_DATASIZE, ADDR_WIDTH));
 WrEnAXI <= '1';
-wait for 10ns;
+wait for 10 ns;
 
 
 wait;

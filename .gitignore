@@ -1,4 +1,5 @@
 *.sim
+*.ghw
 *.cache
 *.gen
 *.hw
@@ -9,7 +10,11 @@
 */bd/*
 *.bak
 *.exe
+
+.vs
+.vscode
 bd/
+*/build/
 __pycache__
 
 Diagrams

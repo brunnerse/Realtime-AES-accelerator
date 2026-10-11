@@ -160,8 +160,8 @@ DUT: component AES_Unit_2_Sim port map (
 );
 
 
-Clock <= not Clock after 5ns;
-Resetn <= '1' after 50ns;
+Clock <= not Clock after 5 ns;
+Resetn <= '1' after 50 ns;
 
 
 channel_gen:
@@ -206,11 +206,11 @@ end procedure;
 procedure writeWord(ch: channel_range; regaddr : integer; data : std_logic_vector(31 downto 0)) is
 begin
     -- validate all writes until here
-    wait for 0ns;
+    wait for 0 ns;
     wren <= '1';
     addr <= std_logic_vector(to_unsigned(regaddr, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
     wrdata <= data;
-    wait for 10ns;
+    wait for 10 ns;
     wren <= '0';
     wait until rising_edge(Clock) and busy = '0';
     report "Wrote " & to_hstring(to_bitvector(data)) & " to 0x" & to_hstring(to_bitvector(addr));
@@ -252,7 +252,7 @@ end procedure;
 procedure activateChannel(ch: channel_range) is
 begin
     wrdata <= CHANNEL_CR(ch);
-    wait for 0ns;
+    wait for 0 ns;
     WriteWord(ch, ADDR_CR, wrdata);
 end procedure;
 
@@ -306,11 +306,11 @@ begin
 wrdata <= CHANNEL_CR(ch);
 wrdata(7) <= '1'; -- set CCFC flag
 wrdata(0) <= '0'; -- deassert EN
-wait for 0ns;
+wait for 0 ns;
 WriteWord(ch, ADDR_CR, wrdata);
 -- deassert CCFC flag again
 wrdata(7) <= '0';
-wait for 0ns;
+wait for 0 ns;
 WriteWord(ch, ADDR_CR, wrdata);
 end procedure;
 
@@ -328,16 +328,16 @@ report "[INFO] Configured all channels.";
 
 -- Activate channel 0 Init phase
 activateChannel(0);
-wait for 10ns;
+wait for 10 ns;
 
 activateChannel(1);
 
 
 -- Wait, then setup channel 2
-wait for 100ns;
+wait for 100 ns;
 activateChannel(2);
 
-wait for 1000ns;
+wait for 1000 ns;
 activateChannel(3);
 
 -- wait until channels are finished, then assert the data

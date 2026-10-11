@@ -47,15 +47,15 @@ architecture Behavioral of SubBytes is
 
 component sbox_bram is
 generic (
-    DATA    : integer := 8;
-    ADDR    : integer := 9
+    DATA_LEN    : integer := 8;
+    ADDR_LEN    : integer := 9
 );
 port (
     -- Port A
     clka   : in std_logic;
     ena    : in std_logic;
-    addra  : in std_logic_vector(ADDR-1 downto 0);
-    douta  : out std_logic_vector(DATA-1 downto 0)
+    addra  : in std_logic_vector(ADDR_LEN-1 downto 0);
+    douta  : out std_logic_vector(DATA_LEN-1 downto 0)
 );
 end component;
 

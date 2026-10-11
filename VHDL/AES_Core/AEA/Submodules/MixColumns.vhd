@@ -104,8 +104,6 @@ tableToDout : TableToVector port map(tableOut, dOut);
 
 process (Clock)
 
-variable times2, times3, a3 : std_logic_vector(7 downto 0);
-variable temp1, temp2, temp3, temp4 : std_logic_vector(7 downto 0);
 variable extendedCol : std_logic_vector(55 downto 0);
 variable extColLine : integer;
 
