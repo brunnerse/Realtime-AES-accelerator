@@ -62,6 +62,8 @@ end component;
 type s_addr is array (BLOCK_SIZE-1 downto 0) of std_logic_vector(8 downto 0);
 signal addr : s_addr;
 	  
+
+-- TODO look at inference: Should generate block ram in both cases
 begin
 GEN_BRAM:
 if USE_BLOCK_RAM generate

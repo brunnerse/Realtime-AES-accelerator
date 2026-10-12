@@ -21,6 +21,8 @@
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+ 
 use work.common.ALL;
 use work.sbox_definition.sbox_encrypt;
 
@@ -30,87 +32,124 @@ use IEEE.NUMERIC_STD.ALL;
 
 
 entity KeyExpansion is
-    Port ( userKey : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           roundKeys : out ROUNDKEYARRAY;
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Resetn : in STD_LOGIC);
+    Port (  userKey : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+            setUserKey : in STD_LOGIC;
+            calcNextRoundKey : in STD_LOGIC;
+            reverse : in STD_LOGIC;
+--
+            roundKey : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
+            isLastRoundKey : out STD_LOGIC;
+            Clock : in STD_LOGIC;
+            Resetn : in STD_LOGIC);
 end KeyExpansion;
 
 
 architecture Behavioral of KeyExpansion is
 
 -- The Index of the key that is being calculated in this cycle
-signal keyIndex : integer range 1 to NUM_ROUNDS;
-
-signal keys : ROUNDKEYARRAY;
+signal round : integer range 0 to NUM_ROUNDS;
 signal RCon : STD_LOGIC_VECTOR (7 downto 0);
 
-begin
+type words_t is array(0 to 3) of STD_LOGIC_VECTOR(31 downto 0);
 
-roundKeys <= keys;
+begin
 
 process (Clock)
 
-variable lastKey : STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-variable word_1, word : STD_LOGIC_VECTOR(31 downto 0);
+variable temp : STD_LOGIC_VECTOR(31 downto 0);
+
+variable W, prevW : words_t; 
 
 begin
 if rising_edge(Clock) then
-    EnO <= '0';
-    if Resetn = '0' then
-        for i in keys'RANGE loop
-            keys(i) <= ( others=> '-');
-        end loop;
-        keyIndex <= 1;
-        RCon <= x"01";
+    -- TODO need to store the last key somewhere to start at it on reverse
+    if Resetn = '0' or setUserKey = '1' then
+        roundKey <= userKey; 
+        RCon <= x"01"; 
+        round <= 0;
     else
-         -- currently calculating a key; one key per cycle
-        if EnI = '1' or keyIndex > 1 then
-            -- in first round, lastKey is the userKey
-            if EnI = '1' then
-                lastKey := userKey;
-            else
-                lastKey := keys(keyIndex-1);
-            end if;
-            -- Calculate first word
-            word_1 := lastKey(31 downto 0);
-            -- Rotate word: rol 8
-            word_1 := word_1(23 downto 0) & word_1(31 downto 24);
-            -- perform substitution for each byte of word_1
-            for j in 3 downto 0 loop
-                word_1((j+1)*8-1 downto j*8) := sbox_encrypt(to_integer(unsigned(word_1((j+1)*8-1 downto j*8))));
-            end loop;
-            -- xor with constant
-            word_1 := word_1 xor (Rcon & x"000000");
-            -- Calculate new constant:  Old RCon * 'x' (i.e. 02), which means 2Rcon 
-            if RCon(7) = '0' then -- RCon < 0x80
-                RCon <= RCon(6 downto 0) & '0';
-            else
-                RCon <= (RCon(6 downto 0) & '0') xor x"1b";
-            end if;
-            
-            word := word_1 xor lastKey(127 downto 96);
-            keys(keyIndex)(127 downto 96) <= word;
-            
-            -- Calculate the other 3 words
-            for i in 1 to 3 loop
-                -- xor the previous word with the fourth last word (w_1 xor w_4)
-                word := word xor lastKey(127-32*i downto 96-32*i);
-                keys(keyIndex)(127-32*i downto 96-32*i) <= word;
-            end loop;
+        -- For readability, split roundKey into words, than assemble it at the end again
+        for i in 0 to 3 loop
+            prevW(i) := roundKey(127-32*i downto 96-32*i);
+            W(i) := (others => '-');
+        end loop;
 
-            -- Check if all words have been calculated
-            if keyIndex = NUM_ROUNDS then
-                -- Set EnO and reset helper variables for next run
-                EnO <= '1';
-                keyIndex <= 1;
-                RCon <= x"01";
+        if calcNextRoundKey = '1' then
+
+            if round = NUM_ROUNDS - 1 then
+                isLastRoundKey <= '1';
             else
-                keyIndex <= keyIndex + 1;
+                isLastRoundKey <= '0';
             end if;
+
+            if reverse /= '1' then
+                round <= round + 1;
+
+                -- Calculate first word from previous word (the last roundKey word)
+                temp := prevW(3); 
+                -- Rotate word: rol 8
+                temp := temp(23 downto 0) & temp(31 downto 24);
+                -- perform substitution for each byte 
+                for j in 3 downto 0 loop
+                    temp(j*8+7 downto j*8) := sbox_encrypt(to_integer(unsigned(temp(j*8+7 downto j*8))));
+                end loop;
+                -- xor with Rcon constant
+                temp := temp xor (Rcon & x"000000");
+
+                for i in 0 to 3 loop
+                    W(i) := temp xor prevW(i);
+                    temp := W(i);
+                end loop;
+
+                -- Calculate new constant:  Old RCon * 'x' (i.e. 02), which means 2Rcon 
+                if round /= NUM_ROUNDS - 1 then
+                    if RCon(7) = '0' then -- RCon < 0x80
+                        RCon <= RCon(6 downto 0) & '0';
+                    else
+                        RCon <= (RCon(6 downto 0) & '0') xor x"1b";
+                    end if;
+                end if;
+
+            else
+                -- Reverse KeyExpansion
+                round <= round - 1;
+
+                --prevkeyW[3] = keyW[3] ^ keyW[2]; 
+                for i in 3 downto 1 loop
+                    W(i) := prevW(i) xor prevW(i-1);
+                end loop;
+
+                temp := W(3);
+                -- Rotate word: rol 8
+                temp := temp(23 downto 0) & temp(31 downto 24);
+                -- perform substitution for each byte 
+                for j in 3 downto 0 loop
+                    temp(j*8+7 downto j*8) := sbox_encrypt(to_integer(unsigned(temp(j*8+7 downto j*8))));
+                end loop;
+                -- xor with Rcon constant
+                temp := temp xor (Rcon & x"000000");
+
+                W(0) := prevW(0) xor temp;
+
+                -- Calculate prev constant:  RCon / 'x' (i.e. 02), which means 2Rcon 
+                -- if lowest bit was set, that must men "xor x1b" was executed previously
+                if RCon(0) = '1' then 
+                    -- Reverse (Rcon << 1) xor x"1b"
+                    RCon <= std_logic_vector(shift_right(unsigned(RCon xor x"1b"), 1));
+                    RCon(7) <= '1';
+--                    RCon <= ('1' & Rcon(7 downto 1)) xor x"0d"; 
+                else
+                    RCon <= "0" & RCon(7 downto 1);
+                end if;
+
+
+            end if;
+
+            for i in 0 to 3 loop
+                roundKey(127-32*i downto 96-32*i) <= W(i);
+            end loop;
         end if;
+
     end if;
 end if;
 end process;

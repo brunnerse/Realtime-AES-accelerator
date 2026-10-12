@@ -67,12 +67,15 @@ component AEA_Round is
 end component;
 
 component KeyExpansion is
-    Port ( userKey : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           roundKeys : out ROUNDKEYARRAY;
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Resetn : in STD_LOGIC);
+    Port (  userKey : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+            setUserKey : in STD_LOGIC;
+            calcNextRoundKey : in STD_LOGIC;
+            reverse : in STD_LOGIC;
+--
+            roundKey : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
+            isLastRoundKey : out STD_LOGIC;
+            Clock : in STD_LOGIC;
+            Resetn : in STD_LOGIC);
 end component;
 
 type state_type is (Idle, RoundState);
@@ -88,8 +91,9 @@ signal EnOPreARK, EnORound : std_logic;
 signal isLastRound, roundIsLastCycle : std_logic;
 
 -- signals for the KeyExpansion, which is only used for decryption
-signal roundKeys : ROUNDKEYARRAY;
-signal EnIKeyExp, EnOKeyExp : std_logic;
+signal keyexpSetUserKey, keyexpCalcNextKey, keyexpReverse : std_logic;
+signal keyexpIsLastRoundKey : std_logic;
+
 
 begin
 
@@ -98,8 +102,10 @@ preARK : AddRoundKey
              port map(dInPreARK, dOutPreARK, key, EnIPreARK, EnOPreARK, Clock, Resetn);
 roundAEA : AEA_Round
              port map(dInRound, dOutRound, roundKey, encrypt, isLastRound, EnIRound, EnORound, roundIsLastCycle, Clock, Resetn);
+
 keyExp : KeyExpansion
-             port map(key, roundKeys, EnIKeyExp, EnOKeyExp, Clock, Resetn); 
+             port map(key, keyexpSetUserKey, keyexpCalcNextKey, keyexpReverse,
+                roundKey, keyexpIsLastRoundKey, Clock, Resetn);
 
 -- connect data signals of the components
 dInPreARK <= dIn when encrypt = '1' else dOutRound;
@@ -110,23 +116,27 @@ dOut <= dOutRound when encrypt = '1' else dOutPreARK;
 
 -- connect enable signals
 -- Always run KeyExpansion for simplicity;  wouldn't be necessary in Decyption mode, but doesn't change the result
-EnIKeyExp <= EnI; 
+keyexpSetUserKey <= EnI and encrypt; -- Set key at the start 
+keyexpCalcNextKey <= EnIRound; -- TODO for decode??
+-- TODO for decode, switch it on after certain numbers isLastRoundKey is set
+keyexpReverse <= '1' when encrypt = '0' and keyExpandFlag = '0' else -- encryption mode
+                 '0';
+
 
 EnIPreARK <= '0' when encrypt = '1' and keyExpandFlag = '1' else -- KeyExpansion mode: don't run
             EnI when encrypt = '1' else -- Encryption mode
             EnORound; -- Decryption mode
 EnIRound <= EnORound when state = RoundState else
             EnOPreARK when encrypt = '1' else -- Init in encryption mode
-            EnOKeyExp when encrypt = '0' and keyExpandFlag = '1' else -- decryption with keyexpansion
+            keyexpIsLastRoundKey when encrypt = '0' and keyExpandFlag = '1' else -- decryption with keyexpansion
             EnI; -- decryption without keyexpansion: start round immediately
              
 -- Set EnO to 0, except in the last round, where it is set to the enable signal of the last component
 EnO <= '0' when state /= Idle else 
         EnORound when encrypt = '1' and keyExpandFlag = '0' else -- encryption mode
         EnOPreARK when encrypt = '0'  else  -- decryption
-        EnOKeyExp ; -- KeyExpansion mode
+        keyexpIsLastRoundKey ; -- KeyExpansion mode
                
-roundKey <= roundKeys(currentRound);
 
 -- process that counts up/down the currentRound variable and sets isLastRound accordingly
 process (Clock)
