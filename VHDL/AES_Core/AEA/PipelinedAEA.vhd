@@ -29,9 +29,9 @@ use work.sbox_definition.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
 entity PipelinedAEA is
-    Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( dIn : in block_t;
+           dOut : out block_t;
+           key : in key_t;
            encrypt : in STD_LOGIC;
            -- for encrypt = 1, keyExpandFlag = 1 means just keyExpansion, for encrypt = 0, keyExpandFlag=0 means no KeyExpansion
            keyExpandFlag : in STD_LOGIC; 
@@ -44,9 +44,9 @@ end PipelinedAEA;
 architecture Behavioral of PipelinedAEA is
 
 component AddRoundKey is
-    Port ( din : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dout : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( din : in block_t;
+           dout : out block_t;
+           key : in key_t;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
@@ -54,9 +54,9 @@ component AddRoundKey is
 end component;
 
 component AEA_Round is
-    Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( dIn : in block_t;
+           dOut : out block_t;
+           key : in key_t;
            encrypt : in STD_LOGIC;
            isLastRound : in STD_LOGIC;
            EnI : in STD_LOGIC;
@@ -67,7 +67,7 @@ component AEA_Round is
 end component;
 
 component KeyExpansion is
-    Port ( userKey : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( userKey : in key_t;
            roundKeys : out ROUNDKEYARRAY;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;

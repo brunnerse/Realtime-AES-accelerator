@@ -32,8 +32,8 @@ entity SubBytes is
     Generic (
         USE_BLOCK_RAM : boolean := true
     );
-    Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( dIn : in block_t;
+           dOut : out block_t;
            encrypt : in STD_LOGIC;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
@@ -59,38 +59,38 @@ port (
 );
 end component;
 
-type s_addr is array (BLOCK_SIZE-1 downto 0) of std_logic_vector(8 downto 0);
-signal addr : s_addr;
-	  
 
--- TODO look at inference: Should generate block ram in both cases
 begin
 GEN_BRAM:
 if USE_BLOCK_RAM generate
 GEN_SBOX : 
-for i in 0 to BLOCK_SIZE-1 generate
-    addr(i) <= encrypt & dIn(i*8+7 downto i*8);
+for i in 0 to BLOCK_SIZE/8-1 generate
     -- encryption sbox
     sbox_i : sbox_bram port map (
         clka => Clock,
         ena => EnI,
-        addra => addr(i),
-        douta => dout(i*8+7 downto i*8)
+        addra => encrypt & dIn(i*8+7 downto i*8),
+        douta => dOut(i*8+7 downto i*8)
     );   
 end generate;
 end generate;
+
 GEN_LOGIC:
 if not USE_BLOCK_RAM generate
 process (Clock)
 begin
-if rising_edge(Clock) and EnI = '1' then
-    for i in BLOCK_SIZE-1 downto 0 loop
-        if encrypt = '1' then
-            dout(i*8+7 downto i*8) <= sbox_encrypt(to_integer(unsigned(dIn(i*8+7 downto i*8))));
-        else
-            dout(i*8+7 downto i*8) <= sbox_decrypt(to_integer(unsigned(dIn(i*8+7 downto i*8))));
+if rising_edge(Clock) then
+    if Resetn = '0' then
+        dOut <= (others => '-');
+    elsif EnI = '1' then
+        for i in BLOCK_SIZE/8-1 downto 0 loop
+            if encrypt = '1' then
+                dOut(i*8+7 downto i*8) <= sbox_encrypt(to_integer(unsigned(dIn(i*8+7 downto i*8))));
+            else
+                dOut(i*8+7 downto i*8) <= sbox_decrypt(to_integer(unsigned(dIn(i*8+7 downto i*8))));
+            end if;
+        end loop;
         end if;
-    end loop;
 end if;
 end process;
 end generate;

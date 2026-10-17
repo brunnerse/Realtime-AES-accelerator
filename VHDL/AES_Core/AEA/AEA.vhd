@@ -26,9 +26,10 @@ use work.common.ALL;
 use work.sbox_definition.sbox_encrypt;
 
 entity AEA is
-    Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-       dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-       key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( 
+       dIn : in block_t; 
+       dOut : out block_t; 
+       key : in key_t; 
        encrypt : in STD_LOGIC;
        -- for encrypt = 1, keyExpandFlag = 1 means just keyExpansion, for encrypt = 0, keyExpandFlag=0 means no KeyExpansion
        keyExpandFlag : in STD_LOGIC; 
@@ -44,9 +45,9 @@ component AddRoundKey is
     Generic (
         synchronous : boolean := true
         );
-    Port ( din : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dout : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( din : in block_t;
+           dout : out block_t;
+           key : in key_t;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
@@ -54,9 +55,9 @@ component AddRoundKey is
 end component;
 
 component AEA_Round is
-    Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( dIn : in block_t;
+           dOut : out block_t;
+           key : in key_t;
            encrypt : in STD_LOGIC;
            isLastRound : in STD_LOGIC;
            EnI : in STD_LOGIC;
@@ -67,12 +68,12 @@ component AEA_Round is
 end component;
 
 component KeyExpansion is
-    Port (  userKey : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port (  userKey : in key_t;
             setUserKey : in STD_LOGIC;
             calcNextRoundKey : in STD_LOGIC;
             reverse : in STD_LOGIC;
 --
-            roundKey : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
+            roundKey : out key_t;
             isLastRoundKey : out STD_LOGIC;
             Clock : in STD_LOGIC;
             Resetn : in STD_LOGIC);
@@ -80,7 +81,7 @@ end component;
 
 type state_type is (Idle, RoundState);
 
-signal currentRound : integer range 1 to NUM_ROUNDS;
+signal currentRound : integer range 1 to AES_NR;
 signal state : state_type;
 
 -- signals to connect the components
@@ -146,7 +147,7 @@ begin
     -- for decryption, start with the last round
     -- default values are for decryption, as Mode Decryption (without KeyExp) start immediately in rounds,
     -- whereas with Mode Encryption, there's one cycle before the round starts, so the values can still be changed
-    currentRound <= NUM_ROUNDS;
+    currentRound <= AES_NR;
     isLastRound <= '1';
 end procedure;
 
@@ -173,7 +174,7 @@ if rising_edge(Clock) then
                 -- Update currentRound and state in the last cycle before the round finishes
                 if roundIsLastCycle = '1' then
                     -- Set the isLastRound signal for encryption before the last round starts
-                    if encrypt = '1' and currentRound = NUM_ROUNDS-1 then
+                    if encrypt = '1' and currentRound = AES_NR-1 then
                         isLastRound <= '1';
                     else
                         -- during decryption, round 10 (with isLastRound='1') is the first round,
@@ -183,7 +184,7 @@ if rising_edge(Clock) then
                     
                     -- Increment/Decrement currentRound, Change state to idle if last round reached
                     if encrypt = '1' then
-                        if currentRound = NUM_ROUNDS then
+                        if currentRound = AES_NR then
                             SwitchToIdle;
                         else
                             currentRound <= currentRound + 1;
@@ -197,7 +198,6 @@ if rising_edge(Clock) then
                         end if;                        
                     end if;
                 end if;
-            when others =>
         end case;
     end if;
 end if;

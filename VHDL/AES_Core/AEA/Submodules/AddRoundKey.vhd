@@ -36,9 +36,9 @@ entity AddRoundKey is
     Generic (
         synchronous : boolean := true
         );
-    Port ( din : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dout : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( din : in block_t;
+           dout : out block_t;
+           key : in key_t;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
@@ -60,11 +60,12 @@ begin
 if rising_edge(Clock) then
     if Resetn = '0' then
         EnO <= '0';
+        dOut <= (others => '-');
     else
         EnO <= EnI;
         if EnI = '1' then
             dOut <= din xor key;
-            report "[AddRoundKey] with key " & to_hstring(key);
+--            report "[AddRoundKey] with key " & to_hstring(to_bitvector(key));
         end if;
     end if;
 end if;

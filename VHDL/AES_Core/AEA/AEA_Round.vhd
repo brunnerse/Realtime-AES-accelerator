@@ -29,9 +29,9 @@ use work.common.ALL;
 
 
 entity AEA_Round is
-    Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( dIn : in block_t;
+           dOut : out block_t;
+           key : in key_t;
            encrypt : in STD_LOGIC;
            isLastRound : in STD_LOGIC;
            EnI : in STD_LOGIC;
@@ -44,8 +44,8 @@ end AEA_Round;
 architecture Behavioral of AEA_Round is
 
 component SubBytes is
-    Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( dIn : in block_t;
+           dOut : out block_t;
            encrypt : in STD_LOGIC;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
@@ -57,8 +57,8 @@ component ShiftRows is
     Generic (
         synchronous : boolean := false
         );
-    Port ( din : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dout : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( din : in block_t;
+           dout : out block_t;
            encrypt : in STD_LOGIC;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
@@ -70,9 +70,9 @@ component AddRoundKey is
     Generic (
         synchronous : boolean := true
         );
-    Port ( din : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dout : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( din : in block_t;
+           dout : out block_t;
+           key : in key_t;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
@@ -80,8 +80,8 @@ component AddRoundKey is
 end component;
 
 component MixColumns is
-    Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( dIn : in block_t;
+           dOut : out block_t;
            encrypt : in STD_LOGIC;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;

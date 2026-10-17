@@ -33,9 +33,9 @@ entity AES_Mode_ECBCBCCTR is
         ADDR_IV : integer
         );
     Port (
-           IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           IV : in block_t;
+           dIn : in block_t;
+           dOut : out block_t;
            EnI : in std_logic;
            EnO : out std_logic;
             -- signals to control the AEA unit
@@ -46,7 +46,7 @@ entity AES_Mode_ECBCBCCTR is
            -- signals to write to register set
            WrEn   : out STD_LOGIC;
            WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
-           WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
+           WrData : out block_t;
            mode : in std_logic_vector (MODE_LEN-1 downto 0);
            chaining_mode : in std_logic_vector (CHMODE_LEN-1 downto 0);
            Clock : in std_logic;
@@ -57,9 +57,9 @@ end AES_Mode_ECBCBCCTR;
 architecture Behavioral of AES_Mode_ECBCBCCTR is
 
 component AddRoundKey is
-    Port ( din : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dout : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( din : in block_t;
+           dout : out block_t;
+           key : in key_t;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;

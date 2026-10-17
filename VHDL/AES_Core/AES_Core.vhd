@@ -35,15 +35,15 @@ entity AES_Core is
         ADDR_SUSP : integer := ADDR_SUSPR0;
         ADDR_H  : integer := ADDR_HR0
         );
-    Port ( Key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           H  : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           Susp : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( Key : in key_t;
+           IV : in block_t;
+           H  : in block_t;
+           Susp : in block_t;
            WrEn   : out STD_LOGIC;
            WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
-           WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
-           dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           WrData : out key_t;
+           dIn : in block_t;
+           dOut : out block_t;
            EnI : in std_logic;
            EnO : out std_logic;
            mode : in std_logic_vector (MODE_LEN-1 downto 0);
@@ -67,9 +67,9 @@ ATTRIBUTE X_INTERFACE_INFO of WrAddr: SIGNAL is
 
 
 component AEA is
-    Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( dIn : in block_t;
+           dOut : out block_t;
+           key : in key_t;
            encrypt : in STD_LOGIC;
 	       keyExpandFlag : in STD_LOGIC;
            EnI : in STD_LOGIC;
@@ -83,9 +83,9 @@ component AES_Mode_ECBCBCCTR is
         ADDR_IV : integer
         );
     Port (
-           IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           IV : in block_t;
+           dIn : in block_t;
+           dOut : out block_t;
            EnI : in std_logic;
            EnO : out std_logic;
             -- signals to control the AEA unit
@@ -96,7 +96,7 @@ component AES_Mode_ECBCBCCTR is
            -- signals to write to register set
            WrEn   : out STD_LOGIC;
            WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
-           WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
+           WrData : out block_t;
            mode : in std_logic_vector (MODE_LEN-1 downto 0);
            chaining_mode : in std_logic_vector (CHMODE_LEN-1 downto 0);
            Clock : in std_logic;
@@ -111,12 +111,12 @@ component AES_Mode_GCM is
         ADDR_H  : integer
         );
     Port (
-           IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           IV : in block_t;
            -- specific signals for GCM mode
-           H  : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           Susp : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0); -- for the first block, this signals MUST be 0
-           dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           H  : in block_t;
+           Susp : in block_t; -- for the first block, this signals MUST be 0
+           dIn : in block_t;
+           dOut : out block_t;
            EnI : in std_logic;
            EnO : out std_logic;
            encrypt : in std_logic;
@@ -129,7 +129,7 @@ component AES_Mode_GCM is
            -- signals to write to register set
            WrEn   : out STD_LOGIC;
            WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
-           WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
+           WrData : out block_t;
            Clock : in std_logic;
            Resetn : in std_logic
            );

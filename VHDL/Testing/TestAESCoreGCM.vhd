@@ -21,15 +21,15 @@ component AES_Core is
         ADDR_SUSP : integer;
         ADDR_H  : integer
         );
-    Port ( Key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           H  : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           Susp : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( Key : in key_t;
+           IV : in block_t;
+           H  : in block_t;
+           Susp : in block_t;
            WrEn   : out STD_LOGIC;
            WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
-           WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
-           dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           WrData : out key_t;
+           dIn : in key_t;
+           dOut : out key_t;
            EnI : in std_logic;
            EnO : out std_logic;
            mode : in std_logic_vector (MODE_LEN-1 downto 0);

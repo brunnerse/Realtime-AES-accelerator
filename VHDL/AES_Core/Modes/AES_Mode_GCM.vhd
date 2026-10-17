@@ -35,13 +35,13 @@ entity AES_Mode_GCM is
         ADDR_H  : integer
         );
     Port (
-           IV : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           IV : in block_t;
            -- specific signals for GCM mode
-           H  : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           Susp : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0); -- for the first block, this signals MUST be 0
+           H  : in block_t;
+           Susp : in block_t; -- for the first block, this signals MUST be 0
            
-           dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+           dIn : in block_t;
+           dOut : out block_t;
            EnI : in std_logic;
            EnO : out std_logic;
            encrypt : in std_logic;
@@ -54,7 +54,7 @@ entity AES_Mode_GCM is
            -- signals to write to register set
            WrEn   : out STD_LOGIC;
            WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
-           WrData : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
+           WrData : out block_t;
            Clock : in std_logic;
            Resetn : in std_logic
            );
@@ -68,9 +68,9 @@ component AddRoundKey is
     Generic (
         synchronous : boolean := true
     );
-    Port ( din : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dout : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( din : in block_t;
+           dout : out block_t;
+           key : in key_t;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;

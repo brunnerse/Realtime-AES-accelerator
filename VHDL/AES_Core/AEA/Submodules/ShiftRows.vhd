@@ -21,23 +21,18 @@
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
-use work.common.ALL;
-
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
 use IEEE.NUMERIC_STD.ALL;
 
--- Uncomment the following library declaration if instantiating
--- any Xilinx leaf cells in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
+use work.common.ALL;
+
+
 
 entity ShiftRows is
     Generic (
         synchronous : boolean := false
         );
-    Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( dIn : in block_t;
+           dOut : out block_t;
            encrypt : in STD_LOGIC;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
@@ -47,35 +42,57 @@ end ShiftRows;
 
 architecture Behavioral of ShiftRows is
 
-component VectorToTable Port
-    ( vector : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-       table  : out TABLE
-    );
-end component;
-component TableToVector is
-    Port (           
-        table  : in TABLE;
-        vector : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0)
-    );
-end component;
+type rows_t is array(0 to 3) of std_logic_vector(AES_NB*8-1 downto 0);
 
-signal tableIn, tableOut : TABLE;
+function vector2rows (vec : block_t) return rows_t is 
+    variable rows : rows_t;
+    variable row, col : integer;
+begin
+    for i in 0 to BLOCK_SIZE/8-1 loop 
+        row := i rem 4; 
+        col := i / 4; 
+        rows(row)(31-col*8 downto 24-col*8) := vec(127-i*8 downto 120-i*8);
+    end loop;
+    return rows;
+end function;
+
+function rows2vec (rows : rows_t) return block_t is 
+    variable vec : block_t;
+    variable row, col : integer;
+begin
+    for i in 0 to BLOCK_SIZE/8-1 loop 
+        row := i rem 4; 
+        col := i / 4; 
+        vec(127-i*8 downto 120-i*8) := rows(row)(31-col*8 downto 24-col*8); 
+    end loop;
+    return vec;
+end function;
+
+function shift_rows(vec : block_t; do_encrypt : boolean) return block_t is
+    variable rows : rows_t;
+begin
+    rows := vector2rows(vec);
+
+    if do_encrypt then
+        for i in rows_t'RANGE loop
+            rows(i) := std_logic_vector(unsigned(rows(i)) rol i*8);
+        end loop;
+    else
+        for i in rows_t'RANGE loop
+            rows(i) := std_logic_vector(unsigned(rows(i)) ror i*8);
+        end loop;
+    end if;
+
+    return rows2vec(rows);
+end function;
+
 
 begin
 
-dinToTable: VectorToTable port map(dIn, tableIn);
-tableToDout : TableToVector port map(tableOut, dOut);
 
 GenAsync: if not synchronous generate
     EnO <= EnI;
-    tableOut(0) <= tableIn(0)(31 downto 24) & tableIn(1)(23 downto 16) & tableIn(2)(15 downto 8) & tableIn(3)(7 downto 0) when encrypt = '1' else
-                   tableIn(0)(31 downto 24) & tableIn(3)(23 downto 16) & tableIn(2)(15 downto 8) & tableIn(1)(7 downto 0);
-    tableOut(1) <= tableIn(1)(31 downto 24) & tableIn(2)(23 downto 16) & tableIn(3)(15 downto 8) & tableIn(0)(7 downto 0) when encrypt = '1' else
-                   tableIn(1)(31 downto 24) & tableIn(0)(23 downto 16) & tableIn(3)(15 downto 8) & tableIn(2)(7 downto 0);
-    tableOut(2) <= tableIn(2)(31 downto 24) & tableIn(3)(23 downto 16) & tableIn(0)(15 downto 8) & tableIn(1)(7 downto 0) when encrypt = '1' else 
-                   tableIn(2)(31 downto 24) & tableIn(1)(23 downto 16) & tableIn(0)(15 downto 8) & tableIn(3)(7 downto 0);
-    tableOut(3) <= tableIn(3)(31 downto 24) & tableIn(0)(23 downto 16) & tableIn(1)(15 downto 8) & tableIn(2)(7 downto 0) when encrypt = '1' else  
-                   tableIn(3)(31 downto 24) & tableIn(2)(23 downto 16) & tableIn(1)(15 downto 8) & tableIn(0)(7 downto 0);            
+    dOut <= shift_rows(dIn, encrypt = '1');
 end generate;
 
 
@@ -87,28 +104,15 @@ begin
 if rising_edge(Clock) then
     if Resetn = '0' then
         EnO <= '0';
+        dOut <= (others => '-');
     else
         EnO <= EnI;
-        if encrypt = '1' then    
-            -- Rotate the rows manually. Keep in mind that the table is made out of columns, not rows!
-            tableOut(0) <= tableIn(0)(31 downto 24) & tableIn(1)(23 downto 16) & tableIn(2)(15 downto 8) & tableIn(3)(7 downto 0);
-            tableOut(1) <= tableIn(1)(31 downto 24) & tableIn(2)(23 downto 16) & tableIn(3)(15 downto 8) & tableIn(0)(7 downto 0);
-            tableOut(2) <= tableIn(2)(31 downto 24) & tableIn(3)(23 downto 16) & tableIn(0)(15 downto 8) & tableIn(1)(7 downto 0); 
-            tableOut(3) <= tableIn(3)(31 downto 24) & tableIn(0)(23 downto 16) & tableIn(1)(15 downto 8) & tableIn(2)(7 downto 0);
-        else 
-        -- decrypt: reverse the rotate direction
-            tableOut(0) <= tableIn(0)(31 downto 24) & tableIn(3)(23 downto 16) & tableIn(2)(15 downto 8) & tableIn(1)(7 downto 0);
-            tableOut(1) <= tableIn(1)(31 downto 24) & tableIn(0)(23 downto 16) & tableIn(3)(15 downto 8) & tableIn(2)(7 downto 0);
-            tableOut(2) <= tableIn(2)(31 downto 24) & tableIn(1)(23 downto 16) & tableIn(0)(15 downto 8) & tableIn(3)(7 downto 0); 
-            tableOut(3) <= tableIn(3)(31 downto 24) & tableIn(2)(23 downto 16) & tableIn(1)(15 downto 8) & tableIn(0)(7 downto 0);
-        end if;
+        dOut <= shift_rows(dIn, encrypt = '1');
     end if;
+
 end if;
 end process;
 
 end generate;
-
-
-
 
 end Behavioral;

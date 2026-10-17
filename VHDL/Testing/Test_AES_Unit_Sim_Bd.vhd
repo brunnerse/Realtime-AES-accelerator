@@ -187,16 +187,16 @@ begin
 wren <= '1';
 -- set source addr
 wraddr <= std_logic_vector(to_unsigned(ADDR_DINADDR, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
-wrdata <= SwapEndian(std_logic_vector(to_unsigned(plainAddr + ((ch+1)*ch/2)*BLOCK_SIZE, 32)));
+wrdata <= SwapEndian(std_logic_vector(to_unsigned(plainAddr + ((ch+1)*ch/2)*(BLOCK_SIZE/8), 32)));
 wait for 10 ns;
 report "Set as sourceaddr for channel " & integer'image(ch) & ": " & to_hstring(to_bitvector(wrdata));
 -- set dest addr
 wraddr <= std_logic_vector(to_unsigned(ADDR_DOUTADDR, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
-wrdata <= SwapEndian(std_logic_vector(to_unsigned(cipherAddr + (ch/2*(ch+1))*BLOCK_SIZE, 32)));
+wrdata <= SwapEndian(std_logic_vector(to_unsigned(cipherAddr + (ch/2*(ch+1))*(BLOCK_SIZE/8), 32)));
 wait for 10 ns;
 -- set size
 wraddr <= std_logic_vector(to_unsigned(ADDR_DATASIZE, ADDR_WIDTH) + CHANNEL_OFFSET(ch));
-wrdata <= SwapEndian(std_logic_vector(to_unsigned((ch+1)*BLOCK_SIZE, 32)));
+wrdata <= SwapEndian(std_logic_vector(to_unsigned((ch+1)*(BLOCK_SIZE/8), 32)));
 wait for 10 ns;
 -- set key
 longval := key;

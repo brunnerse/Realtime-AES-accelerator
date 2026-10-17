@@ -32,12 +32,12 @@ use IEEE.NUMERIC_STD.ALL;
 
 
 entity KeyExpansion is
-    Port (  userKey : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port (  userKey : in key_t; 
             setUserKey : in STD_LOGIC;
             calcNextRoundKey : in STD_LOGIC;
             reverse : in STD_LOGIC;
 --
-            roundKey : out STD_LOGIC_VECTOR(KEY_SIZE-1 downto 0);
+            roundKey : out block_t; 
             isLastRoundKey : out STD_LOGIC;
             Clock : in STD_LOGIC;
             Resetn : in STD_LOGIC);
@@ -47,12 +47,23 @@ end KeyExpansion;
 architecture Behavioral of KeyExpansion is
 
 -- The Index of the key that is being calculated in this cycle
-signal round : integer range 0 to NUM_ROUNDS;
+signal round : integer range 0 to AES_NR;
 signal RCon : STD_LOGIC_VECTOR (7 downto 0);
 
-type words_t is array(0 to 3) of STD_LOGIC_VECTOR(31 downto 0);
+type words_t is array(0 to AES_NB-1) of STD_LOGIC_VECTOR(31 downto 0);
+
+signal words : words_t; 
+
+signal finalKey : words_t;
 
 begin
+
+WtoKey: for i in 0 to AES_NB-1 generate
+    roundKey(roundKey'HIGH-32*i downto roundKey'HIGH-31-32*i) <= words(i);
+end generate;
+
+assert AES_NK = 4 report "Module does not support AES_NK /= 4!" severity failure;
+
 
 process (Clock)
 
@@ -62,21 +73,27 @@ variable W, prevW : words_t;
 
 begin
 if rising_edge(Clock) then
-    -- TODO need to store the last key somewhere to start at it on reverse
     if Resetn = '0' or setUserKey = '1' then
-        roundKey <= userKey; 
-        RCon <= x"01"; 
-        round <= 0;
-    else
-        -- For readability, split roundKey into words, than assemble it at the end again
-        for i in 0 to 3 loop
-            prevW(i) := roundKey(127-32*i downto 96-32*i);
-            W(i) := (others => '-');
-        end loop;
+        if reverse /= '1' then
+            for i in 0 to AES_NB-1 loop
+                words(i) <= userKey(userKey'HIGH-32*i downto userKey'HIGH-31-32*i); 
+            end loop;
 
+            RCon <= x"01"; 
+            round <= 0;
+            finalKey <= (others => (others => '-'));
+        else
+            words <= finalKey;
+            RCon <= x"36"; 
+            round <= AES_NR;
+        end if;
+    else
         if calcNextRoundKey = '1' then
 
-            if round = NUM_ROUNDS - 1 then
+            prevW := words;
+            W := (others => (others => '-'));
+
+            if round = AES_NR - 1 then
                 isLastRoundKey <= '1';
             else
                 isLastRoundKey <= '0';
@@ -86,7 +103,7 @@ if rising_edge(Clock) then
                 round <= round + 1;
 
                 -- Calculate first word from previous word (the last roundKey word)
-                temp := prevW(3); 
+                temp := prevW(AES_NB-1); 
                 -- Rotate word: rol 8
                 temp := temp(23 downto 0) & temp(31 downto 24);
                 -- perform substitution for each byte 
@@ -96,18 +113,20 @@ if rising_edge(Clock) then
                 -- xor with Rcon constant
                 temp := temp xor (Rcon & x"000000");
 
-                for i in 0 to 3 loop
+                for i in 0 to AES_NB-1 loop
                     W(i) := temp xor prevW(i);
                     temp := W(i);
                 end loop;
 
                 -- Calculate new constant:  Old RCon * 'x' (i.e. 02), which means 2Rcon 
-                if round /= NUM_ROUNDS - 1 then
+                if round /= AES_NR - 1 then
                     if RCon(7) = '0' then -- RCon < 0x80
                         RCon <= RCon(6 downto 0) & '0';
                     else
                         RCon <= (RCon(6 downto 0) & '0') xor x"1b";
                     end if;
+                else
+                    finalKey <= W;
                 end if;
 
             else
@@ -115,7 +134,7 @@ if rising_edge(Clock) then
                 round <= round - 1;
 
                 --prevkeyW[3] = keyW[3] ^ keyW[2]; 
-                for i in 3 downto 1 loop
+                for i in AES_NB-1 downto 1 loop
                     W(i) := prevW(i) xor prevW(i-1);
                 end loop;
 
@@ -141,13 +160,10 @@ if rising_edge(Clock) then
                 else
                     RCon <= "0" & RCon(7 downto 1);
                 end if;
-
-
             end if;
+        
+            words <= W;
 
-            for i in 0 to 3 loop
-                roundKey(127-32*i downto 96-32*i) <= W(i);
-            end loop;
         end if;
 
     end if;

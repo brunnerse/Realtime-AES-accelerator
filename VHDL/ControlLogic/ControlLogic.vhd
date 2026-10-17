@@ -358,7 +358,7 @@ end procedure;
                         dataSize <= SwapEndian(mem(highestChannel)(ADDR_DATASIZE/4));
                     end if;
                      -- Make sure dataCounter is divisible by BLOCK_SIZE
-                    dataSize(BLOCK_SIZE/8-1 downto 0) <= (others => '0');
+                    dataSize(log2(BLOCK_SIZE/8)-1 downto 0) <= (others => '0');
                     
                     -- add dataCount to addresses, reset dataCount if necessary
                     if isChannelInterrupted(highestChannel) = '1' then
@@ -427,20 +427,20 @@ end procedure;
                          
                     RV_valid <= '0';
                     -- increment dataCount of this channel
-                    dataCount(channel) <= std_logic_vector(unsigned(dataCount(channel)) + to_unsigned(BLOCK_SIZE, RV_addr'LENGTH));
+                    dataCount(channel) <= std_logic_vector(unsigned(dataCount(channel)) + to_unsigned(BLOCK_SIZE/8, RV_addr'LENGTH));
                     
                     -- check if computation is complete
-                    if (unsigned(dataSize) - unsigned(dataCount(channel))) <= to_unsigned(BLOCK_SIZE, dataSize'LENGTH) then
+                    if (unsigned(dataSize) - unsigned(dataCount(channel))) <= to_unsigned(BLOCK_SIZE/8, dataSize'LENGTH) then
                         -- Computation complete;  set interrupt and CCF
                         ChangeToIdleAndMarkAsComplete;                        
                     -- if there are more datablocks to process and the channel still has the highest priority, continue with fetch
                     elsif channel = highestChannel then
                         -- Not complete; Fetch next data block
                         -- increment addresses
-                        destAddress <= std_logic_vector(unsigned(destAddress) + to_unsigned(BLOCK_SIZE, RV_addr'LENGTH));
-                        sourceAddress <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(BLOCK_SIZE, RV_addr'LENGTH));
+                        destAddress <= std_logic_vector(unsigned(destAddress) + to_unsigned(BLOCK_SIZE/8, RV_addr'LENGTH));
+                        sourceAddress <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(BLOCK_SIZE/8, RV_addr'LENGTH));
                         -- set RV_addr to new source address
-                        RV_addr <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(BLOCK_SIZE, RV_addr'LENGTH));           
+                        RV_addr <= std_logic_vector(unsigned(sourceAddress) + to_unsigned(BLOCK_SIZE/8, RV_addr'LENGTH));           
                         RV_valid <= '1'; -- new memory request
                         RV_write <= '0';
                         state <= Fetch;

@@ -269,8 +269,8 @@ end procedure;
 procedure configureChannel(ch: channel_range) is
     variable longval : std_logic_vector(KEY_SIZE-1 downto 0);
 begin
-    setDataParameters(ch, plainAddr + ((ch+1)*ch/2)*BLOCK_SIZE, 
-        cipherAddr + ((ch+1)*ch/2)*BLOCK_SIZE, (ch+1)*BLOCK_SIZE);
+    setDataParameters(ch, plainAddr + ((ch+1)*ch/2)*(BLOCK_SIZE/8), 
+        cipherAddr + ((ch+1)*ch/2)*(BLOCK_SIZE/8), (ch+1)*(BLOCK_SIZE/8));
     -- set key
     longval := key;
     longval(127 downto 120) := std_logic_vector(to_unsigned(ch, 8));
@@ -343,7 +343,7 @@ activateChannel(3);
 -- wait until channels are finished, then assert the data
 for ch in 0 to 3 loop
     waitUntilCCF(ch);
-    assertMem(ch, cipherAddr + (ch*(ch+1)/2)*BLOCK_SIZE, (ch+1)*BLOCK_SIZE);
+    assertMem(ch, cipherAddr + (ch*(ch+1)/2)*(BLOCK_SIZE/8), (ch+1)*(BLOCK_SIZE/8));
 end loop;
 
 report "[Checked] Completed all checks.";

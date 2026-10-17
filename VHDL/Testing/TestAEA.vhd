@@ -39,9 +39,9 @@ end TestAEA;
 architecture Behavioral of TestAEA is
 
 component AEA is
-    Port ( dIn : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           dOut : out STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
-           key : in STD_LOGIC_VECTOR (KEY_SIZE-1 downto 0);
+    Port ( dIn : in block_t;
+           dOut : out block_t;
+           key : in key_t;
            encrypt : in STD_LOGIC;
            keyExpandFlag : in STD_LOGIC; 
            EnI : in STD_LOGIC;
@@ -76,10 +76,10 @@ EnI <= '1';
 encrypt <= '1';
 dIn <= x"00102030011121310212223203132333";
 wait for 10  ns;
-report "Started encryption with dIn = " & to_hstring(dIn);
+report "Started encryption with dIn = " & to_hstring(to_bitvector(dIn));
 EnI <= '0'; 
 wait until EnO = '1';
-report "Encryption finished with dOut = " & to_hstring(dOut);
+report "Encryption finished with dOut = " & to_hstring(to_bitvector(dOut));
 
 wait for 20 ns;
 EnI <= '1';
@@ -88,9 +88,9 @@ encrypt <= '0';
 keyExpandFlag <= '0';
 wait for 10 ns;
 EnI <= '0';
-report "Started decryption with dIn = " & to_hstring(dIn);
+report "Started decryption with dIn = " & to_hstring(to_bitvector(dIn));
 wait until EnO = '1';
-report "Decryption finished with dOut = " & to_hstring(dOut);
+report "Decryption finished with dOut = " & to_hstring(to_bitvector(dOut));
 
 report "Resetting round keys...";
 Resetn <= '0'; -- Reset round keys
@@ -102,9 +102,9 @@ encrypt <= '0';
 keyExpandFlag <= '0';
 wait for 10 ns;
 EnI <= '0';
-report "Started decryption (keyexp=0) with dIn = " & to_hstring(dIn);
+report "Started decryption (keyexp=0) with dIn = " & to_hstring(to_bitvector(dIn));
 wait until EnO = '1';
-report "Decryption finished with dOut = " & to_hstring(dOut);
+report "Decryption finished with dOut = " & to_hstring(to_bitvector(dOut));
 
 report "Resetting round keys...";
 Resetn <= '0'; -- Reset round keys
@@ -116,9 +116,9 @@ encrypt <= '0';
 keyExpandFlag <= '1';
 wait for 10 ns;
 EnI <= '0';
-report "Started decryption (keyexp=1) with dIn = " & to_hstring(dIn);
+report "Started decryption (keyexp=1) with dIn = " & to_hstring(to_bitvector(dIn));
 wait until EnO = '1';
-report "Decryption finished with dOut = " & to_hstring(dOut);
+report "Decryption finished with dOut = " & to_hstring(to_bitvector(dOut));
 
 --testPlaintext <= x"affedeadbeefdadcabbeadbeec0cabad";
 --wait for 10  ns;
