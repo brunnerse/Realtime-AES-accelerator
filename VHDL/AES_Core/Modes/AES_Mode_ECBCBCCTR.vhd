@@ -41,14 +41,14 @@ entity AES_Mode_ECBCBCCTR is
             -- signals to control the AEA unit
            EnIAEA : out std_logic;
            EnOAEA : in std_logic;
-           dInAEA : out std_logic_vector (KEY_SIZE-1 downto 0);
-           dOutAEA : in std_logic_vector (KEY_SIZE-1 downto 0);
+           dInAEA : out block_t; 
+           dOutAEA : in block_t;
            -- signals to write to register set
            WrEn   : out STD_LOGIC;
            WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
            WrData : out block_t;
-           mode : in std_logic_vector (MODE_LEN-1 downto 0);
-           chaining_mode : in std_logic_vector (CHMODE_LEN-1 downto 0);
+           mode : in mode_t;
+           chaining_mode : in mode_t;
            Clock : in std_logic;
            Resetn : in std_logic
            );
@@ -59,7 +59,7 @@ architecture Behavioral of AES_Mode_ECBCBCCTR is
 component AddRoundKey is
     Port ( din : in block_t;
            dout : out block_t;
-           key : in key_t;
+           key : in block_t;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
@@ -67,14 +67,14 @@ component AddRoundKey is
 end component;
 
 
-function incrementIV(IV_val : std_logic_vector(KEY_SIZE-1 downto 0)) return std_logic_vector is
+function incrementIV(IV_val : block_t) return std_logic_vector is
 begin
-    return IV_val(KEY_SIZE-1 downto 32) & std_logic_vector(unsigned(IV_val(31 downto 0)) + to_unsigned(1,32));
+    return IV_val(AES_BLOCK_SIZE-1 downto 32) & std_logic_vector(unsigned(IV_val(31 downto 0)) + to_unsigned(1,32));
 end function;
 
 
 -- signal definitions
-signal dInXOR1, dInXOR2, dOutXOR: std_logic_vector(KEY_SIZE-1 downto 0);
+signal dInXOR1, dInXOR2, dOutXOR: block_t;
 signal EnIXOR, EnOXOR, WrEnSignal : std_logic;
 signal encrypt : std_logic;
 

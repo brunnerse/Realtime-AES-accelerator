@@ -90,12 +90,12 @@ signal CHANNEL_CR : channel_cr_type;
 
 signal addrextended : std_logic_vector(31 downto 0);
 
-constant key : std_logic_vector(KEY_SIZE-1 downto 0) := x"000102030405060708090a0b0c0d0e0f";
-constant plaintext1 : std_logic_vector(KEY_SIZE-1 downto 0) := x"00102030011121310212223203132333";
-constant plaintext2 : std_logic_vector(KEY_SIZE-1 downto 0) := x"000102030405060708090a0b0c0d0e0f";
-constant plaintext3 : std_logic_vector(KEY_SIZE-1 downto 0) := x"affedeadbeefdadcabbeadbeec0cabad";
+constant key : key_t := x"000102030405060708090a0b0c0d0e0f";
+constant plaintext1 : block_t := x"00102030011121310212223203132333";
+constant plaintext2 : block_t := x"000102030405060708090a0b0c0d0e0f";
+constant plaintext3 : block_t := x"affedeadbeefdadcabbeadbeec0cabad";
 
-constant testIV : std_logic_vector(KEY_SIZE-1 downto 0) := x"f0e0d0c0b0a090807060504030201000";
+constant testIV : block_t := x"f0e0d0c0b0a090807060504030201000";
 
 type vector_array is array(natural range<>) of std_logic_vector(127 downto 0);
 type channel_vector_array is array(0 to 3) of vector_array(0 to 3);
@@ -166,9 +166,9 @@ Resetn <= '1' after 50 ns;
 
 channel_gen:
 for i in channel_range generate
-signal chmode : std_logic_vector(1 downto 0);
+signal chmode : mode_t; 
+signal gcmphase : mode_t; 
 signal priority : unsigned(NUM_PRIORITY_BITS-1 downto 0);
-signal gcmphase : std_logic_vector(1 downto 0);
 begin
     CHANNEL_OFFSET(i) <= i * 128;
     chmode <= CHAINING_MODE_ECB when i mod 3 = 0 else
@@ -267,7 +267,7 @@ end procedure;
 
 
 procedure configureChannel(ch: channel_range) is
-    variable longval : std_logic_vector(KEY_SIZE-1 downto 0);
+    variable longval : key_t;
 begin
     setDataParameters(ch, plainAddr + ((ch+1)*ch/2)*(BLOCK_SIZE/8), 
         cipherAddr + ((ch+1)*ch/2)*(BLOCK_SIZE/8), (ch+1)*(BLOCK_SIZE/8));

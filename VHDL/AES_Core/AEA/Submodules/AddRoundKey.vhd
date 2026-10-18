@@ -38,7 +38,7 @@ entity AddRoundKey is
         );
     Port ( din : in block_t;
            dout : out block_t;
-           key : in key_t;
+           roundkey : in block_t;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
@@ -51,7 +51,7 @@ begin
 
 GenASync: if not synchronous generate
 EnO <= EnI;
-dOut <= din xor key;
+dOut <= din xor roundkey;
 end generate;
 
 GenSync:  if synchronous generate
@@ -64,7 +64,7 @@ if rising_edge(Clock) then
     else
         EnO <= EnI;
         if EnI = '1' then
-            dOut <= din xor key;
+            dOut <= din xor roundkey;
 --            report "[AddRoundKey] with key " & to_hstring(to_bitvector(key));
         end if;
     end if;

@@ -31,7 +31,7 @@ use work.common.ALL;
 entity AEA_Round is
     Port ( dIn : in block_t;
            dOut : out block_t;
-           key : in key_t;
+           roundKey : in block_t;
            encrypt : in STD_LOGIC;
            isLastRound : in STD_LOGIC;
            EnI : in STD_LOGIC;
@@ -72,7 +72,7 @@ component AddRoundKey is
         );
     Port ( din : in block_t;
            dout : out block_t;
-           key : in key_t;
+           roundKey : in block_t;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
@@ -90,8 +90,8 @@ component MixColumns is
 end component;
 
 
-signal dInARK, dInMC, dInSB, dInSR : std_logic_vector(KEY_SIZE-1 downto 0);
-signal dOutARK, dOutMC, dOutSB, dOutSR : std_logic_vector(KEY_SIZE-1 downto 0);
+signal dInARK, dInMC, dInSB, dInSR : block_t;
+signal dOutARK, dOutMC, dOutSB, dOutSR : block_t;
 signal EnIARK, EnIMC, EnISB, EnISR : std_logic;
 signal EnOARK, EnOMC, EnOSB, EnOSR : std_logic;
 
@@ -105,7 +105,7 @@ roundSR : ShiftRows
 roundMC : MixColumns
              port map(dInMC, dOutMC, encrypt, EnIMC, EnOMC, Clock, Resetn); 
 roundARK : AddRoundKey
-             port map(dInARK, dOutARK, key, EnIARK, EnOARK, Clock, Resetn);
+             port map(dInARK, dOutARK, roundKey, EnIARK, EnOARK, Clock, Resetn);
 
 -- Define data between the components; for decryption, the order is reversed
 -- Left side is encryption, right side is decryption

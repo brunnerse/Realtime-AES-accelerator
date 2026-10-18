@@ -52,9 +52,9 @@ component AES_Core is
            dOut : out block_t;
            EnI : in std_logic;
            EnO : out std_logic;
-           mode : in std_logic_vector (MODE_LEN-1 downto 0);
-           chaining_mode : in std_logic_vector (CHMODE_LEN-1 downto 0);
-           GCMPhase : in std_logic_vector(1 downto 0);
+           mode : in mode_t; 
+           chaining_mode : in mode_t; 
+           GCMPhase : in mode_t; 
            Clock : in std_logic;
            Resetn : in std_logic
            );
@@ -62,25 +62,26 @@ end component;
 
 
 -- Test mode and chaining_mode for the AES Core
-signal mode : std_logic_vector(MODE_LEN-1 downto 0) := MODE_KEYEXPANSION_AND_DECRYPTION;
-signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0) := CHAINING_MODE_ECB;
+signal mode : mode_t := MODE_KEYEXPANSION_AND_DECRYPTION;
+signal chaining_mode : mode_t := CHAINING_MODE_ECB;
 
 
-constant key : std_logic_vector(KEY_SIZE-1 downto 0) := x"000102030405060708090a0b0c0d0e0f";
-constant plaintext1 : std_logic_vector(KEY_SIZE-1 downto 0) := x"00102030011121310212223203132333";
-constant plaintext2 : std_logic_vector(KEY_SIZE-1 downto 0) := x"000102030405060708090a0b0c0d0e0f";
-constant plaintext3 : std_logic_vector(KEY_SIZE-1 downto 0) := x"affedeadbeefdadcabbeadbeec0cabad";
+constant key : key_t := x"000102030405060708090a0b0c0d0e0f";
+constant plaintext1 : block_t := x"00102030011121310212223203132333";
+constant plaintext2 : block_t := x"000102030405060708090a0b0c0d0e0f";
+constant plaintext3 : block_t := x"affedeadbeefdadcabbeadbeec0cabad";
 
 
 
 signal Clock : std_logic := '1';
 signal Resetn : std_logic := '0';
 
-signal testPlaintext, testIV, IV, testKey, testCiphertext, Susp, H : std_logic_vector(KEY_SIZE-1 downto 0);
+signal testPlaintext, testIV, IV, testCiphertext, Susp, H : block_t;
+signal testKey : key_t;
 signal EnCoreI, EnCoreO : std_logic;
 
 signal WrEn : std_logic;
-signal WrData : std_logic_vector(KEY_SIZE-1 downto 0);
+signal WrData : block_t;
 signal WrAddr  : std_logic_vector(ADDR_REGISTER_BITS-1 downto 0);
 
 

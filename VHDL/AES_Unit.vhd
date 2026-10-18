@@ -144,24 +144,24 @@ ATTRIBUTE X_INTERFACE_PARAMETER : STRING;
 signal    M_RV_valid :  std_logic;
 signal    M_RV_ready : std_logic;
 signal    M_RV_addr : std_logic_vector(31 downto 0);
-signal    M_RV_wrData : std_logic_vector(KEY_SIZE-1 downto 0);
-signal    M_RV_rdData : std_logic_vector(KEY_SIZE-1 downto 0);
+signal    M_RV_wrData : block_t;
+signal    M_RV_rdData : block_t;
 signal    M_RV_write : std_logic; 
 signal    M_RV_error : std_logic;
 
 signal IWrAddr, IRdAddr : std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
 signal WrAddrCore : std_logic_vector(ADDR_REGISTER_BITS-1 downto 0);
 signal IWrData, IRdData : std_logic_vector(31 downto 0);
-signal WrDataCore : std_logic_vector(KEY_SIZE-1 downto 0);
+signal WrDataCore : block_t;
 signal IWrEn, IRdEn, WrEnCore : std_logic;
 signal IWrStrb : std_logic_vector(3 downto 0);
 
 -- signals between ControlLogic and Core
-signal key, IV, DIN, DOUT, H, Susp : std_logic_vector(KEY_SIZE-1 downto 0);
+signal key : key_t;
+signal IV, DIN, DOUT, H, Susp : block_t;
 signal EnICore, EnOCore : std_logic;
 
-signal mode, GCMPhase : std_logic_vector(1 downto 0);
-signal chaining_mode : std_logic_vector(1 downto 0);
+signal mode, GCMPhase, chaining_mode : mode_t;
 
 
 begin

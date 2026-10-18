@@ -51,7 +51,7 @@ function vector2state (vec : block_t) return state_t is
     variable state : state_t;
 begin
     for i in state_t'RANGE loop
-        state(i) := vec(BLOCK_SIZE-1 - i*32 downto BLOCK_SIZE-32 - i*32); 
+        state(i) := vec(AES_BLOCK_SIZE-1 - i*32 downto AES_BLOCK_SIZE-32 - i*32); 
     end loop;
     return state;
 end function;
@@ -60,7 +60,7 @@ function state2vector (state : state_t) return block_t is
     variable vec : block_t;
 begin
     for i in state_t'RANGE loop
-        vec(BLOCK_SIZE-1 - i*32 downto BLOCK_SIZE-32 - i*32) := state(i); 
+        vec(AES_BLOCK_SIZE-1 - i*32 downto AES_BLOCK_SIZE-32 - i*32) := state(i); 
     end loop;
     return vec;
 end function;

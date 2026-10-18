@@ -48,8 +48,8 @@ entity ControlLogic is
     M_RV_valid : out std_logic;
     M_RV_ready : in std_logic;
     M_RV_addr : out std_logic_vector(31 downto 0);
-    M_RV_wrData : out std_logic_vector(KEY_SIZE-1 downto 0);
-    M_RV_rdData : in std_logic_vector(KEY_SIZE-1 downto 0);
+    M_RV_wrData : out block_t;
+    M_RV_rdData : in block_t;
     M_RV_write : out std_logic; 
     M_RV_error : in std_logic;
     --  write port
@@ -62,19 +62,19 @@ entity ControlLogic is
     -- second write port
     WrEn2 : in std_logic;
     WrAddr2 : in std_logic_vector(ADDR_REGISTER_BITS-1 downto 0);
-    WrData2 : in std_logic_vector(KEY_SIZE-1 downto 0);
-    key : out std_logic_vector (KEY_SIZE-1 downto 0);
-    IV : out std_logic_vector (KEY_SIZE-1 downto 0);
-    H : out std_logic_vector (KEY_SIZE-1 downto 0);
-    Susp : out std_logic_vector (KEY_SIZE-1 downto 0);
-    DIN : out std_logic_vector (KEY_SIZE-1 downto 0);
-    DOUT : in std_logic_vector (KEY_SIZE-1 downto 0);
+    WrData2 : in block_t;
+    key : out key_t; 
+    IV : out block_t; 
+    H : out block_t; 
+    Susp : out block_t; 
+    DIN : out block_t; 
+    DOUT : in block_t; 
 -- Control to AES core
     EnICore : out std_logic;
     EnOCore : in std_logic;
-    mode : out std_logic_vector (MODE_LEN-1 downto 0);
-    chaining_mode : out std_logic_vector (CHMODE_LEN-1 downto 0);
-    GCMPhase : out std_logic_vector(1 downto 0);
+    mode : out mode_t; 
+    chaining_mode : out mode_t; 
+    GCMPhase : out mode_t; 
 -- global signals
     aes_introut : out std_logic;
     Clock    : in std_logic;
@@ -212,7 +212,7 @@ signal state : state_type;
 -- internal signals for RW port output
 signal RV_addr : std_logic_vector(M_RV_addr'RANGE);
 signal RV_valid : std_logic;
-signal RV_wrData : std_logic_vector(KEY_SIZE-1 downto 0);
+signal RV_wrData : block_t;
 signal RV_write : std_logic;
 
 
@@ -222,9 +222,9 @@ signal dataSize : std_logic_vector(DATA_WIDTH-1 downto 0);
 signal sourceAddress, destAddress : std_logic_vector(M_RV_addr'LENGTH-1 downto 0);
 
 signal CCFIE : std_logic;
-signal modeSignal : std_logic_vector(MODE_LEN-1 downto 0);
-signal chainingModeSignal : std_logic_vector(CHMODE_LEN-1 downto 0);
-signal GCMPhaseSignal : std_logic_vector(1 downto 0);
+signal modeSignal : mode_t; 
+signal chainingModeSignal : mode_t; 
+signal GCMPhaseSignal : mode_t; 
 
 begin
 

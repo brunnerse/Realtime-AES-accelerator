@@ -53,12 +53,12 @@ port (
 end component AES_Unit_Sim_Bd;
 
 
-constant key : std_logic_vector(KEY_SIZE-1 downto 0) := x"000102030405060708090a0b0c0d0e0f";
-constant plaintext1 : std_logic_vector(KEY_SIZE-1 downto 0) := x"00102030011121310212223203132333";
-constant plaintext2 : std_logic_vector(KEY_SIZE-1 downto 0) := x"000102030405060708090a0b0c0d0e0f";
-constant plaintext3 : std_logic_vector(KEY_SIZE-1 downto 0) := x"affedeadbeefdadcabbeadbeec0cabad";
+constant key : key_t := x"000102030405060708090a0b0c0d0e0f";
+constant plaintext1 : block_t := x"00102030011121310212223203132333";
+constant plaintext2 : block_t := x"000102030405060708090a0b0c0d0e0f";
+constant plaintext3 : block_t := x"affedeadbeefdadcabbeadbeec0cabad";
 
-constant testIV : std_logic_vector(KEY_SIZE-1 downto 0) := x"00e0d0c0b0a090807060504030201000";
+constant testIV : block_t := x"00e0d0c0b0a090807060504030201000";
 
 constant plainAddr : integer := 16#560#;
 constant cipherAddr : integer := 16#2000#;
@@ -113,7 +113,7 @@ Resetn <= '1' after 50 ns;
 
 channel_gen:
 for i in channel_range generate
-signal chmode : std_logic_vector(1 downto 0);
+signal chmode : mode_t; 
 signal priority : unsigned(NUM_PRIORITY_BITS-1 downto 0);
 begin
     CHANNEL_OFFSET(i) <= i * 128;

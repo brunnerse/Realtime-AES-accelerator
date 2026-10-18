@@ -64,7 +64,7 @@ begin
 GEN_BRAM:
 if USE_BLOCK_RAM generate
 GEN_SBOX : 
-for i in 0 to BLOCK_SIZE/8-1 generate
+for i in 0 to AES_BLOCK_SIZE/8-1 generate
     -- encryption sbox
     sbox_i : sbox_bram port map (
         clka => Clock,
@@ -83,7 +83,7 @@ if rising_edge(Clock) then
     if Resetn = '0' then
         dOut <= (others => '-');
     elsif EnI = '1' then
-        for i in BLOCK_SIZE/8-1 downto 0 loop
+        for i in AES_BLOCK_SIZE/8-1 downto 0 loop
             if encrypt = '1' then
                 dOut(i*8+7 downto i*8) <= sbox_encrypt(to_integer(unsigned(dIn(i*8+7 downto i*8))));
             else

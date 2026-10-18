@@ -3,21 +3,26 @@ use IEEE.STD_LOGIC_1164.ALL;
 
 package common is
 
--- The official AES standard always uses a block size of 128
-constant BLOCK_SIZE : integer := 128;
-
 -- AEA definitions
-constant KEY_SIZE : integer := 128;
+constant AES_KEY_SIZE : integer := 128; 
 
-CONSTANT AES_NK : natural := KEY_SIZE/32;   -- Number of columns in the cipher key
-CONSTANT AES_NB : natural := BLOCK_SIZE/32; -- Number of columns in a block
+-- The official AES standard always uses a block size of 128
+constant AES_BLOCK_SIZE : integer := 128;
+
+CONSTANT AES_NK : natural := AES_KEY_SIZE/32;   -- Number of columns in the cipher key
+CONSTANT AES_NB : natural := AES_BLOCK_SIZE/32; -- Number of columns in a block
 constant AES_NR : natural := 10;            -- Number of rounds
 
-subtype block_t is std_logic_vector(BLOCK_SIZE-1 downto 0);
-subtype key_t is std_logic_vector(KEY_SIZE-1 downto 0);
+subtype block_t is std_logic_vector(AES_BLOCK_SIZE-1 downto 0);
+subtype key_t is std_logic_vector(AES_KEY_SIZE-1 downto 0);
 
 -- AES Core definitions
+
 subtype mode_t is std_logic_vector(1 downto 0);
+
+constant KEYSIZE_128 : mode_t := "00";
+constant KEYSIZE_192 : mode_t := "01";
+constant KEYSIZE_256 : mode_t := "10";
 
 constant MODE_ENCRYPTION : mode_t := "00";
 constant MODE_KEYEXPANSION : mode_t := "01";
@@ -29,8 +34,6 @@ constant CHAINING_MODE_CBC : mode_t := "01";
 constant CHAINING_MODE_CTR : mode_t := "10";
 constant CHAINING_MODE_GCM : mode_t := "11";
 
-constant MODE_LEN : integer := 2;
-constant CHMODE_LEN : integer := 2;
 
 -- Galois Counter-Mode Phase definitions
 constant GCM_PHASE_INIT : mode_t := "00";

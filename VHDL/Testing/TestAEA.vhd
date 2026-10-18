@@ -52,7 +52,8 @@ end component;
 
 signal Clock, Resetn : std_logic := '0';
 
-signal dIn, testKey, dOut: std_logic_vector(KEY_SIZE-1 downto 0);
+signal dIn, dOut: block_t;
+signal testKey : key_t;
 signal EnI, EnO : std_logic := '0';
 signal encrypt : std_logic := '1';
 signal keyExpandFlag : std_logic := '0';

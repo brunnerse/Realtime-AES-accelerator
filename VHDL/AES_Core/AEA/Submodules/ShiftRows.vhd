@@ -48,7 +48,7 @@ function vector2rows (vec : block_t) return rows_t is
     variable rows : rows_t;
     variable row, col : integer;
 begin
-    for i in 0 to BLOCK_SIZE/8-1 loop 
+    for i in 0 to AES_BLOCK_SIZE/8-1 loop 
         row := i rem 4; 
         col := i / 4; 
         rows(row)(31-col*8 downto 24-col*8) := vec(127-i*8 downto 120-i*8);
@@ -60,7 +60,7 @@ function rows2vec (rows : rows_t) return block_t is
     variable vec : block_t;
     variable row, col : integer;
 begin
-    for i in 0 to BLOCK_SIZE/8-1 loop 
+    for i in 0 to AES_BLOCK_SIZE/8-1 loop 
         row := i rem 4; 
         col := i / 4; 
         vec(127-i*8 downto 120-i*8) := rows(row)(31-col*8 downto 24-col*8); 

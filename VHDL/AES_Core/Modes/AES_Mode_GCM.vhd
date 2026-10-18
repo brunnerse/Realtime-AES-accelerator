@@ -45,12 +45,12 @@ entity AES_Mode_GCM is
            EnI : in std_logic;
            EnO : out std_logic;
            encrypt : in std_logic;
-           GCMPhase : in std_logic_vector(1 downto 0);
+           GCMPhase : in mode_t; 
            -- signals to control the AEA unit
            EnIAEA : out std_logic;
            EnOAEA : in std_logic;
-           dInAEA : out std_logic_vector (KEY_SIZE-1 downto 0);
-           dOutAEA : in std_logic_vector (KEY_SIZE-1 downto 0);
+           dInAEA : out block_t; 
+           dOutAEA : in block_t; 
            -- signals to write to register set
            WrEn   : out STD_LOGIC;
            WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
@@ -70,7 +70,7 @@ component AddRoundKey is
     );
     Port ( din : in block_t;
            dout : out block_t;
-           key : in key_t;
+           key : in block_t;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
@@ -78,39 +78,39 @@ component AddRoundKey is
 end component;
 
 
-function incrementIV(IV_val : std_logic_vector(KEY_SIZE-1 downto 0)) return std_logic_vector is
+function incrementIV(IV_val : block_t) return std_logic_vector is
 begin
-    return IV_val(KEY_SIZE-1 downto 32) & std_logic_vector(unsigned(IV_val(31 downto 0)) + to_unsigned(1,32));
+    return IV_val(AES_BLOCK_SIZE-1 downto 32) & std_logic_vector(unsigned(IV_val(31 downto 0)) + to_unsigned(1,32));
 end function;
 
 
 constant ZERO : std_logic_vector(KEY_SIZE-2 downto 0) := (others => '0');
 -- we don't need the x^128 in the polynomial
-constant POLYGF : std_logic_vector(KEY_SIZE-1 downto 0) := x"e1000000000000000000000000000000";
+constant POLYGF : block_t := x"e1000000000000000000000000000000";
 
 constant MULTIPLICATIONS_PER_CYCLE : integer := 128/2; -- Do 64 calculations per clock cycle
 
-function mulGF(val : std_logic_vector(KEY_SIZE-1 downto 0); prod : std_logic_vector(KEY_SIZE-1 downto 0)) return std_logic_vector is
-    variable c, v : std_logic_vector(KEY_SIZE-1 downto 0);
+function mulGF(val : block_t; prod : block_t) return std_logic_vector is
+    variable c, v : block_t;
 begin
     v := val;
     c := (others => '0');
     -- Polynomial Multiplication; Little-Endian, i.e. x^0 is bit 127, x^127 is bit 0 ! 
-    for i in KEY_SIZE-1 downto 0 loop
+    for i in AES_BLOCK_SIZE-1 downto 0 loop
         if prod(i) = '1' then
             c := c xor v; -- Shift the value by attaching the right amount of zeros
         end if;
         if v(0) = '0' then
-            v := '0' & v(KEY_SIZE-1 downto 1); -- multiply by x (i.e. right shift by 1)
+            v := '0' & v(AES_BLOCK_SIZE-1 downto 1); -- multiply by x (i.e. right shift by 1)
         else
-            v := ('0' & v(KEY_SIZE-1 downto 1)) xor POLYGF; -- result was larger or equal to x^128:  subtract polynom
+            v := ('0' & v(AES_BLOCK_SIZE-1 downto 1)) xor POLYGF; -- result was larger or equal to x^128:  subtract polynom
         end if;
     end loop;
     return c;
 end function;
 
 -- signal definitions
-signal  dIn1XOR1, dIn2XOR1, dIn1XOR2,dIn2XOR2, dOutXOR1, dOutXOR2, dInMul, dOutMul: std_logic_vector(KEY_SIZE-1 downto 0);
+signal  dIn1XOR1, dIn2XOR1, dIn1XOR2,dIn2XOR2, dOutXOR1, dOutXOR2, dInMul, dOutMul: block_t;
 signal  EnIXOR1, EnIXOR2, EnOXOR1, EnOXOR2, EnIMul, EnOMul, WrEnSignal : std_logic;
 signal prevEnI : std_logic;
 
@@ -187,7 +187,7 @@ end process;
 -- process performing the GF2 multiplication on each rising clock edge when EnIMul is asserted
 process (Clock)
 variable calculationInProgress : boolean;
-variable c, v : std_logic_vector(KEY_SIZE-1 downto 0);
+variable c, v : block_t;
 begin
 if rising_edge(Clock) then
     if Resetn = '0' then

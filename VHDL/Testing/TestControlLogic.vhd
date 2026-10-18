@@ -48,20 +48,21 @@ constant CHANNEL_6_OFFSET : unsigned(9 downto 0) := "110"   & "0000000";
 signal Clock : std_logic := '1';
 signal Resetn : std_logic := '0';
 
-signal testPlaintext, testIV, testKey, testCiphertext, Susp, H, keyOut, din : std_logic_vector(KEY_SIZE-1 downto 0);
+signal testPlaintext, testIV, testCiphertext, Susp, H, din : block_t;
+signal testKey, keyOut : key_t;
 signal EnICore, EnOCore, RdEnAHB, WrEnAHB, WrEnCore : std_logic;
 signal WrDataAHB, RdDataAHB : std_logic_vector(DATA_WIDTH-1 downto 0);
 signal WrAddrAHB, RdAddrAHB: std_logic_vector(ADDR_WIDTH-1 downto 0);
 signal WrAddrCore : std_logic_vector(6 downto 0);
-signal WrDataCore : std_logic_vector(KEY_SIZE-1 downto 0);
+signal WrDataCore : block_t;
 
 
 signal CL_ready, CL_valid : std_logic;
 signal CL_rdData : std_logic_vector(DATA_WIDTH-1 downto 0);
 
-signal mode : std_logic_vector(MODE_LEN-1 downto 0);
-signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0);
-signal GCMPhase : std_logic_vector(1 downto 0);
+signal mode : mode_t; 
+signal chaining_mode : mode_t;
+signal GCMPhase : mode_t;
 
 
 

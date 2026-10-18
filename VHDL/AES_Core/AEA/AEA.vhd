@@ -47,7 +47,7 @@ component AddRoundKey is
         );
     Port ( din : in block_t;
            dout : out block_t;
-           key : in key_t;
+           roundKey : in block_t;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
@@ -57,7 +57,7 @@ end component;
 component AEA_Round is
     Port ( dIn : in block_t;
            dOut : out block_t;
-           key : in key_t;
+           roundKey : in block_t;
            encrypt : in STD_LOGIC;
            isLastRound : in STD_LOGIC;
            EnI : in STD_LOGIC;
@@ -73,7 +73,7 @@ component KeyExpansion is
             calcNextRoundKey : in STD_LOGIC;
             reverse : in STD_LOGIC;
 --
-            roundKey : out key_t;
+            roundKey : out block_t;
             isLastRoundKey : out STD_LOGIC;
             Clock : in STD_LOGIC;
             Resetn : in STD_LOGIC);
@@ -85,8 +85,8 @@ signal currentRound : integer range 1 to AES_NR;
 signal state : state_type;
 
 -- signals to connect the components
-signal dInPreARK, dInRound, roundKey : std_logic_vector(KEY_SIZE-1 downto 0);
-signal dOutPreARK, dOutRound : std_logic_vector(KEY_SIZE-1 downto 0);
+signal dInPreARK, dInRound, roundKey : block_t;
+signal dOutPreARK, dOutRound : block_t;
 signal EnIPreARK, EnIRound : std_logic;
 signal EnOPreARK, EnORound : std_logic;
 signal isLastRound, roundIsLastCycle : std_logic;
@@ -100,7 +100,7 @@ begin
 
 
 preARK : AddRoundKey
-             port map(dInPreARK, dOutPreARK, key, EnIPreARK, EnOPreARK, Clock, Resetn);
+             port map(dInPreARK, dOutPreARK, key(block_t'RANGE), EnIPreARK, EnOPreARK, Clock, Resetn);
 roundAEA : AEA_Round
              port map(dInRound, dOutRound, roundKey, encrypt, isLastRound, EnIRound, EnORound, roundIsLastCycle, Clock, Resetn);
 

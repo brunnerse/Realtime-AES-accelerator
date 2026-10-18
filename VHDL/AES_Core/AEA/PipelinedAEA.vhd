@@ -80,10 +80,10 @@ signal roundKeys : ROUNDKEYARRAY;
 signal EnIKeyExp, EnOKeyExp : std_logic;
 
 -- connection signals
-signal dInPreARK, dInRound1, dInRound2, dInRound3, dInRound4, dInRound5 : std_logic_vector(KEY_SIZE-1 downto 0);
-signal dInRound6, dInRound7, dInRound8, dInRound9, dInRound10 : std_logic_vector(KEY_SIZE-1 downto 0);
-signal dOutPreARK, dOutRound1, dOutRound2, dOutRound3, dOutRound4, dOutRound5 : std_logic_vector(KEY_SIZE-1 downto 0);
-signal dOutRound6, dOutRound7, dOutRound8, dOutRound9, dOutRound10 : std_logic_vector(KEY_SIZE-1 downto 0);
+signal dInPreARK, dInRound1, dInRound2, dInRound3, dInRound4, dInRound5 : block_t;
+signal dInRound6, dInRound7, dInRound8, dInRound9, dInRound10 : block_t;
+signal dOutPreARK, dOutRound1, dOutRound2, dOutRound3, dOutRound4, dOutRound5 : block_t;
+signal dOutRound6, dOutRound7, dOutRound8, dOutRound9, dOutRound10 : block_t;
 signal EnIPreARK, EnIRound1, EnIRound2, EnIRound3, EnIRound4, EnIRound5, EnIRound6, EnIRound7, EnIRound8, EnIRound9, EnIRound10 : std_logic;
 signal EnOPreARK, EnORound1, EnORound2, EnORound3, EnORound4, EnORound5, EnORound6, EnORound7, EnORound8, EnORound9, EnORound10 : std_logic;
 

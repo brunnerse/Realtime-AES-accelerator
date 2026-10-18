@@ -41,14 +41,15 @@ entity AES_Core is
            Susp : in block_t;
            WrEn   : out STD_LOGIC;
            WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
-           WrData : out key_t;
+           WrData : out block_t;
            dIn : in block_t;
            dOut : out block_t;
            EnI : in std_logic;
            EnO : out std_logic;
-           mode : in std_logic_vector (MODE_LEN-1 downto 0);
-           chaining_mode : in std_logic_vector (CHMODE_LEN-1 downto 0);
-           GCMPhase : in std_logic_vector(1 downto 0);
+-- keysize : in std_logic_vector(MODE_LEN-1 downto 0)
+           mode : in mode_t;
+           chaining_mode : in mode_t; 
+           GCMPhase : in mode_t; 
            Clock : in std_logic;
            Resetn : in std_logic
            );
@@ -91,14 +92,14 @@ component AES_Mode_ECBCBCCTR is
             -- signals to control the AEA unit
            EnIAEA : out std_logic;
            EnOAEA : in std_logic;
-           dInAEA : out std_logic_vector (KEY_SIZE-1 downto 0);
-           dOutAEA : in std_logic_vector (KEY_SIZE-1 downto 0);
+           dInAEA : out block_t; 
+           dOutAEA : in block_t; 
            -- signals to write to register set
            WrEn   : out STD_LOGIC;
            WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
            WrData : out block_t;
-           mode : in std_logic_vector (MODE_LEN-1 downto 0);
-           chaining_mode : in std_logic_vector (CHMODE_LEN-1 downto 0);
+           mode : in mode_t; 
+           chaining_mode : in mode_t; 
            Clock : in std_logic;
            Resetn : in std_logic
            );
@@ -120,12 +121,12 @@ component AES_Mode_GCM is
            EnI : in std_logic;
            EnO : out std_logic;
            encrypt : in std_logic;
-           GCMPhase : in std_logic_vector(1 downto 0);
+           GCMPhase : in mode_t; 
            -- signals to control the AEA unit
            EnIAEA : out std_logic;
            EnOAEA : in std_logic;
-           dInAEA : out std_logic_vector (KEY_SIZE-1 downto 0);
-           dOutAEA : in std_logic_vector (KEY_SIZE-1 downto 0);
+           dInAEA : out block_t ;
+           dOutAEA : in block_t; 
            -- signals to write to register set
            WrEn   : out STD_LOGIC;
            WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
@@ -138,12 +139,12 @@ end component;
 
 
 -- signal definitions
-signal dInAEA, dOutAEA : std_logic_vector(KEY_SIZE-1 downto 0);
+signal dInAEA, dOutAEA : block_t;
 signal encryptGCM, encryptAEA, EnIAEA, EnOAEA, keyExpandFlagAEA : std_logic;
 
 -- signal to mode components
 signal EnIMNT, EnIGCM, EnOMNT, EnOGCM, EnIAEAMNT, EnIAEAGCM, EnOAEAMNT, EnOAEAGCM, WrEnMNT, WrEnGCM : std_logic;
-signal dOutMNT, dOutGCM, dInAEAMNT, dInAEAGCM, WrDataMNT, WrDataGCM : std_logic_vector(KEY_SIZE-1 downto 0);
+signal dOutMNT, dOutGCM, dInAEAMNT, dInAEAGCM, WrDataMNT, WrDataGCM : block_t;
 signal WrAddrMNT, WrAddrGCM : std_logic_vector(ADDR_REGISTER_BITS-1 downto 0);
 begin
 

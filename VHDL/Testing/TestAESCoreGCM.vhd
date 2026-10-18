@@ -27,14 +27,14 @@ component AES_Core is
            Susp : in block_t;
            WrEn   : out STD_LOGIC;
            WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
-           WrData : out key_t;
-           dIn : in key_t;
-           dOut : out key_t;
+           WrData : out block_t;
+           dIn : in block_t;
+           dOut : out block_t;
            EnI : in std_logic;
            EnO : out std_logic;
-           mode : in std_logic_vector (MODE_LEN-1 downto 0);
-           chaining_mode : in std_logic_vector (CHMODE_LEN-1 downto 0);
-           GCMPhase : in std_logic_vector(1 downto 0);
+           mode : in mode_t; 
+           chaining_mode : in mode_t; 
+           GCMPhase : in mode_t; 
            Clock : in std_logic;
            Resetn : in std_logic
            );
@@ -42,15 +42,16 @@ end component;
 
 signal Clock, Resetn : std_logic;
 
-signal testPlaintext, testIV, testKey, testCiphertext, testSusp, H : std_logic_vector(KEY_SIZE-1 downto 0);
+signal testPlaintext, testIV, testCiphertext, testSusp, H : block_t;
+signal testKey : key_t;
 signal EnCoreI, EnCoreO : std_logic;
 
 signal WrEn : std_logic;
-signal WrData : std_logic_vector(KEY_SIZE-1 downto 0);
+signal WrData : block_t;
 signal WrAddr  : std_logic_vector(ADDR_REGISTER_BITS-1 downto 0);
 
-signal mode, GCMPhase : std_logic_vector(1 downto 0) := MODE_ENCRYPTION;
-signal chaining_mode : std_logic_vector(CHMODE_LEN-1 downto 0) := CHAINING_MODE_GCM;
+signal mode, GCMPhase : mode_t := MODE_ENCRYPTION;
+signal chaining_mode : mode_t := CHAINING_MODE_GCM;
 
 begin
 
