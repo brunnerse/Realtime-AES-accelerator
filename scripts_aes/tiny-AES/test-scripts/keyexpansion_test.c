@@ -11,6 +11,14 @@ void KeyExpansion(uint8_t *RoundKey, const uint8_t* Key);
 void KeyExpansion_rev(uint8_t *RoundKey, const uint8_t* lastKey);
 
 
+void __attribute__((weak)) phex_key(uint8_t* str) {
+    unsigned char i;
+    for (i = 0; i < Nk * 4; ++i)
+        printf("%.2x ", str[i]);
+    printf("\n");
+}
+
+
 int main(void)
 {
     printf("\nTesting KeyExpansion for AES128\n\n");
@@ -24,7 +32,7 @@ int main(void)
     AES_init_ctx(&ctx, key);
 
     printf("Key:\n");
-    phex(key);
+    phex_key(key);
     printf("\n");
 
     printf("\nRound keys according to tiny-AES:\n");

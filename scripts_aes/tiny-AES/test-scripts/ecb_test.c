@@ -17,11 +17,7 @@ int main()
 
 static int test_encrypt_ecb(void)
 {
-#if defined(AES256)
-#elif defined(AES192)
-#elif defined(AES128)
     uint8_t *key = key1; 
-#endif
 
     uint8_t *in = plaintext1; 
     
@@ -33,14 +29,14 @@ static int test_encrypt_ecb(void)
 
     AES_init_ctx(&ctx, key);
 
-    printf("\nRound keys:");
+    printf("\nRound keys:\n");
 
-    for (int i = 0; i < AES_keyExpSize; i += 16) {
-        printf("\n%2i:\t", i/16);
+    for (int i = 0; i < AES_keyExpSize; i += AES_BLOCKLEN) {
+        printf("%2i:\t", i/16);
         phex(&ctx.RoundKey[i]);
     }
 
-    printf("\n\n\n");
+    printf("\n\n");
 
     AES_ECB_encrypt(&ctx, in);
 
@@ -59,17 +55,7 @@ static int test_encrypt_ecb(void)
 // prints string as hex
 void phex(uint8_t* str)
 {
-
-#if defined(AES256)
-    uint8_t len = 32;
-#elif defined(AES192)
-    uint8_t len = 24;
-#elif defined(AES128)
-    uint8_t len = 16;
-#endif
-
-    unsigned char i;
-    for (i = 0; i < len; ++i)
+    for (unsigned i = 0; i < AES_BLOCKLEN; ++i)
         printf("%.2x ", str[i]);
     printf("\n");
 }

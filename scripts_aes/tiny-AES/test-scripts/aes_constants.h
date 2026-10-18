@@ -1,6 +1,8 @@
 #pragma once
 #include <stdint.h>
 
+#include "aes.h"
+
 
 #if defined(AES256) && (AES256 == 1)
     #define Nk 8
@@ -13,13 +15,13 @@
     #define Nr 10       // The number of rounds in AES Cipher.
 #endif
 
-#define Nb Nk  // Number of columns in block Nb equals number of columns in cipher key Nk 
+#define Nb (AES_BLOCKLEN / 4)  // Number of columns in block Nb; always four rows  
 
 
 // prints string as hex
 void __attribute__((weak)) phex(uint8_t* str) {
     unsigned char i;
-    for (i = 0; i < Nb * 4; ++i)
+    for (i = 0; i < AES_BLOCKLEN; ++i)
         printf("%.2x ", str[i]);
     printf("\n");
 }

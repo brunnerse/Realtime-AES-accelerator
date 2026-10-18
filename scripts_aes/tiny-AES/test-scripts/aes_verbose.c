@@ -103,6 +103,8 @@ static void CipherVerbose(state_t* state, const uint8_t* RoundKey)
 #if PRINT_STATE_AFTER_EACH_STEP
     printf("-- AK:\t");
     phex((uint8_t*)state);
+    printf("\troundkey was ");
+    phex((uint8_t*)RoundKey + AES_BLOCKLEN * round);
 #endif
   }
   // Add round key to last round
@@ -144,6 +146,8 @@ static void InvCipherVerbose(state_t* state, const uint8_t* RoundKey)
 #if PRINT_STATE_AFTER_EACH_STEP
     printf("-- ARK:\t");
     phex((uint8_t*)state);
+    printf("\troundkey was ");
+    phex((uint8_t*)RoundKey + AES_BLOCKLEN * round);
 #endif
 	if (round == 0) {
 	    break;
