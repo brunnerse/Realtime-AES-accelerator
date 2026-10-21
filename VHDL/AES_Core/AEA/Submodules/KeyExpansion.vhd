@@ -24,7 +24,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
  
 use work.common.ALL;
-use work.sbox_definition.sbox_encrypt;
+use work.aes_sbox.ALL;
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
@@ -33,9 +33,11 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity KeyExpansion is
     Port (  userKey : in key_t; 
-            setUserKey : in STD_LOGIC;
-            calcNextRoundKey : in STD_LOGIC;
+            init : in STD_LOGIC;
             reverse : in STD_LOGIC;
+
+            calcNextRoundKey : in STD_LOGIC;
+
 --
             roundKey : out block_t; 
             isLastRoundKey : out STD_LOGIC;

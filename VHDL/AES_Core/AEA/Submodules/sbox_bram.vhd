@@ -3,7 +3,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.ALL;
 
 use work.common.ALL;
-use work.sbox_definition.ALL;
+use work.aes_sbox.ALL;
 
 entity sbox_bram is
 generic (

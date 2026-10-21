@@ -22,7 +22,7 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use work.common.ALL;
-use work.sbox_definition.ALL;
+use work.aes_sbox.ALL;
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
@@ -39,11 +39,11 @@ entity SubBytes is
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
            Resetn : in STD_LOGIC);
-end SubBytes;
+end entity;
 
 
 
-architecture Behavioral of SubBytes is
+architecture RTL of SubBytes is
 
 component sbox_bram is
 generic (
@@ -83,14 +83,12 @@ if rising_edge(Clock) then
     if Resetn = '0' then
         dOut <= (others => '-');
     elsif EnI = '1' then
-        for i in AES_BLOCK_SIZE/8-1 downto 0 loop
-            if encrypt = '1' then
-                dOut(i*8+7 downto i*8) <= sbox_encrypt(to_integer(unsigned(dIn(i*8+7 downto i*8))));
-            else
-                dOut(i*8+7 downto i*8) <= sbox_decrypt(to_integer(unsigned(dIn(i*8+7 downto i*8))));
-            end if;
-        end loop;
+        if encrypt = '1' then
+            dOut <= SubBytesInVec(dIn);  
+        else
+            dOut <= InvSubBytesInVec(dIn);
         end if;
+    end if;
 end if;
 end process;
 end generate;
@@ -109,4 +107,4 @@ end if;
 end process;
 
 
-end Behavioral;
+end architecture;

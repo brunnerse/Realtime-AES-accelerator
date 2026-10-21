@@ -1,8 +1,13 @@
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
 
-package sbox_definition is
+package aes_sbox is
+
+
+function SubBytesInVec(vec : std_logic_vector) return std_logic_vector;
+function InvSubBytesInVec(vec : std_logic_vector) return std_logic_vector;
 
 type SBOX is array(255 downto 0) of std_logic_vector(7 downto 0);
 
@@ -526,3 +531,25 @@ constant sbox_decrypt : SBOX := (
 
 
 end package;
+
+package body aes_sbox is
+
+	function SubBytesInVec(vec : std_logic_vector) return std_logic_vector is
+		variable result : std_logic_vector(vec'range);
+	begin
+		for i in 0 to vec'length/8-1 loop
+			result(i*8+7 downto i*8) := sbox_encrypt(to_integer(unsigned(vec(i*8+7 downto i*8))));
+		end loop;
+		return result;
+	end function;
+
+	function InvSubBytesInVec(vec : std_logic_vector) return std_logic_vector is
+		variable result : std_logic_vector(vec'range);
+	begin
+		for i in 0 to vec'length/8-1 loop
+			result(i*8+7 downto i*8) := sbox_decrypt(to_integer(unsigned(vec(i*8+7 downto i*8))));
+		end loop;
+		return result;
+	end function;
+
+end package body;
