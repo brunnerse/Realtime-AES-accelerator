@@ -146,9 +146,9 @@ entity AES_Interface_M_AXI is
     -- accept the read data and response information.
 		M_AXI_RREADY	: out std_logic
 	);
-end AES_Interface_M_AXI;
+end entity;
 
-architecture implementation of AES_Interface_M_AXI is
+architecture RTL of AES_Interface_M_AXI is
 
     function log2( i : natural) return integer is
         variable temp    : integer := i;
@@ -484,4 +484,4 @@ begin
 	    end if;                                                          
 	  end process;      
 
-end implementation;
+end RTL;

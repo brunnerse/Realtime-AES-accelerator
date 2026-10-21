@@ -17,9 +17,9 @@ entity BinarySearch is
         Clock : in std_logic;
         Resetn : in std_logic
            );
-end BinarySearch;
+end entity;
 
-architecture Behavioral of BinarySearch is
+architecture RTL of BinarySearch is
 
 constant NUM_CHANNELS: natural := (NUM_CHANNELS_IN+1)/2 * 2; -- Number of channels rounded up to multiple of 
 

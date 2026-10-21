@@ -36,9 +36,9 @@ entity MixColumns is
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
            Resetn : in STD_LOGIC);
-end MixColumns;
+end entity;
 
-architecture Behavioral of MixColumns is
+architecture RTL of MixColumns is
 
 constant ZERO : std_logic_vector(3 downto 0) := x"0";
 
@@ -164,4 +164,4 @@ end if;
 end process;
 
 
-end Behavioral;
+end architecture;

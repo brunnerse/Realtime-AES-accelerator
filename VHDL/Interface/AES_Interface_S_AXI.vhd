@@ -167,9 +167,9 @@ entity AES_Interface_S_AXI is
     -- accept the read data and response information.
 		S_AXI_RREADY	: in std_logic
 	);
-end AES_Interface_S_AXI;
+end entity;
 
-architecture arch_imp of AES_Interface_S_AXI is
+architecture RTL of AES_Interface_S_AXI is
 
 	-- AXI4FULL signals
 	signal axi_awaddr	: std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
@@ -476,4 +476,4 @@ begin
    RdAddr <= axi_araddr; 
    axi_rdata <= RdData; 
    
-end arch_imp;
+end RTL;

@@ -11,7 +11,7 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity TestAESCoreGCM is
 --  Port ( );
-end TestAESCoreGCM;
+end entity;
 
 architecture Behavioral of TestAESCoreGCM is
 
@@ -150,4 +150,4 @@ elsif rising_edge(Clock) then
 end if;
 end process;
 
-end Behavioral;
+end architecture;

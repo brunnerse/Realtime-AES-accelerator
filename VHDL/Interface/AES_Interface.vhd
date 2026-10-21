@@ -147,9 +147,9 @@ entity AES_Interface is
 		m_axi_rvalid	: in std_logic;
 		m_axi_rready	: out std_logic
 	);
-end AES_Interface;
+end entity;
 
-architecture arch_imp of AES_Interface is
+architecture Structural of AES_Interface is
 
 	-- component declaration
 	component AES_Interface_S_AXI is
@@ -500,4 +500,4 @@ AES_Interface_M_AXI_inst : AES_Interface_M_AXI
         end generate;
 	-- User logic ends
 
-end arch_imp;
+end Structural;

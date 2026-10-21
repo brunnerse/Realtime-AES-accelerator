@@ -52,9 +52,9 @@ entity AES_Mode_ECBCBCCTR is
            Clock : in std_logic;
            Resetn : in std_logic
            );
-end AES_Mode_ECBCBCCTR;
+end entity;
 
-architecture Behavioral of AES_Mode_ECBCBCCTR is
+architecture RTL of AES_Mode_ECBCBCCTR is
 
 component AddRoundKey is
     Port ( din : in block_t;
@@ -149,4 +149,4 @@ end if;
 end process;
 
 
-end Behavioral;
+end architecture;

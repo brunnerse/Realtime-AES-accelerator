@@ -38,9 +38,9 @@ entity ShiftRows is
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
            Resetn : in STD_LOGIC);
-end ShiftRows;
+end entity;
 
-architecture Behavioral of ShiftRows is
+architecture RTL of ShiftRows is
 
 type rows_t is array(0 to 3) of std_logic_vector(AES_NB*8-1 downto 0);
 
@@ -115,4 +115,4 @@ end process;
 
 end generate;
 
-end Behavioral;
+end architecture;

@@ -31,7 +31,7 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity TestAESCore is
 --  Port ( );
-end TestAESCore;
+end entity;
 
 architecture Behavioral of TestAESCore is
 
@@ -158,4 +158,4 @@ elsif rising_edge(Clock) then
 end if;
 end process;
 
-end Behavioral;
+end architecture;

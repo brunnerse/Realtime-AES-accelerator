@@ -36,9 +36,9 @@ entity AEA is
        EnO : out STD_LOGIC;
        Clock : in STD_LOGIC;
        Resetn : in STD_LOGIC);
-end AEA;
+end entity;
 
-architecture Behavioral of AEA is
+architecture RTL of AEA is
 
 component AddRoundKey is
     Generic (
@@ -202,4 +202,4 @@ if rising_edge(Clock) then
 end if;
 end process;
 
-end Behavioral;
+end architecture;

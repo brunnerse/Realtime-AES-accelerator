@@ -43,7 +43,7 @@ entity KeyExpansion is
             isLastRoundKey : out STD_LOGIC;
             Clock : in STD_LOGIC;
             Resetn : in STD_LOGIC);
-end KeyExpansion;
+end entity;
 
 
 architecture RTL of KeyExpansion is
@@ -113,7 +113,7 @@ begin
     
     v_prevW := W(AES_NK-1) xor v_temp; -- W(0) = W{i-N}
 
-    return v_nextW;
+    return v_prevW;
 end function;
 
 procedure updateWordsInv(variable W : inout words_t; newWord : in word_t) is

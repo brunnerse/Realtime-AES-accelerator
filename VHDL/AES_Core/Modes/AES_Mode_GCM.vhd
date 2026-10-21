@@ -58,11 +58,11 @@ entity AES_Mode_GCM is
            Clock : in std_logic;
            Resetn : in std_logic
            );
-end AES_Mode_GCM;
+end entity;
 
 
 
-architecture Behavioral of AES_Mode_GCM is
+architecture RTL of AES_Mode_GCM is
 
 component AddRoundKey is
     Generic (
@@ -238,4 +238,4 @@ end if;
 
 end process;
 
-end Behavioral;
+end architecture;

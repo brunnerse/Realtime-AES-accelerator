@@ -35,7 +35,7 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity TestControlLogic_SingleChannel is
 --  Port ( );
-end TestControlLogic_SingleChannel ;
+end entity;
 
 architecture Behavioral of TestControlLogic_SingleChannel  is
 
@@ -64,7 +64,7 @@ testPlaintext <= x"00102030011121310212223203132333";
 testKey <= x"000102030405060708090a0b0c0d0e0f";
 
 
-i_ControlLogic : entity work.ControlLogic(Behavioral)
+i_ControlLogic : entity work.ControlLogic(RTL)
     generic map(NUM_CHANNELS => 1)
     port map(
         M_RV_ready => CL_ready,
@@ -82,7 +82,7 @@ i_ControlLogic : entity work.ControlLogic(Behavioral)
     );
    
 
-core: entity work.AES_Core (Behavioral) 
+core: entity work.AES_Core (Structural) 
 generic map(ADDR_IV => ADDR_IVR0, ADDR_SUSP => ADDR_SUSPR0, ADDR_H => ADDR_SUSPR4)
 port map (testKey, testIV, H, Susp, WrEnCore, WrAddrCore, WrDataCore, din, testCiphertext, EnICore, EnOCore, mode, chaining_mode, GCMPhase, Clock, Resetn);
 
@@ -191,4 +191,4 @@ wait for 10 ns;
 wait;
 end process;
 
-end Behavioral;
+end architecture;

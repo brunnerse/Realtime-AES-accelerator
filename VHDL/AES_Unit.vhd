@@ -131,9 +131,9 @@ entity AES_Unit is
 		-- Interrupt out
 		aes_introut : out std_logic
   );
-end AES_Unit;
+end entity;
 
-architecture Behavioral of AES_Unit is
+architecture Structural of AES_Unit is
 
 -- Define ahb ports as xiling AHB_INTERFACE
 ATTRIBUTE X_INTERFACE_INFO : STRING;
@@ -167,7 +167,7 @@ signal mode, GCMPhase, chaining_mode : mode_t;
 begin
 
 
-i_AES_Interface : entity work.AES_Interface(arch_imp)
+i_AES_Interface : entity work.AES_Interface(Structural)
     generic map (
 		LITTLE_ENDIAN 		=> LITTLE_ENDIAN,
         C_S_AXI_ID_WIDTH	=> C_S_AXI_ID_WIDTH,	
@@ -298,7 +298,7 @@ i_AES_Interface : entity work.AES_Interface(arch_imp)
 
 
     
-i_ControlLogic : entity work.ControlLogic(Behavioral)
+i_ControlLogic : entity work.ControlLogic(RTL)
     generic map(
         LITTLE_ENDIAN => LITTLE_ENDIAN,
     	REG_KEY_WRITEONLY => REG_KEY_WRITEONLY, 
@@ -338,7 +338,7 @@ i_ControlLogic : entity work.ControlLogic(Behavioral)
         Resetn => s_axi_aresetn
     );
 
-i_Core : entity work.AES_Core(Behavioral)
+i_Core : entity work.AES_Core(Structural)
     generic map (
         ADDR_IV => ADDR_IVR0,
         ADDR_SUSP => ADDR_SUSPR0,
@@ -362,4 +362,4 @@ i_Core : entity work.AES_Core(Behavioral)
         Resetn => s_axi_aresetn
     );
 
-end Behavioral;
+end architecture;

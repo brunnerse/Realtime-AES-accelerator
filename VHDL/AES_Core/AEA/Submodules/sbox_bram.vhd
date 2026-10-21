@@ -17,9 +17,9 @@ port (
     addra  : in std_logic_vector(ADDR_LEN-1 downto 0);
     douta  : out std_logic_vector(DATA_LEN-1 downto 0)
 );
-end sbox_bram;
+end entity;
 
-architecture rtl of sbox_bram is
+architecture RTL of sbox_bram is
 
    type mem_type is array (511 downto 0) of std_logic_vector(DATA_LEN-1 downto 0);
 
@@ -48,4 +48,4 @@ begin
     end if;
 end process;
 
-end rtl;
+end RTL;

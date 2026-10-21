@@ -80,9 +80,9 @@ entity ControlLogic is
     Clock    : in std_logic;
     Resetn   : in std_logic
   );
-end ControlLogic;
+end entity;
 
-architecture Behavioral of ControlLogic is
+architecture RTL of ControlLogic is
 -- helper function, must be at the beginning because it is used in the constants
 -- log2 that rounds up
 function log2( i : natural) return integer is
@@ -636,4 +636,4 @@ if rising_edge(Clock) then
 end if;
 end process;
 
-end Behavioral;
+end architecture;

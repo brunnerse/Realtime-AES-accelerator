@@ -39,9 +39,9 @@ entity PipelinedAEA is
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
            Resetn : in STD_LOGIC);
-end PipelinedAEA;
+end entity;
 
-architecture Behavioral of PipelinedAEA is
+architecture Structural of PipelinedAEA is
 
 component AddRoundKey is
     Port ( din : in block_t;
@@ -151,4 +151,4 @@ EnO <= EnORound10 when encrypt = '1' and keyExpandFlag = '0' else -- encryption 
 
 
 
-end Behavioral;
+end architecture;

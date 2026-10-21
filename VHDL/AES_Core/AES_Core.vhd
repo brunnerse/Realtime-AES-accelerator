@@ -53,9 +53,9 @@ entity AES_Core is
            Clock : in std_logic;
            Resetn : in std_logic
            );
-end AES_Core;
+end entity;
 
-architecture Behavioral of AES_Core is
+architecture Structural of AES_Core is
 
 -- Give the interface ports attributes so Vivado recognizes them as interface
 ATTRIBUTE X_INTERFACE_INFO : STRING;
@@ -206,4 +206,4 @@ WrData <=   WrDataGCM when chaining_mode = CHAINING_MODE_GCM else
             WrDataMNT;
 WrAddr <=   WrAddrGCM when chaining_mode = CHAINING_MODE_GCM else
             WrAddrMNT;       
-end Behavioral;
+end architecture;

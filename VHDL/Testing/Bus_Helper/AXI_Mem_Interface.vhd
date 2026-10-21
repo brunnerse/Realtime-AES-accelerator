@@ -102,7 +102,7 @@ entity AXI_Mem_Interface is
             M_AXI_arqos : out std_logic_vector (3 downto 0);
             M_AXI_rlast : in std_logic
            );
-end AXI_Mem_Interface;
+end entity;
 
 architecture Behavioral of AXI_Mem_Interface is
 
@@ -242,4 +242,4 @@ if rising_edge(M_AXI_aclk) then
 end if;
 end process;
 
-end Behavioral;
+end architecture;

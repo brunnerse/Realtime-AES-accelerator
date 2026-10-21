@@ -43,9 +43,9 @@ entity AddRoundKey is
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
            Resetn : in STD_LOGIC);
-end AddRoundKey;
+end entity;
 
-architecture Behavioral of AddRoundKey is
+architecture RTL of AddRoundKey is
 
 begin
 
@@ -72,4 +72,4 @@ end if;
 end process;
 end generate;
 
-end Behavioral;
+end architecture;

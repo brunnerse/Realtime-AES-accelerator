@@ -1,4 +1,4 @@
-----------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
 -- Company: 
 -- Engineer: 
 -- 
@@ -34,7 +34,7 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity TestAEA is
 --  Port ( );
-end TestAEA;
+end entity;
 
 architecture Behavioral of TestAEA is
 
@@ -140,4 +140,4 @@ wait;
 end process;
 
 
-end Behavioral;
+end architecture;

@@ -35,7 +35,7 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity TestControlLogic is
 --  Port ( );
-end TestControlLogic;
+end entity;
 
 architecture Behavioral of TestControlLogic is
 
@@ -73,7 +73,7 @@ testPlaintext <= x"00102030011121310212223203132333";
 testKey <= x"000102030405060708090a0b0c0d0e0f";
 
 
-i_ControlLogic : entity work.ControlLogic(Behavioral)
+i_ControlLogic : entity work.ControlLogic(RTL)
     generic map (
         NUM_CHANNELS => 17
     )
@@ -93,7 +93,7 @@ i_ControlLogic : entity work.ControlLogic(Behavioral)
     );
    
 
-core: entity work.AES_Core (Behavioral) 
+core: entity work.AES_Core (Structural) 
 generic map(ADDR_IV => ADDR_IVR0, ADDR_SUSP => ADDR_SUSPR0, ADDR_H => ADDR_HR0)
 port map (testKey, testIV, H, Susp, WrEnCore, WrAddrCore, WrDataCore, din, testCiphertext, EnICore, EnOCore, mode, chaining_mode, GCMPhase, Clock, Resetn);
 
@@ -218,4 +218,4 @@ WrEnAHB <= '0';
 end process;
 
 
-end Behavioral;
+end architecture;

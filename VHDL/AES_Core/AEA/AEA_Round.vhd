@@ -39,9 +39,9 @@ entity AEA_Round is
            IsLastCycle : out STD_LOGIC;
            Clock : in STD_LOGIC;
            Resetn : in STD_LOGIC);
-end AEA_Round;
+end entity;
 
-architecture Behavioral of AEA_Round is
+architecture Structural of AEA_Round is
 
 component SubBytes is
     Port ( dIn : in block_t;
@@ -136,4 +136,4 @@ isLastCycle <= ENIARK when encrypt = '1' else       -- For encryption, the last 
 
 
 
-end Behavioral;
+end architecture;

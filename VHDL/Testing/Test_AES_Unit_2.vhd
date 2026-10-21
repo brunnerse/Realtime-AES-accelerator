@@ -12,10 +12,10 @@ generic (
     LITTLE_ENDIAN: boolean := true;
     NUM_CHANNELS : integer := 8
     );
-end Test_AES_Unit_2;
+end entity;
 
 
-architecture TB of Test_AES_Unit_2 is
+architecture Behavioral of Test_AES_Unit_2 is
 
 function SwapEndian(x : std_logic_vector) return std_logic_vector is
 variable r : std_logic_vector(x'RANGE);
@@ -353,5 +353,5 @@ end process;
 
 
 
-end TB;
+end Behavioral;
 

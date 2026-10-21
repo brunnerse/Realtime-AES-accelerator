@@ -14,10 +14,10 @@ generic (
     NUM_CHANNELS : integer := 8;
     LITTLE_ENDIAN : boolean := true
     );
-end Test_AES_Unit_2_Sim_Bd_Scheduler;
+end entity;
 
 
-architecture TB of Test_AES_Unit_2_Sim_Bd_Scheduler is
+architecture Behavioral of Test_AES_Unit_2_Sim_Bd_Scheduler is
 
 function SwapEndian(x : std_logic_vector) return std_logic_vector is
 variable r : std_logic_vector(x'RANGE);
@@ -206,5 +206,5 @@ wait;
 end process;
 
 
-end TB;
+end Behavioral;
 
