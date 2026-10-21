@@ -50,6 +50,16 @@ component AEA is
            Resetn : in STD_LOGIC);
 end component;
 
+constant key1 : std_logic_vector(255 downto 0) := 
+    x"000102030405060708090a0b0c0d0e0f_101112131415161718191a1b1c1d1e1f"; 
+constant key2 : std_logic_vector(255 downto 0) := 
+    (others => '0');
+
+constant plaintext1 : block_t := x"00102030_01112131_02122232_03132333";
+constant plaintext2 : block_t := x"00010203_10111213_20212223_30313233";
+constant plaintext3 : block_t := (others => '0');
+
+
 signal Clock, Resetn : std_logic := '0';
 
 signal dIn, dOut: block_t;
@@ -60,10 +70,13 @@ signal keyExpandFlag : std_logic := '0';
 
 begin
 
-testKey <= x"000102030405060708090a0b0c0d0e0f";
+testKey <= key1(255 downto 256-testKey'length); 
 
-aeaEnc : AEA port map (dIn, dOut, testKey, encrypt, keyExpandFlag, EnI, EnO, 
-    Clock => Clock, Resetn => Resetn);
+aeaEnc : AEA port map (dIn => dIn, dOut => dOut, key => testKey, 
+        encrypt => encrypt, 
+        keyExpandFlag => keyExpandFlag, 
+        EnI => EnI, EnO => EnO, 
+        Clock => Clock, Resetn => Resetn);
 
 Clock <= not Clock after 5 ns;
 
@@ -75,7 +88,7 @@ Resetn <= '1';
 --wait for 50  ns; -- Wait until Resetn is over
 EnI <= '1'; 
 encrypt <= '1';
-dIn <= x"00102030011121310212223203132333";
+dIn <= plaintext1; 
 wait for 10  ns;
 report "Started encryption with dIn = " & to_hstring(to_bitvector(dIn));
 EnI <= '0'; 
@@ -121,7 +134,7 @@ report "Started decryption (keyexp=1) with dIn = " & to_hstring(to_bitvector(dIn
 wait until EnO = '1';
 report "Decryption finished with dOut = " & to_hstring(to_bitvector(dOut));
 
---testPlaintext <= x"affedeadbeefdadcabbeadbeec0cabad";
+--testPlaintext <= plaintext2; 
 --wait for 10  ns;
 wait;
 end process;
