@@ -18,6 +18,7 @@
 #define Nb (AES_BLOCKLEN / 4)  // Number of columns in block Nb; always four rows  
 
 
+
 // prints string as hex
 void __attribute__((weak)) phex(uint8_t* str) {
     unsigned char i;

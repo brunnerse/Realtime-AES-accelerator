@@ -11,6 +11,7 @@ void KeyExpansion(uint8_t *RoundKey, const uint8_t* Key);
 void KeyExpansion_rev(uint8_t *RoundKey, const uint8_t* lastKey);
 
 
+// prints string as hex
 void __attribute__((weak)) phex_key(uint8_t* str) {
     unsigned char i;
     for (i = 0; i < Nk * 4; ++i)
@@ -56,12 +57,12 @@ int main(void)
         phex(RoundKey + round * 16);
     }
 
-    uint8_t last_key[16];
-    memcpy(last_key, RoundKey + 16*10, 16);
+    uint8_t last_words[Nk * 4];
+    memcpy(last_words, RoundKey +  4*Nb*(Nr+1) - Nk*4, Nk * 4);
     memset(RoundKey, 0, AES_keyExpSize);
 
 
-    KeyExpansion_rev(RoundKey, last_key);
+    KeyExpansion_rev(RoundKey, last_words);
 
     printf("\nReversed Round keys:\n");
     for (int round = 0; round < AES_keyExpSize / 16; round += 1)
@@ -133,6 +134,8 @@ void KeyExpansion(uint8_t *RoundKey, const uint8_t* Key)
         uint32_t temp = W[i-1];
         if (i % Nk == 0)
             temp = SubByte(RotByte(temp)) ^  Rcon[i / Nk];
+        else if (Nk > 6 && i % Nk == 4)
+            temp = SubByte(temp);
         
         W[i] = W[i - Nk] ^ temp;
     }
@@ -154,20 +157,22 @@ void KeyExpansion(uint8_t *RoundKey, const uint8_t* Key)
 
 
 // This function produces Nb(Nr+1) round keys. The round keys are used in each round to decrypt the states.
-void KeyExpansion_rev(uint8_t *RoundKey, const uint8_t* lastKey)
+void KeyExpansion_rev(uint8_t *RoundKey, const uint8_t* last_words)
 {
     uint32_t *W = (uint32_t*)RoundKey;
 
     // Enter last roudn key 
-    memcpy(&W[Nr * Nb], lastKey, 4 * Nb);
+    memcpy(&W[(Nr+1)*Nb - Nk], last_words, 4*Nk);
 
 #if KEYEXPANSION_WORDWISE 
     // Build previous Nr round keys word by word
-    for (int i = Nb * Nr - 1; i >= 0; i--)
+    for (int i = (Nr+1)*Nb - Nk - 1; i >= 0; i--)
     {
         uint32_t temp = W[i + Nk - 1];
         if (i % Nk == 0)
             temp = SubByte(RotByte(temp)) ^ Rcon[(i + Nk) / Nk]; 
+        else if (Nk > 6 && i % Nk == 4)
+            temp = SubByte(temp);
         W[i] = W[i + Nk] ^ temp;
     }
 #else

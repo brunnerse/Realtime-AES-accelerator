@@ -71,7 +71,7 @@ static void CipherVerbose(state_t* state, const uint8_t* RoundKey)
   // The first Nr-1 rounds are identical.
   // These Nr rounds are executed in the loop below.
   // Last one without MixColumns()
-  for (round = 1; ; ++round)
+  for (round = 1; round <= Nr; ++round)
   {
 #if PRINT_STATE_AFTER_EACH_STEP
     printf("---------\n");
@@ -91,14 +91,13 @@ static void CipherVerbose(state_t* state, const uint8_t* RoundKey)
     phex((uint8_t*)state);
 #endif
 
-    if (round == Nr) {
-      break;
-    }
-    MixColumns(state);
+    if (round != Nr) {
+        MixColumns(state);
 #if PRINT_STATE_AFTER_EACH_STEP
-    printf("-- MC:\t");
-    phex((uint8_t*)state);
+        printf("-- MC:\t");
+        phex((uint8_t*)state);
 #endif
+    }
     AddRoundKey(round, state, RoundKey);
 #if PRINT_STATE_AFTER_EACH_STEP
     printf("-- AK:\t");
@@ -107,8 +106,6 @@ static void CipherVerbose(state_t* state, const uint8_t* RoundKey)
     phex((uint8_t*)RoundKey + AES_BLOCKLEN * round);
 #endif
   }
-  // Add round key to last round
-  AddRoundKey(Nr, state, RoundKey);
 }
 
 
@@ -117,14 +114,12 @@ static void InvCipherVerbose(state_t* state, const uint8_t* RoundKey)
 {
   uint8_t round = 0;
 
-  // Add the First round key to the state before starting the rounds.
-  AddRoundKey(Nr, state, RoundKey);
 
   // There will be Nr rounds.
   // The first Nr-1 rounds are identical.
   // These Nr rounds are executed in the loop below.
   // Last one without InvMixColumn()
-  for (round = (Nr - 1); ; --round)
+  for (round = Nr ; round >= 1; --round)
   {
 #if PRINT_STATE_AFTER_EACH_STEP
     printf("---------\n");
@@ -132,31 +127,36 @@ static void InvCipherVerbose(state_t* state, const uint8_t* RoundKey)
     printf("Round state before round %u:\n\t", round);
     phex((uint8_t*)state);
 
-	InvShiftRows(state);
-#if PRINT_STATE_AFTER_EACH_STEP
-    printf("-- SR:\t");
-    phex((uint8_t*)state);
-#endif
-	InvSubBytes(state);
-#if PRINT_STATE_AFTER_EACH_STEP
-    printf("-- SB:\t");
-    phex((uint8_t*)state);
-#endif
-	AddRoundKey(round, state, RoundKey);
+    AddRoundKey(round, state, RoundKey);
 #if PRINT_STATE_AFTER_EACH_STEP
     printf("-- ARK:\t");
     phex((uint8_t*)state);
     printf("\troundkey was ");
     phex((uint8_t*)RoundKey + AES_BLOCKLEN * round);
 #endif
-	if (round == 0) {
-	    break;
-	}
-	InvMixColumns(state);
+
+    if (round != Nr) {
+    	InvMixColumns(state);
 #if PRINT_STATE_AFTER_EACH_STEP
-    printf("-- MC:\t");
+        printf("-- MC:\t");
+        phex((uint8_t*)state);
+#endif
+    }
+
+	InvShiftRows(state);
+#if PRINT_STATE_AFTER_EACH_STEP
+    printf("-- SR:\t");
+    phex((uint8_t*)state);
+#endif
+
+	InvSubBytes(state);
+#if PRINT_STATE_AFTER_EACH_STEP
+    printf("-- SB:\t");
     phex((uint8_t*)state);
 #endif
   	}
+
+  // Add the First round key to the state before starting the rounds.
+  AddRoundKey(0, state, RoundKey);
 
 }
