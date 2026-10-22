@@ -42,7 +42,7 @@ architecture Behavioral of TestAEA is
 constant key1 : std_logic_vector(255 downto 0) := 
     x"000102030405060708090a0b0c0d0e0f_101112131415161718191a1b1c1d1e1f"; 
 constant key2 : std_logic_vector(255 downto 0) := 
-    (others => '0');
+    x"000102030405060708090a0b0c0d0e0f_00000000000000000000000000000000"; 
 
 constant plaintext1 : block_t := x"00102030_01112131_02122232_03132333";
 constant plaintext2 : block_t := x"00010203_10111213_20212223_30313233";
@@ -59,7 +59,7 @@ signal keyExpandFlag : std_logic := '0';
 
 begin
 
-testKey <= key1(255 downto 256-testKey'length); 
+testKey <= key2(255 downto 256-testKey'length); 
 
 aeaEnc : entity work.AEA port map (dIn => dIn, dOut => dOut, key => testKey, 
         encrypt => encrypt, 
@@ -99,7 +99,7 @@ report "Decryption finished with dOut = " & to_hstring(to_bitvector(dOut));
 
 report "Resetting round keys...";
 Resetn <= '0'; -- Reset round keys
-wait for 30 ns;
+wait for 50 ns;
 Resetn <= '1'; 
 EnI <= '1';
 --dIn <= dOut; -- dIn should keep its value

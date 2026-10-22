@@ -116,12 +116,14 @@ begin
     
     v_prevW := W(AES_NK-1) xor v_temp; -- W(0) = W{i-N}
 
+    report "Word " & to_string(wordIdx) & ": " & to_hstring(v_prevW);
+
     return v_prevW;
 end function;
 
 procedure updateWordsInv(variable W : inout words_t; newWord : in word_t) is
 begin
-    for i in 1 to AES_NK-1 loop
+    for i in AES_NK-1 downto 1 loop
         W(i) := W(i-1);   
     end loop;
 
@@ -161,6 +163,7 @@ begin
     end if;
 end procedure;
 
+
 -- The Index of the key that is being calculated in this cycle
 signal RCon : rcon_t;
 
@@ -176,10 +179,12 @@ process (Clock)
 variable v_W : words_t; 
 -- v_nextWordIdx equals index of next word to calculate,
 -- i.e. for reverse, it decrements (technically prevWordIdx)
-variable v_nextWordIdx : natural range 0 to (1+AES_NR) * 4; 
+variable v_nextWordIdx : natural range 0 to (1+AES_NR) * AES_NB + 4; 
+-- TODO natural with unsigned 
 
 begin
 if rising_edge(Clock) then
+    -- TODO better init scheme: 
     if Resetn = '0' or init = '1' then
         if reverse /= '1' then
             for i in 0 to AES_NK-1 loop
@@ -211,6 +216,7 @@ if rising_edge(Clock) then
                     -- One update: Calculate one word, then shift them all
                     -- We calculate W_next = W_i, which is then inserted by shifting the entire W
 
+                    --TODO for AES192/AES256, we only need half an update or no update in the last round
                     updateWords(v_W, 
                         calcNextWord(v_W, v_nextWordIdx, RCon));
 

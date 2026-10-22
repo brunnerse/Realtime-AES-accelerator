@@ -9,9 +9,9 @@ constant AES_KEY_SIZE : integer := 128;
 -- The official AES standard always uses a block size of 128
 constant AES_BLOCK_SIZE : integer := 128;
 
+constant AES_NR : natural := 10;            -- Number of rounds
 CONSTANT AES_NK : natural := AES_KEY_SIZE/32;   -- Number of columns in the cipher key
 CONSTANT AES_NB : natural := AES_BLOCK_SIZE/32; -- Number of columns in a block
-constant AES_NR : natural := 10;            -- Number of rounds
 
 subtype block_t is std_logic_vector(AES_BLOCK_SIZE-1 downto 0);
 subtype key_t is std_logic_vector(AES_KEY_SIZE-1 downto 0);
