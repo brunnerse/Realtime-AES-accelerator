@@ -59,7 +59,7 @@ architecture RTL of AES_Mode_ECBCBCCTR is
 component AddRoundKey is
     Port ( din : in block_t;
            dout : out block_t;
-           key : in block_t;
+           roundKey : in block_t;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;

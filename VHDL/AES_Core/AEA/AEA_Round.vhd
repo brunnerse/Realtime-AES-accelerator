@@ -33,7 +33,7 @@ entity AEA_Round is
            dOut : out block_t;
            roundKey : in block_t;
            encrypt : in STD_LOGIC;
-           isLastRound : in STD_LOGIC;
+           skipMixColumns : in STD_LOGIC;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            IsLastCycle : out STD_LOGIC;
@@ -107,27 +107,29 @@ roundMC : MixColumns
 roundARK : AddRoundKey
              port map(dInARK, dOutARK, roundKey, EnIARK, EnOARK, Clock, Resetn);
 
+-- TODO restructure: process (all) 
+
 -- Define data between the components; for decryption, the order is reversed
 -- Left side is encryption, right side is decryption
 dInSB <= dIn when encrypt = '1' else        dOutSR;
 dInSR <= dOutSB when encrypt = '1' else     
-                                            dOutMC when isLastRound = '0' else
+                                            dOutMC when skipMixColumns = '0' else
                                             dOutARK; -- skip MixColumns in the last round
 dInMC <= dOutSR when encrypt = '1' else     dOutARK;
 dInARK <=                                   dIn when encrypt = '0' else 
-    dOutMC when isLastRound = '0' else
-    dOutSR; -- Skip MixColumns in the last round
+    dOutMC when skipMixColumns = '0' else
+    dOutSR; -- 
 dOut <= dOutARK when encrypt = '1' else     dOutSB;
 
 -- Define the enable signal connections between the components in the same scheme
 EnISB <= EnI when encrypt = '1' else        EnOSR;
 EnISR <= EnOSB when encrypt = '1' else     
-                                            EnOMC when isLastRound = '0' else
+                                            EnOMC when skipMixColumns = '0' else
                                             EnOARK; -- skip MixColumns in the last round
-EnIMC <= '0' when isLastRound = '1' else
+EnIMC <= '0' when skipMixColumns = '1' else
           EnOSR when encrypt = '1' else     EnOARK;
 EnIARK <=                                   EnI when encrypt = '0' else 
-          EnOMC when isLastRound = '0' else
+          EnOMC when skipMixColumns = '0' else
           EnOSR; -- Skip MixColumns in the last round
 EnO <= EnOARK when encrypt = '1' else     EnOSB;
 

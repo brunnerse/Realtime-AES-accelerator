@@ -70,7 +70,7 @@ component AddRoundKey is
     );
     Port ( din : in block_t;
            dout : out block_t;
-           key : in block_t;
+           roundKey : in block_t;
            EnI : in STD_LOGIC;
            EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
@@ -84,7 +84,7 @@ begin
 end function;
 
 
-constant ZERO : std_logic_vector(KEY_SIZE-2 downto 0) := (others => '0');
+constant ZERO : std_logic_vector(AES_KEY_SIZE-2 downto 0) := (others => '0');
 -- we don't need the x^128 in the polynomial
 constant POLYGF : block_t := x"e1000000000000000000000000000000";
 
@@ -193,7 +193,7 @@ if rising_edge(Clock) then
     if Resetn = '0' then
         EnOMul <= '0';
         calculationInProgress := false;
-        lastIdx <= KEY_SIZE;
+        lastIdx <= AES_KEY_SIZE;
     else
         EnOMul <= '0';
         -- Set up a new mulGF operation
@@ -213,9 +213,9 @@ if rising_edge(Clock) then
                 -- shift the first factor one bit to the right (corresponds to multiplying the polynomial by x)
                 -- if the result would be divisible by x^128, subtract the GF polynomial
                 if v(0) = '0' then
-                    v := '0' & v(KEY_SIZE-1 downto 1); -- multiply the by x (i.e. right shift by 1)
+                    v := '0' & v(AES_KEY_SIZE-1 downto 1); -- multiply the by x (i.e. right shift by 1)
                 else
-                    v := ('0' & v(KEY_SIZE-1 downto 1)) xor POLYGF; -- result was larger or equal to x^128:  subtract polynom after multiplication
+                    v := ('0' & v(AES_KEY_SIZE-1 downto 1)) xor POLYGF; -- result was larger or equal to x^128:  subtract polynom after multiplication
                 end if;
             end loop;
             
@@ -224,7 +224,7 @@ if rising_edge(Clock) then
                 calculationInProgress := false;
                 EnOMul <= '1';
                 dOutMul <= c;
-                lastIdx <= KEY_SIZE;
+                lastIdx <= AES_KEY_SIZE;
             else
                 lastIdx <= lastIdx - MULTIPLICATIONS_PER_CYCLE; 
             end if;

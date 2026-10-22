@@ -60,7 +60,7 @@ constant plaintext2 : block_t := x"00010203_10111213_20212223_30313233";
 constant plaintext3 : block_t := (others => '0');
 
 
-signal Clock, Resetn : std_logic := '0';
+signal Clock, Resetn : std_logic := '1';
 
 signal dIn, dOut: block_t;
 signal testKey : key_t;
@@ -84,6 +84,7 @@ process begin
 Resetn <= '0';
 EnI <= '0'; 
 wait for 30 ns;
+wait until rising_edge(Clock);
 Resetn <= '1';
 --wait for 50  ns; -- Wait until Resetn is over
 EnI <= '1'; 
@@ -92,18 +93,19 @@ dIn <= plaintext1;
 wait for 10  ns;
 report "Started encryption with dIn = " & to_hstring(to_bitvector(dIn));
 EnI <= '0'; 
-wait until EnO = '1';
+wait until EnO = '1' and rising_edge(Clock);
 report "Encryption finished with dOut = " & to_hstring(to_bitvector(dOut));
 
-wait for 20 ns;
+wait for 100 ns;
 EnI <= '1';
 dIn <= dOut;
 encrypt <= '0';
 keyExpandFlag <= '0';
+wait for 0 ns;
+report "Starting decryption with dIn = " & to_hstring(to_bitvector(dIn));
 wait for 10 ns;
 EnI <= '0';
-report "Started decryption with dIn = " & to_hstring(to_bitvector(dIn));
-wait until EnO = '1';
+wait until EnO = '1' and rising_edge(Clock);
 report "Decryption finished with dOut = " & to_hstring(to_bitvector(dOut));
 
 report "Resetting round keys...";
@@ -117,7 +119,7 @@ keyExpandFlag <= '0';
 wait for 10 ns;
 EnI <= '0';
 report "Started decryption (keyexp=0) with dIn = " & to_hstring(to_bitvector(dIn));
-wait until EnO = '1';
+wait until EnO = '1' and rising_edge(Clock);
 report "Decryption finished with dOut = " & to_hstring(to_bitvector(dOut));
 
 report "Resetting round keys...";

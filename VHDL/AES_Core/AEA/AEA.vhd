@@ -40,163 +40,196 @@ end entity;
 
 architecture RTL of AEA is
 
-component AddRoundKey is
-    Generic (
-        synchronous : boolean := true
-        );
-    Port ( din : in block_t;
-           dout : out block_t;
-           roundKey : in block_t;
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Resetn : in STD_LOGIC);
-end component;
 
-component AEA_Round is
-    Port ( dIn : in block_t;
-           dOut : out block_t;
-           roundKey : in block_t;
-           encrypt : in STD_LOGIC;
-           isLastRound : in STD_LOGIC;
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           IsLastCycle : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Resetn : in STD_LOGIC);
-end component;
+type state_t is (Idle, OnlyKeyExp, Rounds, LastRound);
 
-component KeyExpansion is
-    Port (  userKey : in key_t;
-            init : in STD_LOGIC;
-            reverse : in STD_LOGIC;
-            calcNextRoundKey : in STD_LOGIC;
---
-            roundKey : out block_t;
-            isLastRoundKey : out STD_LOGIC;
-            Clock : in STD_LOGIC;
-            Resetn : in STD_LOGIC);
-end component;
-
-type state_type is (Idle, RoundState);
-
-signal currentRound : integer range 1 to AES_NR;
-signal state : state_type;
+signal currentRound : integer range 1 to AES_NR; -- TODO replace with unsigned
+signal state : state_t;
 
 -- signals to connect the components
 signal dInPreARK, dInRound, roundKey : block_t;
 signal dOutPreARK, dOutRound : block_t;
 signal EnIPreARK, EnIRound : std_logic;
 signal EnOPreARK, EnORound : std_logic;
-signal isLastRound, roundIsLastCycle : std_logic;
+signal roundSkipMixColumns, roundIsLastCycle : std_logic;
 
 -- signals for the KeyExpansion, which is only used for decryption
-signal keyexpSetUserKey, keyexpCalcNextKey, keyexpReverse : std_logic;
-signal keyexpIsLastRoundKey : std_logic;
+signal keyexpInit, keyexpCalcNextKey, keyexpReverse : std_logic;
 
 
 begin
 
 
-preARK : AddRoundKey
-             port map(dInPreARK, dOutPreARK, key(block_t'RANGE), EnIPreARK, EnOPreARK, Clock, Resetn);
-roundAEA : AEA_Round
-             port map(dInRound, dOutRound, roundKey, encrypt, isLastRound, EnIRound, EnORound, roundIsLastCycle, Clock, Resetn);
+preARK : entity work.AddRoundKey(RTL)
+             port map(dIn => dInPreARK, 
+                      dOut => dOutPreARK, 
+                      roundKey => key(block_t'RANGE), 
+                      EnI => EnIPreARK, EnO => EnOPreARK, 
+                      Clock => Clock, Resetn => Resetn
+                    );
 
-keyExp : KeyExpansion
-             port map(key, keyexpSetUserKey, keyexpCalcNextKey, keyexpReverse,
-                roundKey, keyexpIsLastRoundKey, Clock, Resetn);
+roundAEA : entity work.AEA_Round(Structural)
+             port map(dIn => dInRound, dOut => dOutRound, roundKey => roundKey, 
+                encrypt => encrypt, skipMixColumns => roundSkipMixColumns, 
+                EnI => EnIRound, EnO => EnORound, isLastCycle => roundIsLastCycle, 
+                Clock => Clock, Resetn => Resetn);
 
--- connect data signals of the components
-dInPreARK <= dIn when encrypt = '1' else dOutRound;
-dInRound <= dOutRound when State = RoundState else  -- loop back the output of the round to the input
-            dOutPreARK when encrypt = '1' else -- init encryption
-            dIn when encrypt = '0';  -- init decryption
-dOut <= dOutRound when encrypt = '1' else dOutPreARK;
-
--- connect enable signals
--- Always run KeyExpansion for simplicity;  wouldn't be necessary in Decyption mode, but doesn't change the result
-keyexpSetUserKey <= EnI and encrypt; -- Set key at the start 
-keyexpCalcNextKey <= EnIRound; -- TODO for decode??
--- TODO for decode, switch it on after certain numbers isLastRoundKey is set
-keyexpReverse <= '1' when encrypt = '0' and keyExpandFlag = '0' else -- encryption mode
-                 '0';
+keyExp : entity work.KeyExpansion(RTL)
+             port map(userKey => key, init => keyexpInit, 
+                reverse => keyexpReverse, calcNextRoundKey => keyexpCalcNextKey,
+                roundKey => roundKey, 
+                Clock => Clock, Resetn => Resetn);
 
 
-EnIPreARK <= '0' when encrypt = '1' and keyExpandFlag = '1' else -- KeyExpansion mode: don't run
-            EnI when encrypt = '1' else -- Encryption mode
-            EnORound; -- Decryption mode
-EnIRound <= EnORound when state = RoundState else
-            EnOPreARK when encrypt = '1' else -- Init in encryption mode
-            keyexpIsLastRoundKey when encrypt = '0' and keyExpandFlag = '1' else -- decryption with keyexpansion
-            EnI; -- decryption without keyexpansion: start round immediately
-             
--- Set EnO to 0, except in the last round, where it is set to the enable signal of the last component
-EnO <= '0' when state /= Idle else 
-        EnORound when encrypt = '1' and keyExpandFlag = '0' else -- encryption mode
-        EnOPreARK when encrypt = '0'  else  -- decryption
-        keyexpIsLastRoundKey ; -- KeyExpansion mode
+--------------------------------
+-- Connect chain of enable signals
+
+keyexpInit <= EnI; -- Set key at the start 
+
+process (all)
+begin
+    if encrypt = '1' then
+        dInPreARK <= dIn;
+        dInRound <= dOutPreARK;
+        dOut <= dOutRound;
+
+        EnIPreArk <= EnI;
+        EnIRound <= EnOPreArk;
+
+        if keyExpandFlag = '1' then
+            EnO <= '0'; -- TODO 
+        else
+            EnO <= EnORound;
+        end if;
+
+        keyexpReverse <= '0';
+        -- Can start calculation of next key in the same cycle as the ARK operation 
+        keyexpCalcNextKey <= EnOPreARK or roundIsLastCycle; 
+
+    else
+        dInRound <= dIn;
+        dInPreARK <= dOutRound;
+        dOut <= dOutPreARK;
+
+        if keyExpandFlag = '1' then
+            EnIRound <= '0'; -- TODO: start round when last round key is calculated
+        else
+            EnIRound <= EnI; -- Decryption mode: start round immediately
+        end if;
+
+        EnIPreArk <= EnORound;
+
+        EnO <= EnOPreArk; -- Output of the last component in the chain is the output of the whole module
+
+        keyexpReverse <= '1';
+        -- Since ARK is first step, can start calculation of next key while starting the next round
+        keyexpCalcNextKey <= EnIRound;
+    end if;
+
+    if state = Rounds then
+        dInRound <= dOutRound;  -- loop  back the output of the round to the input
+        EnIRound <= EnORound;
+        -- Set EnO to 0, except in the last round, where it is set to the enable signal of the last component
+        EnO <= '0';
+    end if;
+
+    if state = OnlyKeyExp then
+        keyexpReverse <= '0'; 
+        keyexpCalcNextKey <= '1'; -- Keep calculating new round keys until the last one is calculated
+    end if;
+    if currentRound = AES_NR then
+        keyexpCalcNextKey <= '0'; -- Stop calculating new round keys in the last round
+    end if;
+end process;
+
                
 
--- process that counts up/down the currentRound variable and sets isLastRound accordingly
+-- State Machine that coordinates the rounds
 process (Clock)
-procedure SwitchToIdle is
-begin
-    state <= Idle;
-    -- for decryption, start with the last round
-    -- default values are for decryption, as Mode Decryption (without KeyExp) start immediately in rounds,
-    -- whereas with Mode Encryption, there's one cycle before the round starts, so the values can still be changed
-    currentRound <= AES_NR;
-    isLastRound <= '1';
-end procedure;
-
 begin
 if rising_edge(Clock) then
+    -- TODO set up signals so we can immediately start with Decrypt Round?
+
     if Resetn = '0' then
-        SwitchToIdle;
+        state <= Idle;
+        -- reset roudnSkipMixColumns?
+        roundSkipMixColumns <= '-';
     else
         case (state) is
             when Idle =>
+                currentRound <= 1;
                 -- when an encryption starts, change currentRound and isLastRound to its encryption init values
                 -- otherwise, keep them on their decryption initial values
-                if EnI = '1' and encrypt = '1' then
-                    currentRound <= 1;
-                    isLastRound <= '0';
+                if EnI = '1'  then
+                    if encrypt = '1' then
+                        roundSkipMixColumns <= '0';
+                    else 
+                        roundSkipMixColumns <= '1';  -- For decryption, the last round is the first round, so we skip the MixColumns step 
+                    end if;
+
+                    if keyExpandFlag = '1' then
+                        state <= OnlyKeyExp;
+                    else
+                        -- Delay state rounds while PreARK is running
+                        -- TODO more elegant way to do this
+                        state <= Rounds when encrypt = '0' else Idle;
+                    end if;
+                end if; 
+                if EnOPreArk = '1' then 
+                    state <= Rounds;
                 end if;
-                -- change to RoundState when Round starts.
-                -- This enables a feedback loop where Round's En and Data signals are fed back to itself
-                if EnIRound = '1' then
-                    state <= RoundState;
-                end if;
+            
+            when OnlyKeyExp => 
+                -- Usually, KeyExpansion and Rounds run in parallel.
+                -- In state OnlyKeyExp, only the KeyExpansion runs. 
+
+                -- TODO must adapt if calculation of one key takes multiple rounds
+                currentRound <= currentRound + 1;
+
+                if currentRound = AES_NR-1 then
+                    if encrypt = '1' and keyExpandFlag = '1' then
+                        state <= Idle; -- For encryption, we can stop after the last round key is calculated
+                    else
+                        state <= Rounds;
+                        currentRound <= 1;
+                    end if;
+                end if; 
+
+
             -- RoundState: AEA is executing Rounds         
-            when RoundState =>
+            when Rounds =>
                 -- Update currentRound and state in the last cycle before the round finishes
                 if roundIsLastCycle = '1' then
-                    -- Set the isLastRound signal for encryption before the last round starts
-                    if encrypt = '1' and currentRound = AES_NR-1 then
-                        isLastRound <= '1';
-                    else
-                        -- during decryption, round 10 (with isLastRound='1') is the first round,
-                        -- so it can be deasserted as soon as a round finishes
-                        isLastRound <= '0';
-                    end if;
                     
-                    -- Increment/Decrement currentRound, Change state to idle if last round reached
-                    if encrypt = '1' then
-                        if currentRound = AES_NR then
-                            SwitchToIdle;
-                        else
-                            currentRound <= currentRound + 1;
+
+                    roundSkipMixColumns <= '0'; -- Reset roundSkipMixColumns for the next round, if any
+
+                    if currentRound = AES_NR-1 then
+
+
+                        --state <= LastRound;
+
+                        -- Must skip MixColumns in the last round of encryption
+                        if encrypt = '1' then
+                            roundSkipMixColumns <= '1';
                         end if;
-                    else -- encrypt = '0'
-                        if currentRound = 1 then
-                             SwitchToIdle;
-                        else
-                             -- decrement for decryption 
-                             currentRound <= currentRound - 1; 
-                        end if;                        
+                        -- For decryption, we already skipped MixColumns in the "first" round
+                    end if;
+                    if currentRound = AES_NR then
+                        -- Last round finishes in next cycle
+                        state <= Idle;
+                        --currentRound <= currentRound; -- Do not increment anymore
+                    else
+                        currentRound <= currentRound + 1;
                     end if;
                 end if;
+            when LastRound => 
+                assert false severity failure;
+                -- This state prevents another keyexpansion after the last round.
+                -- TODO eliminate and work with prevState in instead?
+           --     if roundIsLastCycle = '1' then
+           --         state <= Idle;
+           --     end if;
         end case;
     end if;
 end if;
