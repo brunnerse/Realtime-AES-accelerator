@@ -64,35 +64,56 @@ roundARK : entity work.AddRoundKey
              port map(dIn => dInARK, dOut => dOutARK, roundKey => roundKey,
                       EnI => EnIARK, EnO => EnOARK, Clock => Clock, Resetn => Resetn);
 
--- TODO restructure: process (all) 
+-- Define data and enable signal connections between the components; for decryption, the order is reversed
+process (all)
+begin
+if encrypt = '1' then
+    -- Encryption: SubBytes -> ShiftRows -> MixColumns -> AddRoundKey
+    dInSB <= dIn;
+    EnISB <= EnI;
 
--- Define data between the components; for decryption, the order is reversed
--- Left side is encryption, right side is decryption
-dInSB <= dIn when encrypt = '1' else        dOutSR;
-dInSR <= dOutSB when encrypt = '1' else     
-                                            dOutMC when skipMixColumns = '0' else
-                                            dOutARK; -- skip MixColumns in the last round
-dInMC <= dOutSR when encrypt = '1' else     dOutARK;
-dInARK <=                                   dIn when encrypt = '0' else 
-    dOutMC when skipMixColumns = '0' else
-    dOutSR; -- 
-dOut <= dOutARK when encrypt = '1' else     dOutSB;
+    dInSR <= dOutSB;
+    EnISR <= EnOSB;
 
--- Define the enable signal connections between the components in the same scheme
-EnISB <= EnI when encrypt = '1' else        EnOSR;
-EnISR <= EnOSB when encrypt = '1' else     
-                                            EnOMC when skipMixColumns = '0' else
-                                            EnOARK; -- skip MixColumns in the last round
-EnIMC <= '0' when skipMixColumns = '1' else
-          EnOSR when encrypt = '1' else     EnOARK;
-EnIARK <=                                   EnI when encrypt = '0' else 
-          EnOMC when skipMixColumns = '0' else
-          EnOSR; -- Skip MixColumns in the last round
-EnO <= EnOARK when encrypt = '1' else     EnOSB;
+    EnIMC <= EnOSR;
+    dInMC <= dOutSR;
 
-isLastCycle <= ENIARK when encrypt = '1' else       -- For encryption, the last component is ARK
-                                            EnISB;  -- For decryption, the last component is SubBytes
+    dInARK <= dOutMC;
+    EnIARK <= EnOMC;
 
+    if skipMixColumns = '1' then
+        EnIMC <= '-';
+        dInARK <= dOutSR;
+        EnIARK <= EnOSR;
+    end if;
+
+    EnO <= EnOARK;
+    dOut <= dOutARK;
+
+    isLastCycle <= EnIARK; -- For encryption, the last component is ARK
+else
+    -- Decryption: AddRoundKey -> MixColumns -> ShiftRows -> SubBytes
+    EnIARK <= EnI;
+    dInARK <= dIn;
+
+    EnIMC <= EnOARK;
+    dInMC <= dOutARK;
+
+    dInSR <= dOutMC;
+    EnISR <= EnOMC;
+
+    if skipMixColumns = '1' then
+        EnIMC <= '-';
+        dInSR <= dOutARK;
+        EnISR <= EnOARK;
+    end if;
+    dInSB <= dOutSR;
+    EnISB <= EnOSR;
+    dOut <= dOutSB;
+    EnO <= EnOSB;
+    isLastCycle <= EnISB; -- For decryption, the last component is SubBytes
+end if;
+end process;
 
 
 end architecture;

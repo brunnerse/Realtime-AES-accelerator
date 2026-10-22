@@ -68,7 +68,7 @@ begin
         -- perform substitution for each byte 
         v_temp := SubBytesInVec(v_temp); 
         -- xor with Rcon constant
-        v_temp := v_temp xor (Rcon & x"000000");
+        v_temp(31 downto 24) := v_temp(31 downto 24) xor Rcon; -- Only highest byte, since Rcon is extended to  [Rcon 00 00 00]
 
     elsif AES_NK > 6 and wordIdx rem AES_NK = 4 then
         -- Special rule for AES256: sbox substitution for middle word
@@ -107,7 +107,7 @@ begin
         -- perform substitution for each byte 
         v_temp := SubBytesInVec(v_temp); 
         -- xor with Rcon constant
-        v_temp := v_temp xor (Rcon & x"000000");
+        v_temp(31 downto 24) := v_temp(31 downto 24) xor Rcon; -- Only highest byte, since Rcon is extended to  [Rcon 00 00 00]
 
     elsif AES_NK > 6 and wordIdx rem AES_NK = 4 then
         -- Special rule for AES256: sbox substitution for middle word

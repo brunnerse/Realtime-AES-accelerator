@@ -117,7 +117,7 @@ begin
             EnIRound <= EnI; -- Decryption mode: start round immediately
         end if;
 
-        EnIPreArk <= EnORound;
+        EnIPreArk <= EnORound; -- when state = Idle else '0'; -- TODO can remove this; doesnt matter if PreArk runs after every round, not just the last
 
         EnO <= EnOPreArk; -- Output of the last component in the chain is the output of the whole module
 
@@ -129,6 +129,8 @@ begin
     if state = Rounds then
         dInRound <= dOutRound;  -- loop  back the output of the round to the input
         EnIRound <= EnORound;
+
+        EnIPreArk <= '0';
         -- Set EnO to 0, except in the last round, where it is set to the enable signal of the last component
         EnO <= '0';
     end if;
@@ -175,7 +177,7 @@ if rising_edge(Clock) then
                         state <= Rounds when encrypt = '0' else Idle;
                     end if;
                 end if; 
-                if EnOPreArk = '1' then 
+                if EnOPreArk = '1' and encrypt = '1' then 
                     state <= Rounds;
                 end if;
             
