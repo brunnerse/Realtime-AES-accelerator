@@ -35,22 +35,6 @@ end function;
 
 
 
-component AES_Unit_Sim_Bd is
-port (
-  Clock : in STD_LOGIC;
-  EnO : out STD_LOGIC;
-  Resetn : in STD_LOGIC;
-  S_ReadWritePort_0_rdaddr : in STD_LOGIC_VECTOR (9 downto 0);
-  S_ReadWritePort_0_rddata : out STD_LOGIC_VECTOR (31 downto 0);
-  S_ReadWritePort_0_rden : in STD_LOGIC;
-  S_ReadWritePort_0_wraddr : in STD_LOGIC_VECTOR (9 downto 0);
-  S_ReadWritePort_0_wrdata : in STD_LOGIC_VECTOR (31 downto 0);
-  S_ReadWritePort_0_wren : in STD_LOGIC;
-  S_ReadWritePort_0_wrstrb : in STD_LOGIC_VECTOR (3 downto 0);
-  aes_introut_0 : out STD_LOGIC;
-  dOut : out STD_LOGIC_VECTOR (127 downto 0)
-);
-end component AES_Unit_Sim_Bd;
 
 
 constant key : key_t := x"000102030405060708090a0b0c0d0e0f";
@@ -113,7 +97,7 @@ signal CHANNEL_CR : channel_cr_type;
 
 begin
 
-DUT: component AES_Unit_Sim_Bd port map (
+DUT: entity work.AES_Unit_Sim_Bd port map (
   Clock => Clock,
   EnO => EnOCore,
   Resetn => Resetn,

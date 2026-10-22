@@ -64,18 +64,6 @@ end entity;
 
 architecture RTL of AES_Mode_GCM is
 
-component AddRoundKey is
-    Generic (
-        synchronous : boolean := true
-    );
-    Port ( din : in block_t;
-           dout : out block_t;
-           roundKey : in block_t;
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Resetn : in STD_LOGIC);
-end component;
 
 
 function incrementIV(IV_val : block_t) return std_logic_vector is
@@ -118,8 +106,12 @@ signal lastIdx : integer; -- used for the multiplication process
 
 begin
 -- Use an AddRoundKey unit as XOR;  First XOR unit is for CTR mode, second is for GF2mul
-xorUnit1 : AddRoundKey port map(dIn1XOR1, dOutXOR1, dIn2XOR1, EnIXOR1, EnOXOR1, Clock, Resetn);
-xorUnit2 : AddRoundKey port map(dIn1XOR2, dOutXOR2, dIn2XOR2, EnIXOR2, EnOXOR2, Clock, Resetn);
+xorUnit1 : entity work.AddRoundKey
+            port map(dIn => dIn1XOR1, dOut => dOutXOR1, roundKey => dIn2XOR1,
+                     EnI => EnIXOR1, EnO => EnOXOR1, Clock => Clock, Resetn => Resetn);
+xorUnit2 : entity work.AddRoundKey
+            port map(dIn => dIn1XOR2, dOut => dOutXOR2, roundKey => dIn2XOR2,
+                     EnI => EnIXOR2, EnO => EnOXOR2, Clock => Clock, Resetn => Resetn);
 
 -- xorUnit1 is not used in the Init and Header Phases; in Payload and final, it is connected to the output of the AEA unit
 -- EnI isn't asserted in the Init Phase and not in the Header Phase either (as EnOAEA stays 0 in that phase because the AEA is never activated)

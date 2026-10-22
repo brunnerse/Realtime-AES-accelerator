@@ -15,30 +15,6 @@ end entity;
 
 architecture Behavioral of TestAESCoreGCM is
 
-component AES_Core is
-     generic (
-        ADDR_IV : integer;
-        ADDR_SUSP : integer;
-        ADDR_H  : integer
-        );
-    Port ( Key : in key_t;
-           IV : in block_t;
-           H  : in block_t;
-           Susp : in block_t;
-           WrEn   : out STD_LOGIC;
-           WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
-           WrData : out block_t;
-           dIn : in block_t;
-           dOut : out block_t;
-           EnI : in std_logic;
-           EnO : out std_logic;
-           mode : in mode_t; 
-           chaining_mode : in mode_t; 
-           GCMPhase : in mode_t; 
-           Clock : in std_logic;
-           Resetn : in std_logic
-           );
-end component;
 
 signal Clock, Resetn : std_logic;
 
@@ -58,9 +34,14 @@ begin
 testKey <= x"000102030405060708090a0b0c0d0e0f";
 
 
-core: AES_Core 
+core: entity work.AES_Core
     generic map(ADDR_IV => ADDR_IVR0, ADDR_SUSP => ADDR_SUSPR0, ADDR_H => ADDR_HR0)
-    port map (testKey, testIV, H, testSusp, WrEn, WrAddr, WrData, testPlaintext, testCiphertext, EnCoreI, EnCoreO, mode, chaining_mode, GCMPhase, Clock, Resetn);
+    port map(Key => testKey, IV => testIV, H => H, Susp => testSusp,
+             WrEn => WrEn, WrAddr => WrAddr, WrData => WrData,
+             dIn => testPlaintext, dOut => testCiphertext,
+             EnI => EnCoreI, EnO => EnCoreO,
+             mode => mode, chaining_mode => chaining_mode, GCMPhase => GCMPhase,
+             Clock => Clock, Resetn => Resetn);
 
 
 process begin

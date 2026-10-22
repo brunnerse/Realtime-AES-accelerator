@@ -109,20 +109,6 @@ return r;
 end function;  
 
 
-component BinarySearch is
-    generic (
-        NUM_CHANNELS_IN : natural := 8
-    );
-    Port (
-        EnI : in std_logic;
-        EnO : out std_logic;
-        ChannelPriority: in PrioArrayType(NUM_CHANNELS_IN-1 downto 0);
-        ChannelEn : in std_logic_vector(NUM_CHANNELS_IN-1 downto 0);
-        highestChannel : out integer range NUM_CHANNELS_IN -1 downto 0;
-        Clock : in std_logic;
-        Resetn : in std_logic
-           );
-end component; 
   
   -- define constants
 constant DATA_WIDTH_BYTES : integer := DATA_WIDTH/8;
@@ -248,7 +234,7 @@ prevEn <= En when rising_edge(Clock);
 prevCCF <= CCF when rising_edge(Clock);
 
 -- instantitate binary search component
-BinSearch: BinarySearch
+BinSearch: entity work.BinarySearch
     generic map(
         NUM_CHANNELS_IN => NUM_CHANNELS
     )

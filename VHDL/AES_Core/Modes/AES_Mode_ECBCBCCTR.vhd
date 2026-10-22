@@ -56,15 +56,6 @@ end entity;
 
 architecture RTL of AES_Mode_ECBCBCCTR is
 
-component AddRoundKey is
-    Port ( din : in block_t;
-           dout : out block_t;
-           roundKey : in block_t;
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Resetn : in STD_LOGIC);
-end component;
 
 
 function incrementIV(IV_val : block_t) return std_logic_vector is
@@ -83,7 +74,9 @@ begin
 encrypt <= not mode(1);
 
 -- Use an AddRoundKey unit as XOR
-xorUnit : AddRoundKey port map(dInXOR1, dOutXOR, dInXOR2, EnIXOR, EnOXOR, Clock, Resetn);
+xorUnit : entity work.AddRoundKey
+            port map(dIn => dInXOR1, dOut => dOutXOR, roundKey => dInXOR2,
+                     EnI => EnIXOR, EnO => EnOXOR, Clock => Clock, Resetn => Resetn);
 
 -- Input of AEA differs for each chaining mode
 dInAEA <=   dOutXOR when chaining_mode = CHAINING_MODE_CBC and encrypt = '1' else

@@ -151,138 +151,6 @@ end entity;
 
 architecture Structural of AES_Interface is
 
-	-- component declaration
-	component AES_Interface_S_AXI is
-		generic (
-		C_S_AXI_ID_WIDTH	: integer	:= 1;
-		C_S_AXI_DATA_WIDTH	: integer	:= 32;
-		C_S_AXI_ADDR_WIDTH	: integer	:= 8;
-		C_S_AXI_AWUSER_WIDTH	: integer	:= 1;
-		C_S_AXI_ARUSER_WIDTH	: integer	:= 1;
-		C_S_AXI_WUSER_WIDTH	: integer	:= 1;
-		C_S_AXI_RUSER_WIDTH	: integer	:= 1;
-		C_S_AXI_BUSER_WIDTH	: integer	:= 1
-		);
-		port (
-        WrData : out std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
-        RdData : in std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
-        WrAddr, RdAddr : out std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
-        WrEn, RdEn : out std_logic;
-		S_AXI_ACLK	: in std_logic;
-		S_AXI_ARESETN	: in std_logic;
-		S_AXI_AWID	: in std_logic_vector(C_S_AXI_ID_WIDTH-1 downto 0);
-		S_AXI_AWADDR	: in std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
-		S_AXI_AWLEN	: in std_logic_vector(7 downto 0);
-		S_AXI_AWSIZE	: in std_logic_vector(2 downto 0);
-		S_AXI_AWBURST	: in std_logic_vector(1 downto 0);
-		S_AXI_AWLOCK	: in std_logic;
-		S_AXI_AWCACHE	: in std_logic_vector(3 downto 0);
-		S_AXI_AWPROT	: in std_logic_vector(2 downto 0);
-		S_AXI_AWQOS	: in std_logic_vector(3 downto 0);
-		S_AXI_AWREGION	: in std_logic_vector(3 downto 0);
-		S_AXI_AWUSER	: in std_logic_vector(C_S_AXI_AWUSER_WIDTH-1 downto 0);
-		S_AXI_AWVALID	: in std_logic;
-		S_AXI_AWREADY	: out std_logic;
-		S_AXI_WDATA	: in std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
-		S_AXI_WSTRB	: in std_logic_vector((C_S_AXI_DATA_WIDTH/8)-1 downto 0);
-		S_AXI_WLAST	: in std_logic;
-		S_AXI_WUSER	: in std_logic_vector(C_S_AXI_WUSER_WIDTH-1 downto 0);
-		S_AXI_WVALID	: in std_logic;
-		S_AXI_WREADY	: out std_logic;
-		S_AXI_BID	: out std_logic_vector(C_S_AXI_ID_WIDTH-1 downto 0);
-		S_AXI_BRESP	: out std_logic_vector(1 downto 0);
-		S_AXI_BUSER	: out std_logic_vector(C_S_AXI_BUSER_WIDTH-1 downto 0);
-		S_AXI_BVALID	: out std_logic;
-		S_AXI_BREADY	: in std_logic;
-		S_AXI_ARID	: in std_logic_vector(C_S_AXI_ID_WIDTH-1 downto 0);
-		S_AXI_ARADDR	: in std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
-		S_AXI_ARLEN	: in std_logic_vector(7 downto 0);
-		S_AXI_ARSIZE	: in std_logic_vector(2 downto 0);
-		S_AXI_ARBURST	: in std_logic_vector(1 downto 0);
-		S_AXI_ARLOCK	: in std_logic;
-		S_AXI_ARCACHE	: in std_logic_vector(3 downto 0);
-		S_AXI_ARPROT	: in std_logic_vector(2 downto 0);
-		S_AXI_ARQOS	: in std_logic_vector(3 downto 0);
-		S_AXI_ARREGION	: in std_logic_vector(3 downto 0);
-		S_AXI_ARUSER	: in std_logic_vector(C_S_AXI_ARUSER_WIDTH-1 downto 0);
-		S_AXI_ARVALID	: in std_logic;
-		S_AXI_ARREADY	: out std_logic;
-		S_AXI_RID	: out std_logic_vector(C_S_AXI_ID_WIDTH-1 downto 0);
-		S_AXI_RDATA	: out std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
-		S_AXI_RRESP	: out std_logic_vector(1 downto 0);
-		S_AXI_RLAST	: out std_logic;
-		S_AXI_RUSER	: out std_logic_vector(C_S_AXI_RUSER_WIDTH-1 downto 0);
-		S_AXI_RVALID	: out std_logic;
-		S_AXI_RREADY	: in std_logic
-		);
-	end component AES_Interface_S_AXI;
-
-	component AES_Interface_M_AXI is
-		generic (
-		C_M_AXI_ID_WIDTH	: integer	:= 1;
-		C_M_AXI_ADDR_WIDTH	: integer	:= 32;
-		C_M_AXI_DATA_WIDTH	: integer	:= 32;
-		C_M_AXI_AWUSER_WIDTH	: integer	:= 0;
-		C_M_AXI_ARUSER_WIDTH	: integer	:= 0;
-		C_M_AXI_WUSER_WIDTH	: integer	:= 0;
-		C_M_AXI_RUSER_WIDTH	: integer	:= 0;
-		C_M_AXI_BUSER_WIDTH	: integer	:= 0
-		);
-		port (
-		        -- ReadyValid_RW_Port to ControlLogic
-        S_RV_VALID : in std_logic;
-        S_RV_READY : out std_logic;
-        S_RV_ADDR : in std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
-        S_RV_WRDATA : in std_logic_vector(127 downto 0);
-        S_RV_RDDATA : out std_logic_vector(127 downto 0);
-        S_RV_WRITE : in std_logic; 
-		S_RV_ERROR	: out std_logic;
-		M_AXI_ACLK	: in std_logic;
-		M_AXI_ARESETN	: in std_logic;
-		M_AXI_AWID	: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
-		M_AXI_AWADDR	: out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
-		M_AXI_AWLEN	: out std_logic_vector(7 downto 0);
-		M_AXI_AWSIZE	: out std_logic_vector(2 downto 0);
-		M_AXI_AWBURST	: out std_logic_vector(1 downto 0);
-		M_AXI_AWLOCK	: out std_logic;
-		M_AXI_AWCACHE	: out std_logic_vector(3 downto 0);
-		M_AXI_AWPROT	: out std_logic_vector(2 downto 0);
-		M_AXI_AWQOS	: out std_logic_vector(3 downto 0);
-		M_AXI_AWUSER	: out std_logic_vector(C_M_AXI_AWUSER_WIDTH-1 downto 0);
-		M_AXI_AWVALID	: out std_logic;
-		M_AXI_AWREADY	: in std_logic;
-		M_AXI_WDATA	: out std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
-		M_AXI_WSTRB	: out std_logic_vector(C_M_AXI_DATA_WIDTH/8-1 downto 0);
-		M_AXI_WLAST	: out std_logic;
-		M_AXI_WUSER	: out std_logic_vector(C_M_AXI_WUSER_WIDTH-1 downto 0);
-		M_AXI_WVALID	: out std_logic;
-		M_AXI_WREADY	: in std_logic;
-		M_AXI_BID	: in std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
-		M_AXI_BRESP	: in std_logic_vector(1 downto 0);
-		M_AXI_BUSER	: in std_logic_vector(C_M_AXI_BUSER_WIDTH-1 downto 0);
-		M_AXI_BVALID	: in std_logic;
-		M_AXI_BREADY	: out std_logic;
-		M_AXI_ARID	: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
-		M_AXI_ARADDR	: out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
-		M_AXI_ARLEN	: out std_logic_vector(7 downto 0);
-		M_AXI_ARSIZE	: out std_logic_vector(2 downto 0);
-		M_AXI_ARBURST	: out std_logic_vector(1 downto 0);
-		M_AXI_ARLOCK	: out std_logic;
-		M_AXI_ARCACHE	: out std_logic_vector(3 downto 0);
-		M_AXI_ARPROT	: out std_logic_vector(2 downto 0);
-		M_AXI_ARQOS	: out std_logic_vector(3 downto 0);
-		M_AXI_ARUSER	: out std_logic_vector(C_M_AXI_ARUSER_WIDTH-1 downto 0);
-		M_AXI_ARVALID	: out std_logic;
-		M_AXI_ARREADY	: in std_logic;
-		M_AXI_RID	: in std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
-		M_AXI_RDATA	: in std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
-		M_AXI_RRESP	: in std_logic_vector(1 downto 0);
-		M_AXI_RLAST	: in std_logic;
-		M_AXI_RUSER	: in std_logic_vector(C_M_AXI_RUSER_WIDTH-1 downto 0);
-		M_AXI_RVALID	: in std_logic;
-		M_AXI_RREADY	: out std_logic
-		);
-	end component AES_Interface_M_AXI;
 	
 	-- Give the interface ports attributes so Vivado recognizes them as interfaces
 	ATTRIBUTE X_INTERFACE_INFO : STRING;
@@ -325,7 +193,7 @@ architecture Structural of AES_Interface is
 begin
 
 -- Instantiation of Axi Bus Interface S_AXI
-AES_Interface_S_AXI_inst : AES_Interface_S_AXI
+AES_Interface_S_AXI_inst : entity work.AES_Interface_S_AXI
 	generic map (
 		C_S_AXI_ID_WIDTH	=> C_S_AXI_ID_WIDTH,
 		C_S_AXI_DATA_WIDTH	=> C_S_AXI_DATA_WIDTH,
@@ -393,7 +261,7 @@ AES_Interface_S_AXI_inst : AES_Interface_S_AXI
 	);
 
 -- Instantiation of Axi Bus Interface M_AXI
-AES_Interface_M_AXI_inst : AES_Interface_M_AXI
+AES_Interface_M_AXI_inst : entity work.AES_Interface_M_AXI
 	generic map (
 		C_M_AXI_ID_WIDTH	=> C_M_AXI_ID_WIDTH,
 		C_M_AXI_ADDR_WIDTH	=> C_M_AXI_ADDR_WIDTH,

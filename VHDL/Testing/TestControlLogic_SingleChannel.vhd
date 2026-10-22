@@ -64,7 +64,7 @@ testPlaintext <= x"00102030011121310212223203132333";
 testKey <= x"000102030405060708090a0b0c0d0e0f";
 
 
-i_ControlLogic : entity work.ControlLogic(RTL)
+i_ControlLogic : entity work.ControlLogic
     generic map(NUM_CHANNELS => 1)
     port map(
         M_RV_ready => CL_ready,
@@ -82,9 +82,14 @@ i_ControlLogic : entity work.ControlLogic(RTL)
     );
    
 
-core: entity work.AES_Core (Structural) 
+core: entity work.AES_Core
 generic map(ADDR_IV => ADDR_IVR0, ADDR_SUSP => ADDR_SUSPR0, ADDR_H => ADDR_SUSPR4)
-port map (testKey, testIV, H, Susp, WrEnCore, WrAddrCore, WrDataCore, din, testCiphertext, EnICore, EnOCore, mode, chaining_mode, GCMPhase, Clock, Resetn);
+port map(Key => testKey, IV => testIV, H => H, Susp => Susp,
+         WrEn => WrEnCore, WrAddr => WrAddrCore, WrData => WrDataCore,
+         dIn => din, dOut => testCiphertext,
+         EnI => EnICore, EnO => EnOCore,
+         mode => mode, chaining_mode => chaining_mode, GCMPhase => GCMPhase,
+         Clock => Clock, Resetn => Resetn);
 
 
 

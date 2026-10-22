@@ -45,19 +45,6 @@ end entity;
 
 architecture RTL of SubBytes is
 
-component sbox_bram is
-generic (
-    DATA_LEN    : integer := 8;
-    ADDR_LEN    : integer := 9
-);
-port (
-    -- Port A
-    clka   : in std_logic;
-    ena    : in std_logic;
-    addra  : in std_logic_vector(ADDR_LEN-1 downto 0);
-    douta  : out std_logic_vector(DATA_LEN-1 downto 0)
-);
-end component;
 
 
 begin
@@ -66,7 +53,7 @@ if USE_BLOCK_RAM generate
 GEN_SBOX : 
 for i in 0 to AES_BLOCK_SIZE/8-1 generate
     -- encryption sbox
-    sbox_i : sbox_bram port map (
+    sbox_i : entity work.sbox_bram port map (
         clka => Clock,
         ena => EnI,
         addra => encrypt & dIn(i*8+7 downto i*8),

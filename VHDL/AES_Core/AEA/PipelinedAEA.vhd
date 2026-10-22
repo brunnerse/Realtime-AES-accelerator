@@ -43,39 +43,6 @@ end entity;
 
 architecture Structural of PipelinedAEA is
 
-component AddRoundKey is
-    Port ( din : in block_t;
-           dout : out block_t;
-           key : in key_t;
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Resetn : in STD_LOGIC);
-end component;
-
-component AEA_Round is
-    Port ( dIn : in block_t;
-           dOut : out block_t;
-           key : in key_t;
-           encrypt : in STD_LOGIC;
-           isLastRound : in STD_LOGIC;
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           IsLastCycle : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Resetn : in STD_LOGIC);
-end component;
-
-component KeyExpansion is
-    Port ( userKey : in key_t;
-           roundKeys : out ROUNDKEYARRAY;
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Resetn : in STD_LOGIC);
-end component;
-
-
 signal roundKeys : ROUNDKEYARRAY;
 signal EnIKeyExp, EnOKeyExp : std_logic;
 
@@ -89,18 +56,53 @@ signal EnOPreARK, EnORound1, EnORound2, EnORound3, EnORound4, EnORound5, EnORoun
 
 
 begin
-keyExp : KeyExpansion port map(key, roundKeys, EnIKeyExp, EnOKeyExp, Clock, Resetn); 
-preARK : AddRoundKey port map(dInPreARK, dOutPreARK, key, EnIPreARK, EnOPreARK, Clock, Resetn);
-roundAEA1 : AEA_Round port map(dInRound1, dOutRound1, roundKeys(1), encrypt, '0', EnIRound1, EnORound1, Clock=>Clock, Resetn=>Resetn);
-roundAEA2 : AEA_Round port map(dInRound2, dOutRound2, roundKeys(2), encrypt, '0', EnIRound2, EnORound2, Clock=>Clock, Resetn=>Resetn);
-roundAEA3 : AEA_Round port map(dInRound3, dOutRound3, roundKeys(3), encrypt, '0', EnIRound3, EnORound3, Clock=>Clock, Resetn=>Resetn);
-roundAEA4 : AEA_Round port map(dInRound4, dOutRound4, roundKeys(4), encrypt, '0', EnIRound4, EnORound4, Clock=>Clock, Resetn=>Resetn);
-roundAEA5 : AEA_Round port map(dInRound5, dOutRound5, roundKeys(5), encrypt, '0', EnIRound5, EnORound5, Clock=>Clock, Resetn=>Resetn);
-roundAEA6 : AEA_Round port map(dInRound6, dOutRound6, roundKeys(6), encrypt, '0', EnIRound6, EnORound6, Clock=>Clock, Resetn=>Resetn);
-roundAEA7 : AEA_Round port map(dInRound7, dOutRound7, roundKeys(7), encrypt, '0', EnIRound7, EnORound7, Clock=>Clock, Resetn=>Resetn);
-roundAEA8 : AEA_Round port map(dInRound8, dOutRound8, roundKeys(8), encrypt, '0', EnIRound8, EnORound8, Clock=>Clock, Resetn=>Resetn);
-roundAEA9 : AEA_Round port map(dInRound9, dOutRound9, roundKeys(9), encrypt, '0', EnIRound9, EnORound9, Clock=>Clock, Resetn=>Resetn);
-roundAEA10 : AEA_Round port map(dInRound10, dOutRound10, roundKeys(10), encrypt, '1', EnIRound10, EnORound10, Clock=>Clock, Resetn=>Resetn);
+keyExp : entity work.KeyExpansion
+             port map(userKey => key, roundKeys => roundKeys, EnI => EnIKeyExp, EnO => EnOKeyExp,
+                      Clock => Clock, Resetn => Resetn);
+ TODO: generate loop
+preARK : entity work.AddRoundKey
+             port map(dIn => dInPreARK, dOut => dOutPreARK, roundKey => key(block_t'RANGE),
+                      EnI => EnIPreARK, EnO => EnOPreARK, Clock => Clock, Resetn => Resetn);
+roundAEA1 : entity work.AEA_Round
+             port map(dIn => dInRound1, dOut => dOutRound1, roundKey => roundKeys(1), encrypt => encrypt,
+                      skipMixColumns => '0', EnI => EnIRound1, EnO => EnORound1, IsLastCycle => open,
+                      Clock => Clock, Resetn => Resetn);
+roundAEA2 : entity work.AEA_Round
+             port map(dIn => dInRound2, dOut => dOutRound2, roundKey => roundKeys(2), encrypt => encrypt,
+                      skipMixColumns => '0', EnI => EnIRound2, EnO => EnORound2, IsLastCycle => open,
+                      Clock => Clock, Resetn => Resetn);
+roundAEA3 : entity work.AEA_Round
+             port map(dIn => dInRound3, dOut => dOutRound3, roundKey => roundKeys(3), encrypt => encrypt,
+                      skipMixColumns => '0', EnI => EnIRound3, EnO => EnORound3, IsLastCycle => open,
+                      Clock => Clock, Resetn => Resetn);
+roundAEA4 : entity work.AEA_Round
+             port map(dIn => dInRound4, dOut => dOutRound4, roundKey => roundKeys(4), encrypt => encrypt,
+                      skipMixColumns => '0', EnI => EnIRound4, EnO => EnORound4, IsLastCycle => open,
+                      Clock => Clock, Resetn => Resetn);
+roundAEA5 : entity work.AEA_Round
+             port map(dIn => dInRound5, dOut => dOutRound5, roundKey => roundKeys(5), encrypt => encrypt,
+                      skipMixColumns => '0', EnI => EnIRound5, EnO => EnORound5, IsLastCycle => open,
+                      Clock => Clock, Resetn => Resetn);
+roundAEA6 : entity work.AEA_Round
+             port map(dIn => dInRound6, dOut => dOutRound6, roundKey => roundKeys(6), encrypt => encrypt,
+                      skipMixColumns => '0', EnI => EnIRound6, EnO => EnORound6, IsLastCycle => open,
+                      Clock => Clock, Resetn => Resetn);
+roundAEA7 : entity work.AEA_Round
+             port map(dIn => dInRound7, dOut => dOutRound7, roundKey => roundKeys(7), encrypt => encrypt,
+                      skipMixColumns => '0', EnI => EnIRound7, EnO => EnORound7, IsLastCycle => open,
+                      Clock => Clock, Resetn => Resetn);
+roundAEA8 : entity work.AEA_Round
+             port map(dIn => dInRound8, dOut => dOutRound8, roundKey => roundKeys(8), encrypt => encrypt,
+                      skipMixColumns => '0', EnI => EnIRound8, EnO => EnORound8, IsLastCycle => open,
+                      Clock => Clock, Resetn => Resetn);
+roundAEA9 : entity work.AEA_Round
+             port map(dIn => dInRound9, dOut => dOutRound9, roundKey => roundKeys(9), encrypt => encrypt,
+                      skipMixColumns => '0', EnI => EnIRound9, EnO => EnORound9, IsLastCycle => open,
+                      Clock => Clock, Resetn => Resetn);
+roundAEA10 : entity work.AEA_Round
+             port map(dIn => dInRound10, dOut => dOutRound10, roundKey => roundKeys(10), encrypt => encrypt,
+                      skipMixColumns => '1', EnI => EnIRound10, EnO => EnORound10, IsLastCycle => open,
+                      Clock => Clock, Resetn => Resetn);
 
 
 -- connect KeyExpansion so it runs when the enable signal comes in

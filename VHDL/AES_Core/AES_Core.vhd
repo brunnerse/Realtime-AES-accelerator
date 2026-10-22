@@ -67,77 +67,6 @@ ATTRIBUTE X_INTERFACE_INFO of WrAddr: SIGNAL is
 "xilinx.com:user:ReadWritePort:1.0 M_WritePort_127 WrAddr";
 
 
-component AEA is
-    Port ( dIn : in block_t;
-           dOut : out block_t;
-           key : in key_t;
-           encrypt : in STD_LOGIC;
-	       keyExpandFlag : in STD_LOGIC;
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Resetn : in STD_LOGIC);
-end component;
-
-component AES_Mode_ECBCBCCTR is
-    generic (
-        ADDR_IV : integer
-        );
-    Port (
-           IV : in block_t;
-           dIn : in block_t;
-           dOut : out block_t;
-           EnI : in std_logic;
-           EnO : out std_logic;
-            -- signals to control the AEA unit
-           EnIAEA : out std_logic;
-           EnOAEA : in std_logic;
-           dInAEA : out block_t; 
-           dOutAEA : in block_t; 
-           -- signals to write to register set
-           WrEn   : out STD_LOGIC;
-           WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
-           WrData : out block_t;
-           mode : in mode_t; 
-           chaining_mode : in mode_t; 
-           Clock : in std_logic;
-           Resetn : in std_logic
-           );
-end component;
-
-component AES_Mode_GCM is
-    generic (
-        ADDR_IV : integer;
-        ADDR_SUSP : integer;
-        ADDR_H  : integer
-        );
-    Port (
-           IV : in block_t;
-           -- specific signals for GCM mode
-           H  : in block_t;
-           Susp : in block_t; -- for the first block, this signals MUST be 0
-           dIn : in block_t;
-           dOut : out block_t;
-           EnI : in std_logic;
-           EnO : out std_logic;
-           encrypt : in std_logic;
-           GCMPhase : in mode_t; 
-           -- signals to control the AEA unit
-           EnIAEA : out std_logic;
-           EnOAEA : in std_logic;
-           dInAEA : out block_t ;
-           dOutAEA : in block_t; 
-           -- signals to write to register set
-           WrEn   : out STD_LOGIC;
-           WrAddr : out STD_LOGIC_VECTOR(ADDR_REGISTER_BITS-1 downto 0);
-           WrData : out block_t;
-           Clock : in std_logic;
-           Resetn : in std_logic
-           );
-end component;
-
-
-
 -- signal definitions
 signal dInAEA, dOutAEA : block_t;
 signal encryptGCM, encryptAEA, EnIAEA, EnOAEA, keyExpandFlagAEA : std_logic;
@@ -148,14 +77,20 @@ signal dOutMNT, dOutGCM, dInAEAMNT, dInAEAGCM, WrDataMNT, WrDataGCM : block_t;
 signal WrAddrMNT, WrAddrGCM : std_logic_vector(ADDR_REGISTER_BITS-1 downto 0);
 begin
 
-algorithm : AEA port map (dInaEA, dOutAEA, Key, encryptAEA, keyExpandFlagAEA, EnIAEA, EnOAEA, Clock, Resetn);
+algorithm : entity work.AEA
+            port map(dIn => dInAEA, dOut => dOutAEA, key => Key,
+                     encrypt => encryptAEA, keyExpandFlag => keyExpandFlagAEA,
+                     EnI => EnIAEA, EnO => EnOAEA,
+                     Clock => Clock, Resetn => Resetn);
 
-modeNonTag : AES_Mode_ECBCBCCTR 
+modeNonTag : entity work.AES_Mode_ECBCBCCTR
             generic map(ADDR_IV => ADDR_IV)
-            port map(IV, dIn, dOutMNT, EnIMNT, EnOMNT,
-                     EnIAEAMNT, EnOAEAMNT, dInAEAMNT, dOutAEA, 
-                     WrEnMNT, WrAddrMNT, WrDataMNT, mode, chaining_mode, Clock, Resetn); 
-modeGCM  : AES_Mode_GCM 
+            port map(IV => IV, dIn => dIn, dOut => dOutMNT, EnI => EnIMNT, EnO => EnOMNT,
+                     EnIAEA => EnIAEAMNT, EnOAEA => EnOAEAMNT, dInAEA => dInAEAMNT, dOutAEA => dOutAEA,
+                     WrEn => WrEnMNT, WrAddr => WrAddrMNT, WrData => WrDataMNT,
+                     mode => mode, chaining_mode => chaining_mode,
+                     Clock => Clock, Resetn => Resetn);
+modeGCM  : entity work.AES_Mode_GCM
             generic map (ADDR_IV => ADDR_IV,
                         ADDR_SUSP => ADDR_SUSP, 
                         ADDR_H => ADDR_H)

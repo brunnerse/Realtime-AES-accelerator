@@ -43,53 +43,6 @@ end entity;
 
 architecture Structural of AEA_Round is
 
-component SubBytes is
-    Port ( dIn : in block_t;
-           dOut : out block_t;
-           encrypt : in STD_LOGIC;
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Resetn : in STD_LOGIC);
-end component;
-
-component ShiftRows is
-    Generic (
-        synchronous : boolean := false
-        );
-    Port ( din : in block_t;
-           dout : out block_t;
-           encrypt : in STD_LOGIC;
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Resetn : in STD_LOGIC);
-end component;
-
-component AddRoundKey is
-    Generic (
-        synchronous : boolean := true
-        );
-    Port ( din : in block_t;
-           dout : out block_t;
-           roundKey : in block_t;
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Resetn : in STD_LOGIC);
-end component;
-
-component MixColumns is
-    Port ( dIn : in block_t;
-           dOut : out block_t;
-           encrypt : in STD_LOGIC;
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Resetn : in STD_LOGIC);
-end component;
-
-
 signal dInARK, dInMC, dInSB, dInSR : block_t;
 signal dOutARK, dOutMC, dOutSB, dOutSR : block_t;
 signal EnIARK, EnIMC, EnISB, EnISR : std_logic;
@@ -97,15 +50,19 @@ signal EnOARK, EnOMC, EnOSB, EnOSR : std_logic;
 
 begin
 
-roundSB : SubBytes
-             port map(dInSB, dOutSB, encrypt, EnISB, EnOSB, Clock, Resetn);
-roundSR : ShiftRows
+roundSB : entity work.SubBytes
+             port map(dIn => dInSB, dOut => dOutSB, encrypt => encrypt,
+                      EnI => EnISB, EnO => EnOSB, Clock => Clock, Resetn => Resetn);
+roundSR : entity work.ShiftRows
              generic map(synchronous => false)
-             port map(dInSR, dOutSR, encrypt, EnISR, EnOSR, Clock, Resetn); 
-roundMC : MixColumns
-             port map(dInMC, dOutMC, encrypt, EnIMC, EnOMC, Clock, Resetn); 
-roundARK : AddRoundKey
-             port map(dInARK, dOutARK, roundKey, EnIARK, EnOARK, Clock, Resetn);
+             port map(dIn => dInSR, dOut => dOutSR, encrypt => encrypt,
+                      EnI => EnISR, EnO => EnOSR, Clock => Clock, Resetn => Resetn);
+roundMC : entity work.MixColumns
+             port map(dIn => dInMC, dOut => dOutMC, encrypt => encrypt,
+                      EnI => EnIMC, EnO => EnOMC, Clock => Clock, Resetn => Resetn);
+roundARK : entity work.AddRoundKey
+             port map(dIn => dInARK, dOut => dOutARK, roundKey => roundKey,
+                      EnI => EnIARK, EnO => EnOARK, Clock => Clock, Resetn => Resetn);
 
 -- TODO restructure: process (all) 
 

@@ -38,17 +38,6 @@ end entity;
 
 architecture Behavioral of TestAEA is
 
-component AEA is
-    Port ( dIn : in block_t;
-           dOut : out block_t;
-           key : in key_t;
-           encrypt : in STD_LOGIC;
-           keyExpandFlag : in STD_LOGIC; 
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Resetn : in STD_LOGIC);
-end component;
 
 constant key1 : std_logic_vector(255 downto 0) := 
     x"000102030405060708090a0b0c0d0e0f_101112131415161718191a1b1c1d1e1f"; 
@@ -72,7 +61,7 @@ begin
 
 testKey <= key1(255 downto 256-testKey'length); 
 
-aeaEnc : AEA port map (dIn => dIn, dOut => dOut, key => testKey, 
+aeaEnc : entity work.AEA port map (dIn => dIn, dOut => dOut, key => testKey, 
         encrypt => encrypt, 
         keyExpandFlag => keyExpandFlag, 
         EnI => EnI, EnO => EnO, 

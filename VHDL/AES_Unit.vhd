@@ -167,7 +167,7 @@ signal mode, GCMPhase, chaining_mode : mode_t;
 begin
 
 
-i_AES_Interface : entity work.AES_Interface(Structural)
+i_AES_Interface : entity work.AES_Interface
     generic map (
 		LITTLE_ENDIAN 		=> LITTLE_ENDIAN,
         C_S_AXI_ID_WIDTH	=> C_S_AXI_ID_WIDTH,	
@@ -298,7 +298,7 @@ i_AES_Interface : entity work.AES_Interface(Structural)
 
 
     
-i_ControlLogic : entity work.ControlLogic(RTL)
+i_ControlLogic : entity work.ControlLogic
     generic map(
         LITTLE_ENDIAN => LITTLE_ENDIAN,
     	REG_KEY_WRITEONLY => REG_KEY_WRITEONLY, 
@@ -338,7 +338,7 @@ i_ControlLogic : entity work.ControlLogic(RTL)
         Resetn => s_axi_aresetn
     );
 
-i_Core : entity work.AES_Core(Structural)
+i_Core : entity work.AES_Core
     generic map (
         ADDR_IV => ADDR_IVR0,
         ADDR_SUSP => ADDR_SUSPR0,

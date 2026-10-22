@@ -32,27 +32,6 @@ end loop;
 return r;
 end function;
 
-component AES_Unit_2_Sim is
-port (
-  Address_0 : in STD_LOGIC_VECTOR (31 downto 0);
-  Address_1 : in STD_LOGIC_VECTOR (31 downto 0);
-  Clock : in STD_LOGIC;
-  DataIn_0 : in STD_LOGIC_VECTOR (31 downto 0);
-  DataIn_1 : in STD_LOGIC_VECTOR (31 downto 0);
-  DataOut_0 : out STD_LOGIC_VECTOR (31 downto 0);
-  DataOut_1 : out STD_LOGIC_VECTOR (31 downto 0);
-  ReadEn_0 : in STD_LOGIC;
-  ReadEn_1 : in STD_LOGIC;
-  Resetn : in STD_LOGIC;
-  WrByteEna_0 : in STD_LOGIC_VECTOR (3 downto 0);
-  WrByteEna_1 : in STD_LOGIC_VECTOR (3 downto 0);
-  WriteEn_0 : in STD_LOGIC;
-  WriteEn_1 : in STD_LOGIC;
-  aes_introut : out STD_LOGIC;
-  busy_0 : out STD_LOGIC;
-  busy_1 : out STD_LOGIC
-);
-end component AES_Unit_2_Sim;
 
 
 
@@ -140,7 +119,7 @@ rddata <= SwapEndian(rddataLE);
 
 RdData_Mem <= SwapEndian(DataOut_1);
 
-DUT: component AES_Unit_2_Sim port map (
+DUT: entity work.AES_Unit_2_Sim port map (
   Address_0 => addrextended,
   Clock => Clock,
   DataIn_0 => wrdataLE,

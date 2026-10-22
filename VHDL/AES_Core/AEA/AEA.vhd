@@ -60,7 +60,7 @@ signal keyexpInit, keyexpCalcNextKey, keyexpReverse : std_logic;
 begin
 
 
-preARK : entity work.AddRoundKey(RTL)
+preARK : entity work.AddRoundKey
              port map(dIn => dInPreARK, 
                       dOut => dOutPreARK, 
                       roundKey => key(block_t'RANGE), 
@@ -68,13 +68,13 @@ preARK : entity work.AddRoundKey(RTL)
                       Clock => Clock, Resetn => Resetn
                     );
 
-roundAEA : entity work.AEA_Round(Structural)
+roundAEA : entity work.AEA_Round
              port map(dIn => dInRound, dOut => dOutRound, roundKey => roundKey, 
                 encrypt => encrypt, skipMixColumns => roundSkipMixColumns, 
                 EnI => EnIRound, EnO => EnORound, isLastCycle => roundIsLastCycle, 
                 Clock => Clock, Resetn => Resetn);
 
-keyExp : entity work.KeyExpansion(RTL)
+keyExp : entity work.KeyExpansion
              port map(userKey => key, init => keyexpInit, 
                 reverse => keyexpReverse, calcNextRoundKey => keyexpCalcNextKey,
                 roundKey => roundKey, 
