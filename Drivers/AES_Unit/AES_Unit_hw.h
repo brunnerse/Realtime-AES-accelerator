@@ -23,6 +23,7 @@ extern "C" {
 // Position definitions in the Control Register CR
 #if AES_BYTE_ORDER == LITTLE_ENDIAN
 #define EN_POS 24
+#define KEYSIZE_SEL_POS 25
 #define MODE_POS 27
 #define CHAIN_MODE_POS 29
 #define CCFIE_POS 17
@@ -38,6 +39,7 @@ extern "C" {
 #else
 // Normal, Big Endian Positions of the bits
 #define EN_POS 0
+#define KEYSIZE_SEL_POS 1
 #define MODE_POS 3
 #define CHAIN_MODE_POS 5
 #define CCFIE_POS 9
@@ -54,6 +56,7 @@ extern "C" {
 
 #define MODE_CTR_IV_INIT 0x00000000
 #define EN_LEN 1
+#define KEYSIZE_SEL_LEN 2
 #define MODE_LEN 2
 #define CHAIN_MODE_LEN 2
 #define CCFIE_LEN 1

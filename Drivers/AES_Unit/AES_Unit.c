@@ -97,7 +97,7 @@ void AES_SetH(AES* InstancePtr, uint32_t channel, char H[AES_BLOCK_SIZE])
  * @param enabled 
  * @param gcmPhase 
  */
-void AES_Setup(AES* InstancePtr, uint32_t channel, Mode mode, ChainingMode chainMode, uint32_t enabled, GCMPhase gcmPhase)
+void AES_Setup(AES* InstancePtr, uint32_t channel, Mode mode, ChainingMode chainMode, uint32_t enabled, KeySize_Sel keysize, GCMPhase gcmPhase)
 {  
 	// Need to read old cr to not overwrite other configuration data like the priority
     uint32_t cr = AES_Read(InstancePtr, channel, AES_CR_OFFSET);
@@ -110,6 +110,10 @@ void AES_Setup(AES* InstancePtr, uint32_t channel, Mode mode, ChainingMode chain
     //setBits(&cr, (uint32_t)chainMode >> 2, CHAIN_MODE_POS2, CHAIN_MODE_LEN2);
     // Set GCMPhase
     setBits(&cr, (uint32_t)gcmPhase, GCM_PHASE_POS, GCM_PHASE_LEN);
+
+	// Set Keysize 
+	setBit(&cr, (uint32_t)keysize, KEYSIZE_SEL_POS, KEYSIZE_SEL_LEN);
+
     // Set enabled
     setBits(&cr, enabled, EN_POS, EN_LEN);
 
@@ -319,7 +323,7 @@ void AES_startComputationCBC(AES* InstancePtr, uint32_t channel, int encrypt, vo
 	AES_SetIV(InstancePtr, channel, IV);
 	AES_SetDataParameters(InstancePtr, channel, data, outData, size);
 	// Setup Control and set Enable = 1 to start the encryption/decryption
-	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_DECRYPTION, CHAINING_MODE_CBC, 1, GCM_PHASE_INIT);
+	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_DECRYPTION, CHAINING_MODE_CBC, 1, KEYSIZE_SEL_128, GCM_PHASE_INIT);
 }
 
 /*
@@ -334,7 +338,7 @@ void AES_startComputationCTR(AES* InstancePtr, uint32_t channel, void* data, voi
 	AES_SetIV_Ctr(InstancePtr, channel, IV, MODE_CTR_IV_INIT);
 	AES_SetDataParameters(InstancePtr, channel, data, outData, size);
 	// Setup Control and set Enable = 1 to start the encryption/decryption
-	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_CTR, 1, GCM_PHASE_INIT);
+	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_CTR, 1, KEYSIZE_SEL_128, GCM_PHASE_INIT);
 }
 
 void AES_startComputationGCM(AES* InstancePtr, uint32_t channel, int encrypt, void* header, uint32_t headerLen,
@@ -343,7 +347,8 @@ void AES_startComputationGCM(AES* InstancePtr, uint32_t channel, int encrypt, vo
 	AES_SetIV_CTR(InstancePtr, channel, IV, MODE_GCM_IV_INIT);
 
 	// Start Init phase
-	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_INIT);
+	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_GCM, 1, KEYSIZE_SEL_128, GCM_PHASE_INIT);
+
 	// Process Header
 	if (headerLen > 0)
 	{
@@ -356,7 +361,7 @@ void AES_startComputationGCM(AES* InstancePtr, uint32_t channel, int encrypt, vo
 		}
 		AES_SetDataParameters(InstancePtr, channel, header, NULL, headerLen);
 		// enable with Phase Header
-		AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_HEADER);
+		AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_GCM, 1, KEYSIZE_SEL_128, GCM_PHASE_HEADER);
 	}
 	// Process Payload
 	if (payloadLen > 0)
@@ -369,7 +374,7 @@ void AES_startComputationGCM(AES* InstancePtr, uint32_t channel, int encrypt, vo
 
 		AES_SetDataParameters(InstancePtr, channel, payload, outProcessedPayload, payloadLen);
 		// enable with Phase Payload
-		AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_DECRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_PAYLOAD);
+		AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_DECRYPTION, CHAINING_MODE_GCM, 1, KEYSIZE_SEL_128, GCM_PHASE_PAYLOAD);
 	}
 }
 

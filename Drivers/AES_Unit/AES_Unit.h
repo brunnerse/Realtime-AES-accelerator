@@ -50,6 +50,12 @@ typedef enum {
 	GCM_PHASE_FINAL = 3
 } GCMPhase;
 
+typedef enum {
+	KEYSIZE_SEL_128 = 0,
+	KEYSIZE_SEL_196 = 1,
+	KEYSIZE_SEL_256 = 2
+} KeySize_Sel;
+
 
 typedef struct {
 	const uint16_t DeviceId;	 /**< Unique ID  of device */
@@ -71,7 +77,7 @@ int32_t AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr);
 
 void AES_SetKey(AES *InstancePtr, uint32_t channel, char key[AES_KEY_SIZE]);
 void AES_SetDataParameters(AES* InstancePtr, uint32_t channel, void* source, void* dest, uint32_t size);
-void AES_Setup(AES* InstancePtr, uint32_t channel, Mode mode, ChainingMode chMode, uint32_t enabled, GCMPhase gcmPhase);
+void AES_Setup(AES* InstancePtr, uint32_t channel, Mode mode, ChainingMode chainMode, uint32_t enabled, KeySize_Sel keysize, GCMPhase gcmPhase);
 void AES_SetMode(AES *InstancePtr, uint32_t channel, Mode mode);
 void AES_SetChainingMode(AES* InstancePtr, uint32_t channel, ChainingMode chainMode);
 void AES_SetGCMPhase(AES* InstancePtr, uint32_t channel, GCMPhase gcmPhase);
