@@ -43,6 +43,7 @@ end entity;
 
 architecture Structural of AEA_Round is
 
+
 signal dInARK, dInMC, dInSB, dInSR : block_t;
 signal dOutARK, dOutMC, dOutSB, dOutSR : block_t;
 signal EnIARK, EnIMC, EnISB, EnISR : std_logic;
@@ -65,26 +66,28 @@ roundARK : entity work.AddRoundKey
                       EnI => EnIARK, EnO => EnOARK, Clock => Clock, Resetn => Resetn);
 
 -- Define data and enable signal connections between the components; for decryption, the order is reversed
+
+-- SubBytes ALWAYS comes after ShiftRows (simplification since order does not matter)
+EnISB <= EnOSR;
+dInSB <= dOutSR;
+
 process (all)
 begin
 if encrypt = '1' then
     -- Encryption: SubBytes -> ShiftRows -> MixColumns -> AddRoundKey
-    dInSB <= dIn;
-    EnISB <= EnI;
+    EnISR <= EnI; 
+    dInSR <= dIn;
 
-    dInSR <= dOutSB;
-    EnISR <= EnOSB;
-
-    EnIMC <= EnOSR;
-    dInMC <= dOutSR;
+    EnIMC <= EnOSB;
+    dInMC <= dOutSB;
 
     dInARK <= dOutMC;
     EnIARK <= EnOMC;
 
     if skipMixColumns = '1' then
         EnIMC <= '0';
-        dInARK <= dOutSR;
-        EnIARK <= EnOSR;
+        dInARK <= dOutSB;
+        EnIARK <= EnOSB;
     end if;
 
     EnO <= EnOARK;
@@ -107,8 +110,7 @@ else
         dInSR <= dOutARK;
         EnISR <= EnOARK;
     end if;
-    dInSB <= dOutSR;
-    EnISB <= EnOSR;
+
     dOut <= dOutSB;
     EnO <= EnOSB;
     isLastCycle <= EnISB; -- For decryption, the last component is SubBytes
