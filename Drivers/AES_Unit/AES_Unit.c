@@ -56,22 +56,36 @@ int32_t AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr)
 }
 
 
-void AES_SetKey(AES *InstancePtr, uint32_t channel, char key[BLOCK_SIZE])
+void AES_SetKey(AES *InstancePtr, uint32_t channel, char key[AES_KEY_SIZE])
 {
-   for (uint32_t i = 0; i < BLOCK_SIZE; i+=4)
-        AES_Write(InstancePtr, channel, AES_KEYR0_OFFSET+i, *(uint32_t*)(key+i));
+   for (uint32_t i = 0; i < AES_KEY_SIZE; i+=4)
+        AES_Write(InstancePtr, channel, AES_KEYR_OFFSET+i, *(uint32_t*)(key+i));
 }
 
-void AES_SetIV(AES* InstancePtr, uint32_t channel, void *IV, uint32_t IVLen) // TODO somehow no IVLen?
+void AES_SetIV(AES* InstancePtr, uint32_t channel, char IV[AES_BLOCK_SIZE])
 {
-	for (uint32_t i = 0; i < IVLen; i+=4)
-		AES_Write(InstancePtr, channel, AES_IVR0_OFFSET+i, *(uint32_t*)(IV+i));
+	for (uint32_t i = 0; i < AES_KEY_SIZE; i+=4)
+		AES_Write(InstancePtr, channel, AES_IVR_OFFSET+i, *(uint32_t*)(IV+i));
 }
 
-void AES_SetSusp(AES* InstancePtr, uint32_t channel, char Susp[BLOCK_SIZE*2])
+void AES_SetIV_Ctr(AES* InstancePtr, uint32_t channel, char IV_Nonce[AES_BLOCK_SIZE-4], uint32_t IV_Ctr) 
 {
-	for (uint32_t i = 0; i < BLOCK_SIZE*2; i+=4)
-		AES_Write(InstancePtr, channel, AES_SUSPR0_OFFSET+i, *(uint32_t*)(Susp+i));
+	for (uint32_t i = 0; i < AES_BLOCK_SIZE-4; i+=4)
+		AES_Write(InstancePtr, channel, AES_IVR_OFFSET+i, *(uint32_t*)(IV_Nonce+i));
+
+	AES_Write(InstancePtr, channel, AES_IVR_OFFSET+AES_BLOCK_SIZE-4, IV_Ctr);
+}
+
+void AES_SetSusp(AES* InstancePtr, uint32_t channel, char Susp[AES_BLOCK_SIZE])
+{
+	for (uint32_t i = 0; i < AES_BLOCK_SIZE; i+=4)
+		AES_Write(InstancePtr, channel, AES_SUSPR_OFFSET+i, *(uint32_t*)(Susp+i));
+}
+
+void AES_SetH(AES* InstancePtr, uint32_t channel, char H[AES_BLOCK_SIZE])
+{
+	for (uint32_t i = 0; i < AES_BLOCK_SIZE; i+=4)
+		AES_Write(InstancePtr, channel, AES_HR_OFFSET+i, *(uint32_t*)(H+i));
 }
 
 /**
@@ -178,22 +192,29 @@ void AES_startComputation(AES* InstancePtr, uint32_t channel)
  * @param InstancePtr 
  * @param outSusp 
  */
-void AES_GetSusp(AES* InstancePtr, uint32_t channel, char outSusp[32])
+void AES_GetSusp(AES* InstancePtr, uint32_t channel, char outSusp[AES_BLOCK_SIZE])
 {
-	for (uint32_t i = 0; i < BLOCK_SIZE*2; i+=4)
-		*(uint32_t*)(outSusp+i) = AES_Read(InstancePtr, channel, AES_SUSPR0_OFFSET+i);
+	for (uint32_t i = 0; i < AES_BLOCK_SIZE; i+=4)
+		*(uint32_t*)(outSusp+i) = AES_Read(InstancePtr, channel, AES_SUSPR_OFFSET+i);
 }
 
-void AES_GetIV(AES* InstancePtr, uint32_t channel, char outIV[BLOCK_SIZE])
+void AES_GetH(AES* InstancePtr, uint32_t channel, char outH[AES_BLOCK_SIZE])
 {
-	for (uint32_t i = 0; i < BLOCK_SIZE; i+=4)
-		*(uint32_t*)(outIV+i) = AES_Read(InstancePtr, channel, AES_IVR0_OFFSET+i);
+	for (uint32_t i = 0; i < AES_BLOCK_SIZE; i+=4)
+		*(uint32_t*)(outH+i) = AES_Read(InstancePtr, channel, AES_HR_OFFSET+i);
 }
 
-void AES_GetKey(AES *InstancePtr, uint32_t channel, char outKey[BLOCK_SIZE])
+
+void AES_GetIV(AES* InstancePtr, uint32_t channel, char outIV[AES_BLOCK_SIZE])
 {
-   for (int i = 0; i < BLOCK_SIZE; i+=4)
-        *(uint32_t*)(outKey+i) = AES_Read(InstancePtr, channel, AES_KEYR0_OFFSET+i);
+	for (uint32_t i = 0; i < AES_BLOCK_SIZE; i+=4)
+		*(uint32_t*)(outIV+i) = AES_Read(InstancePtr, channel, AES_IVR_OFFSET+i);
+}
+
+void AES_GetKey(AES *InstancePtr, uint32_t channel, char outKey[AES_KEY_SIZE])
+{
+   for (int i = 0; i < AES_KEY_SIZE; i+=4)
+        *(uint32_t*)(outKey+i) = AES_Read(InstancePtr, channel, AES_KEYR_OFFSET+i);
 }
 #endif
 
@@ -257,7 +278,7 @@ void AES_PerformKeyExpansion(AES *InstancePtr, uint32_t channel)
  * @param IV       The initialization vector. In ECB, it is ignored, in CTR mode, the last 4 bytes are ignored
 */
 void AES_startComputationMode(AES* InstancePtr, uint32_t channel, ChainingMode chmode, int encrypt, void* data, void* outData, uint32_t size,
-	 char IV[BLOCK_SIZE], AES_CallbackFn callbackFn, void* callbackRef)
+	 char IV[AES_BLOCK_SIZE], AES_CallbackFn callbackFn, void* callbackRef)
 {
 	AssertVoid(chmode != CHAINING_MODE_GCM);
 
@@ -266,17 +287,15 @@ void AES_startComputationMode(AES* InstancePtr, uint32_t channel, ChainingMode c
 
 	if (chmode == CHAINING_MODE_CBC)
 	{
-		AES_SetIV(InstancePtr, channel, IV, BLOCK_SIZE);
+		AES_SetIV(InstancePtr, channel, IV);
 	}
 	else if (chmode == CHAINING_MODE_CTR)
 	{
-		AES_SetIV(InstancePtr, channel, IV, 12);
-		// Write last word of the IV manually
-		AES_Write(InstancePtr, channel, AES_IVR0_OFFSET+12, MODE_CTR_IV_INIT);
+		AES_SetIV_Ctr(InstancePtr, channel, IV, MODE_CTR_IV_INIT);
 	}
 	
 	AES_SetDataParameters(InstancePtr, channel, data, outData, size);
-	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_DECRYPTION, chmode, 1, GCM_PHASE_INIT);
+	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_DECRYPTION, chmode, 1, KEYSIZE_SEL_128, GCM_PHASE_INIT);
 }
 
 
@@ -288,16 +307,16 @@ void AES_startComputationECB(AES* InstancePtr, uint32_t channel, int encrypt, vo
 	
 	AES_SetDataParameters(InstancePtr, channel, data, outData, size);
 	// Setup Data and set Enable = 1 to start the encryption/decryption
-	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_DECRYPTION, CHAINING_MODE_ECB, 1, GCM_PHASE_INIT);
+	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_DECRYPTION, CHAINING_MODE_ECB, 1, KEYSIZE_SEL_128, GCM_PHASE_INIT);
 }
 
 void AES_startComputationCBC(AES* InstancePtr, uint32_t channel, int encrypt, void* data, void* outData, uint32_t size,
-	 char IV[BLOCK_SIZE], AES_CallbackFn callbackFn, void* callbackRef)
+	 char IV[AES_BLOCK_SIZE], AES_CallbackFn callbackFn, void* callbackRef)
 {
 	InstancePtr->CallbackFn[channel] = callbackFn;
 	InstancePtr->CallbackRef[channel] = callbackRef;
 	
-	AES_SetIV(InstancePtr, channel, IV, BLOCK_SIZE);
+	AES_SetIV(InstancePtr, channel, IV);
 	AES_SetDataParameters(InstancePtr, channel, data, outData, size);
 	// Setup Control and set Enable = 1 to start the encryption/decryption
 	AES_Setup(InstancePtr, channel, encrypt == 1 ? MODE_ENCRYPTION : MODE_DECRYPTION, CHAINING_MODE_CBC, 1, GCM_PHASE_INIT);
@@ -307,14 +326,12 @@ void AES_startComputationCBC(AES* InstancePtr, uint32_t channel, int encrypt, vo
  * Chaining mode CTR.  As encryption and decryption are the same operation, this function doesnt have an encrypt parameter
 */
 void AES_startComputationCTR(AES* InstancePtr, uint32_t channel, void* data, void* outData, uint32_t size,
-	 char IV[BLOCK_SIZE-4], AES_CallbackFn callbackFn, void* callbackRef)
+	 char IV[AES_BLOCK_SIZE-4], AES_CallbackFn callbackFn, void* callbackRef)
 {
 	InstancePtr->CallbackFn[channel] = callbackFn;
 	InstancePtr->CallbackRef[channel] = callbackRef;
 
-	AES_SetIV(InstancePtr, channel, IV, 12);
-	// Write last word of the IV manually
-	AES_Write(InstancePtr, channel, AES_IVR0_OFFSET+12, MODE_CTR_IV_INIT);
+	AES_SetIV_Ctr(InstancePtr, channel, IV, MODE_CTR_IV_INIT);
 	AES_SetDataParameters(InstancePtr, channel, data, outData, size);
 	// Setup Control and set Enable = 1 to start the encryption/decryption
 	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_CTR, 1, GCM_PHASE_INIT);
@@ -323,9 +340,8 @@ void AES_startComputationCTR(AES* InstancePtr, uint32_t channel, void* data, voi
 void AES_startComputationGCM(AES* InstancePtr, uint32_t channel, int encrypt, void* header, uint32_t headerLen,
 	 void* payload, void* outProcessedPayload, uint32_t payloadLen, char IV[12], AES_CallbackFn callbackFn, void* callbackRef)
 {
-	AES_SetIV(InstancePtr, channel, IV, 12);
-	// Write last word of the IV manually
-	AES_Write(InstancePtr, channel, AES_IVR0_OFFSET+12, MODE_GCM_IV_INIT);
+	AES_SetIV_CTR(InstancePtr, channel, IV, MODE_GCM_IV_INIT);
+
 	// Start Init phase
 	AES_Setup(InstancePtr, channel, MODE_ENCRYPTION, CHAINING_MODE_GCM, 1, GCM_PHASE_INIT);
 	// Process Header
@@ -365,15 +381,15 @@ uint32_t prvEndianSwap32(uint32_t i) {
 	return x;
 }
 
-void AES_calculateTagGCM(AES* InstancePtr, uint32_t channel, uint32_t headerLen, uint32_t payloadLen, char outTag[BLOCK_SIZE])
+void AES_calculateTagGCM(AES* InstancePtr, uint32_t channel, uint32_t headerLen, uint32_t payloadLen, char outTag[AES_BLOCK_SIZE])
 {
 	AES_SetGCMPhase(InstancePtr, channel, GCM_PHASE_FINAL);
 	// Set the IV in the final round:  First 12 bytes are the Nonce, last 4 bytes are 0x000000001
 	// No need to write the Nonce again, as it is already there from the payload phase: Only need to write last word
-	AES_Write(InstancePtr, channel, AES_IVR0_OFFSET+12, MODE_GCM_IV_FINAL);
+	AES_Write(InstancePtr, channel, AES_IVR_OFFSET+AES_BLOCK_SIZE-4, MODE_GCM_IV_FINAL);
 
 	// Use headerLen (64 bit) ||  payloadLen(64 bit) as data block in final round
-	char finalData[BLOCK_SIZE];
+	char finalData[AES_BLOCK_SIZE];
 	*(uint32_t*)finalData = 0;
 	*(uint32_t*)(finalData+8) = 0;
 #if AES_BYTE_ORDER == LITTLE_ENDIAN
@@ -383,7 +399,7 @@ void AES_calculateTagGCM(AES* InstancePtr, uint32_t channel, uint32_t headerLen,
 	*(uint32_t*)(finalData+4) = headerLen*8;
 	*(uint32_t*)(finalData+12) = payloadLen*8;
 #endif
-	AES_SetDataParameters(InstancePtr, channel, finalData, outTag, BLOCK_SIZE);
+	AES_SetDataParameters(InstancePtr, channel, finalData, outTag, AES_BLOCK_SIZE);
 	AES_startComputation(InstancePtr, channel);
 	AES_waitUntilCompleted(InstancePtr, channel);
 }
@@ -402,29 +418,29 @@ void AES_processDataECB(AES* InstancePtr, uint32_t channel, int encrypt, void* d
 	AES_waitUntilCompleted(InstancePtr, channel);
 }
 
-void AES_processDataCBC(AES* InstancePtr, uint32_t channel, int encrypt, void* data, void* outData, uint32_t size, char IV[BLOCK_SIZE])
+void AES_processDataCBC(AES* InstancePtr, uint32_t channel, int encrypt, void* data, void* outData, uint32_t size, char IV[AES_BLOCK_SIZE])
 {
 	AES_startComputationCBC(InstancePtr, channel, encrypt, data, outData, size, IV, NULL, NULL);
 	AES_waitUntilCompleted(InstancePtr, channel);
 }
 
-void AES_processDataCTR(AES* InstancePtr, uint32_t channel, void* data, void* outData, uint32_t size, char IV[BLOCK_SIZE-4])
+void AES_processDataCTR(AES* InstancePtr, uint32_t channel, void* data, void* outData, uint32_t size, char IV[AES_BLOCK_SIZE-4])
 {
 	AES_startComputationCTR(InstancePtr, channel, data, outData, size, IV, NULL, NULL);
 	AES_waitUntilCompleted(InstancePtr, channel); 
 }
 
 void AES_processDataGCM(AES* InstancePtr, uint32_t channel, int encrypt, void* header, uint32_t headerLen, 
-	void* payload, void* outProcessedPayload, uint32_t payloadLen, char IV[12], char outTag[BLOCK_SIZE])
+	void* payload, void* outProcessedPayload, uint32_t payloadLen, char IV[12], char outTag[AES_BLOCK_SIZE])
 {
 	AES_startComputationGCM(InstancePtr, channel, encrypt, header, headerLen, payload, outProcessedPayload, payloadLen, IV, NULL, NULL);
 	AES_waitUntilCompleted(InstancePtr, channel);
 	AES_calculateTagGCM(InstancePtr, channel, headerLen, payloadLen, outTag);
 }
 
-int AES_compareTags(char tag1[BLOCK_SIZE], char tag2[BLOCK_SIZE])
+int AES_compareTags(char tag1[AES_BLOCK_SIZE], char tag2[AES_BLOCK_SIZE])
 {
-	for (uint32_t i = 0; i < BLOCK_SIZE; i += 4)
+	for (uint32_t i = 0; i < AES_BLOCK_SIZE; i += 4)
 	{
 	    // Compare four bytes at once by casting to uint32_t
 		if (*(uint32_t*)(tag1+i) != *(uint32_t*)(tag2+i))

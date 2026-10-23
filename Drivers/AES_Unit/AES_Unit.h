@@ -10,7 +10,11 @@ extern "C" {
 #include <stdint.h>
 
 /**************************** Type Definitions *****************************/
-#define BLOCK_SIZE 16
+#define AES_KEY_SIZE_BITS 256 
+
+
+#define AES_BLOCK_SIZE 16
+#define AES_KEY_SIZE  (AES_KEY_SIZE_BITS/8) 
 
 #define AES_BYTE_ORDER LITTLE_ENDIAN
 #define AES_REG_KEY_WRITEONLY 1
@@ -65,7 +69,7 @@ typedef struct {
 AES_Config *AES_LookupConfig(uint16_t DeviceId);
 int32_t AES_CfgInitialize(AES *InstancePtr, const AES_Config *ConfigPtr);
 
-void AES_SetKey(AES *InstancePtr, uint32_t channel, char key[BLOCK_SIZE]);
+void AES_SetKey(AES *InstancePtr, uint32_t channel, char key[AES_KEY_SIZE]);
 void AES_SetDataParameters(AES* InstancePtr, uint32_t channel, void* source, void* dest, uint32_t size);
 void AES_Setup(AES* InstancePtr, uint32_t channel, Mode mode, ChainingMode chMode, uint32_t enabled, GCMPhase gcmPhase);
 void AES_SetMode(AES *InstancePtr, uint32_t channel, Mode mode);
@@ -78,8 +82,11 @@ void AES_SetInterruptCallback(AES* InstancePtr, uint32_t channel, AES_CallbackFn
 
 void AES_startComputation(AES* InstancePtr, uint32_t channel);
 
-void AES_SetIV(AES* InstancePtr, uint32_t channel, void *IV, uint32_t IVLen);
-void AES_SetSusp(AES* InstancePtr, uint32_t channel, char Susp[BLOCK_SIZE*2]);
+void AES_SetIV(AES* InstancePtr, uint32_t channel, char IV[AES_BLOCK_SIZE]);
+void AES_SetIV_Ctr(AES* InstancePtr, uint32_t channel, 
+        char IV_Nonce[AES_BLOCK_SIZE-4], uint32_t IV_Ctr);
+void AES_SetSusp(AES* InstancePtr, uint32_t channel, char Susp[AES_BLOCK_SIZE]);
+void AES_SetH(AES* InstancePtr, uint32_t channel, char H[AES_BLOCK_SIZE]);
 
 Mode AES_GetMode(AES *InstancePtr, uint32_t channel);
 ChainingMode AES_GetChainingMode(AES* InstancePtr, uint32_t channel);
@@ -88,39 +95,41 @@ uint32_t AES_GetPriority(AES* InstancePtr, uint32_t channel);
 uint32_t AES_GetInterruptEnabled(AES* InstancePtr, uint32_t channel);
 
 #if !AES_REG_KEY_WRITEONLY
-void AES_GetKey(AES *InstancePtr, uint32_t channel, char outKey[BLOCK_SIZE]);
-void AES_GetIV(AES* InstancePtr, uint32_t channel, char outIV[BLOCK_SIZE]);
-void AES_GetSusp(AES* InstancePtr, uint32_t channel, char outSusp[BLOCK_SIZE*2]);
+void AES_GetKey(AES *InstancePtr, uint32_t channel, char outKey[AES_KEY_SIZE]);
+void AES_GetIV(AES* InstancePtr, uint32_t channel, char outIV[AES_BLOCK_SIZE]);
+void AES_GetSusp(AES* InstancePtr, uint32_t channel, char outSusp[AES_BLOCK_SIZE]);
+void AES_GetH(AES* InstancePtr, uint32_t channel, char outH[AES_BLOCK_SIZE]);
 #endif
 
 uint32_t AES_isActive(AES* InstancePtr, uint32_t channel);
 
+// Perform Key Expansion in advance. Can be advantageous if performing a decryption later.
 void AES_PerformKeyExpansion(AES *InstancePtr, uint32_t channel);
 
 // Process an entire data chunk at once instead of processing Blocks one by one
 void AES_startComputationMode(AES* InstancePtr, uint32_t channel, ChainingMode chmode, int encrypt, void* data, void* outData, uint32_t size,
-     char IV[BLOCK_SIZE], AES_CallbackFn callbackFn, void* callbackRef);
+     char IV[AES_BLOCK_SIZE], AES_CallbackFn callbackFn, void* callbackRef);
 void AES_startComputationECB(AES* InstancePtr, uint32_t channel, int encrypt, void* data, void* outData, uint32_t size,
      AES_CallbackFn callbackFn, void* callbackRef);
 void AES_startComputationCBC(AES* InstancePtr, uint32_t channel, int encrypt, void* data, void* outData, uint32_t size, 
-    char IV[BLOCK_SIZE], AES_CallbackFn callbackFn, void* callbackRef);
+    char IV[AES_BLOCK_SIZE], AES_CallbackFn callbackFn, void* callbackRef);
 // encrypt is indifferent, as decryption and encryption is the same process
 void AES_startComputationCTR(AES* InstancePtr, uint32_t channel, void* data, void* outData, uint32_t size, 
-    char IV[BLOCK_SIZE-4], AES_CallbackFn callbackFn, void* callbackRef);
+    char IV[AES_BLOCK_SIZE-4], AES_CallbackFn callbackFn, void* callbackRef);
 void AES_startComputationGCM(AES* InstancePtr, uint32_t channel, int encrypt, void* header, uint32_t headerLen,
-     void* payload, void* outProcessedPayload, uint32_t payloadLen, char IV[BLOCK_SIZE-4], AES_CallbackFn callbackFn, void* callbackRef);
-void AES_calculateTagGCM(AES* InstancePtr, uint32_t channel, uint32_t headerLen, uint32_t payloadLen, char outTag[BLOCK_SIZE]);
+     void* payload, void* outProcessedPayload, uint32_t payloadLen, char IV[AES_BLOCK_SIZE-4], AES_CallbackFn callbackFn, void* callbackRef);
+void AES_calculateTagGCM(AES* InstancePtr, uint32_t channel, uint32_t headerLen, uint32_t payloadLen, char outTag[AES_BLOCK_SIZE]);
 
 // Functions block until computation has completed
 void AES_processDataECB(AES* InstancePtr, uint32_t channel, int encrypt, void* data, void* outData, uint32_t size);
-void AES_processDataCBC(AES* InstancePtr, uint32_t channel, int encrypt, void* data, void* outData, uint32_t size, char IV[BLOCK_SIZE]);
+void AES_processDataCBC(AES* InstancePtr, uint32_t channel, int encrypt, void* data, void* outData, uint32_t size, char IV[AES_BLOCK_SIZE]);
 // encrypt is indifferent, as decryption and encryption is the same process
-void AES_processDataCTR(AES* InstancePtr, uint32_t channel, void* data, void* outData, uint32_t size, char IV[BLOCK_SIZE-4]);
+void AES_processDataCTR(AES* InstancePtr, uint32_t channel, void* data, void* outData, uint32_t size, char IV[AES_BLOCK_SIZE-4]);
 void AES_processDataGCM(AES* InstancePtr, uint32_t channel, int encrypt, void* header, uint32_t headerLen,
-     void* payload, void* outProcessedPayload, uint32_t payloadLen, char IV[BLOCK_SIZE-4], char outTag[BLOCK_SIZE]);
+     void* payload, void* outProcessedPayload, uint32_t payloadLen, char IV[AES_BLOCK_SIZE-4], char outTag[AES_BLOCK_SIZE]);
 
 // Compares two tags generated by GCM. Returns 0 if identical, otherwise -1
-int AES_compareTags(char tag1[BLOCK_SIZE], char tag2[BLOCK_SIZE]);
+int AES_compareTags(char tag1[AES_BLOCK_SIZE], char tag2[AES_BLOCK_SIZE]);
 
 
 // returns 1 if most recent computation has completed, otherwise 0
