@@ -183,6 +183,7 @@ signal dataSize : std_logic_vector(DATA_WIDTH-1 downto 0);
 signal sourceAddress, destAddress : std_logic_vector(M_RV_addr'LENGTH-1 downto 0);
 
 signal CCFIE : std_logic;
+-- TODO better naming scheme
 signal modeSignal : mode_t; 
 signal chainingModeSignal : mode_t; 
 signal GCMPhaseSignal : mode_t; 
@@ -314,6 +315,8 @@ end procedure;
                     chainingModeSignal <= configReg(CR_RANGE_CHMODE);
                     GCMPhaseSignal <= configReg(CR_RANGE_GCMPHASE);
                     CCFIE <= configReg(CR_POS_CCFIE);
+
+                    -- keysizeSel <= configREG(CR_RANGE_KEYSIZE_SEL);
                     
                     -- Read addresses and datasize from memory register depending on Endianness
                     if not LITTLE_ENDIAN then 

@@ -46,6 +46,7 @@ entity AES_Core is
            dOut : out block_t;
            EnI : in std_logic;
            EnO : out std_logic;
+           keysize : in mode_t; 
            mode : in mode_t;
            chaining_mode : in mode_t; 
            GCMPhase : in mode_t; 
@@ -78,7 +79,8 @@ signal WrAddrMNT, WrAddrGCM : std_logic_vector(ADDR_REGISTER_BITS-1 downto 0);
 begin
 
 algorithm : entity work.AEA
-            port map(dIn => dInAEA, dOut => dOutAEA, key => Key,
+            port map(dIn => dInAEA, dOut => dOutAEA, 
+                     key => Key, keysize => keysize,
                      encrypt => encryptAEA, keyExpand => keyExpandAEA,
                      EnI => EnIAEA, EnO => EnOAEA,
                      Clock => Clock, Resetn => Resetn);

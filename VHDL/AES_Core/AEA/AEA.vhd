@@ -13,6 +13,7 @@ entity AEA is
        key : in key_t; 
        encrypt : in STD_LOGIC;
        -- for encrypt = 1, keyExpand=1 means just keyExpansion, for encrypt = 0, keyExpand=0 means no KeyExpansion
+       keysize : in mode_t; 
        keyExpand : in STD_LOGIC; 
        EnI : in STD_LOGIC;
        EnO : out STD_LOGIC;

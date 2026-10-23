@@ -4,6 +4,8 @@ use IEEE.STD_LOGIC_1164.ALL;
 package common is
 
 -- AEA definitions
+constant AES_MAX_KEY_SIZE : integer := 256; -- TODO
+
 constant AES_KEY_SIZE : integer := 128; 
 
 -- The official AES standard always uses a block size of 128
@@ -14,7 +16,7 @@ CONSTANT AES_NK : natural := AES_KEY_SIZE/32;   -- Number of columns in the ciph
 CONSTANT AES_NB : natural := AES_BLOCK_SIZE/32; -- Number of columns in a block
 
 subtype block_t is std_logic_vector(AES_BLOCK_SIZE-1 downto 0);
-subtype key_t is std_logic_vector(AES_KEY_SIZE-1 downto 0);
+subtype key_t is std_logic_vector(AES_MAX_KEY_SIZE-1 downto 0);
 
 -- AES Core definitions
 
@@ -125,6 +127,7 @@ constant CR_POS_CCFIE : integer := 9;
 constant CR_POS_CCFC : integer := 7;
 subtype CR_RANGE_CHMODE is integer range 6 downto 5;
 subtype CR_RANGE_MODE is integer range 4 downto 3;
+subtype CR_RANGE_KEYSIZE_SEL is integer range 2 downto 1;
 constant CR_POS_EN : integer := 0;
 
 constant SR_POS_IRQ : integer := 0;
