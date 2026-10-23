@@ -31,9 +31,9 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity AES_Core is
     generic (
-        ADDR_IV : integer := ADDR_IVR0;
-        ADDR_SUSP : integer := ADDR_SUSPR0;
-        ADDR_H  : integer := ADDR_HR0
+        ADDR_IV : integer := ADDR_IVR;
+        ADDR_SUSP : integer := ADDR_SUSPR;
+        ADDR_H  : integer := ADDR_HR
         );
     Port ( Key : in key_t;
            IV : in block_t;

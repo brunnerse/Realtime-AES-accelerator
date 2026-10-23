@@ -161,7 +161,7 @@ ATTRIBUTE X_INTERFACE_INFO of M_RV_error: SIGNAL is
 "xilinx.com:user:ReadyValid_RW_Port:1.0 M_DataPort error";
 
 
-type single_mem_type is array (0 to (ADDR_HR3+4)/4-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+type single_mem_type is array (0 to (ADDR_SR)/4-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
 type multi_mem_type is array (channel_range) of single_mem_type;
 signal mem : multi_mem_type;
 
@@ -257,14 +257,20 @@ variable configReg : std_logic_vector(DATA_WIDTH-1 downto 0);
 variable destAddrVar, sourceAddrVar : std_logic_vector(DATA_WIDTH-1 downto 0);
 
 procedure UpdateCoreSignals(ch : channel_range) is 
+    variable low_idx : natural;
 begin
-for i in 3 downto 0 loop
-    key <= (others => '0');
-    key(127-i*32 downto 96-i*32) <= mem(ch)(ADDR_KEYR0/4 + i);
-    IV (127-i*32 downto 96-i*32) <= mem(ch)(ADDR_IVR0/4 + i);
-    Susp(127-i*32 downto 96-i*32) <= mem(ch)(ADDR_SUSPR0/4 + i);
-    H(127-i*32 downto 96-i*32) <= mem(ch)(ADDR_HR0/4 + i);
-end loop;
+    key <= (others => '0'); -- for testing; TODO remove later
+
+    for i in 0 to key_t'LENGTH/32 - 1 loop
+        low_idx := key_t'LENGTH - (i+1)*32;
+        key(low_idx+31 downto low_idx) <= mem(ch)(ADDR_KEYR/4 + i);
+    end loop;
+    for i in 0 to block_t'LENGTH/32-1 loop
+        low_idx := block_t'LENGTH - (i+1)*32;
+        IV (low_idx+31 downto low_idx) <= mem(ch)(ADDR_IVR/4 + i);
+        Susp(low_idx+31 downto low_idx) <= mem(ch)(ADDR_SUSPR/4 + i);
+        H(low_idx+31 downto low_idx) <= mem(ch)(ADDR_HR/4 + i);
+    end loop;
 end procedure;
 
 procedure ChangeStateToComputing(ch: channel_range) is
@@ -491,7 +497,7 @@ if rising_edge(Clock) then
             RdData(SR_POS_WRERR+7 downto SR_POS_WRERR) <= WRERR(srIdx*8+7 downto srIdx*8);
         -- If address is another register, check first whether the register is writeonly (i.e. Key registers and above)
         elsif not REG_KEY_WRITEONLY or
-             unsigned(RdAddr(addr_register_range)) < to_unsigned(ADDR_KEYR0, ADDR_WIDTH)(addr_register_range) then
+             unsigned(RdAddr(addr_register_range)) < to_unsigned(ADDR_KEYR, ADDR_WIDTH)(addr_register_range) then
             channelIdx :=  to_integer(unsigned(RdAddr(addr_channel_range)));
             RdData <= mem(channelIdx)(to_integer(unsigned(RdAddr(addr_register_range))));
         end if;

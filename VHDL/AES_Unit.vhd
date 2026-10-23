@@ -340,9 +340,9 @@ i_ControlLogic : entity work.ControlLogic
 
 i_Core : entity work.AES_Core
     generic map (
-        ADDR_IV => ADDR_IVR0,
-        ADDR_SUSP => ADDR_SUSPR0,
-        ADDR_H => ADDR_HR0)
+        ADDR_IV => ADDR_IVR,
+        ADDR_SUSP => ADDR_SUSPR,
+        ADDR_H => ADDR_HR)
     port map (
         key => key,
         IV => IV,
