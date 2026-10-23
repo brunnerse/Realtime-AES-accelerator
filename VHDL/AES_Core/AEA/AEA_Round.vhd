@@ -82,7 +82,7 @@ if encrypt = '1' then
     EnIARK <= EnOMC;
 
     if skipMixColumns = '1' then
-        EnIMC <= '-';
+        EnIMC <= '0';
         dInARK <= dOutSR;
         EnIARK <= EnOSR;
     end if;
@@ -103,7 +103,7 @@ else
     EnISR <= EnOMC;
 
     if skipMixColumns = '1' then
-        EnIMC <= '-';
+        EnIMC <= '0';
         dInSR <= dOutARK;
         EnISR <= EnOARK;
     end if;

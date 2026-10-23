@@ -179,7 +179,7 @@ process (Clock)
 variable v_W : words_t; 
 -- v_nextWordIdx equals index of next word to calculate,
 -- i.e. for reverse, it decrements (technically prevWordIdx)
-variable v_nextWordIdx : natural range 0 to (1+AES_NR) * AES_NB + 4; 
+variable v_nextWordIdx : integer range -4 to (1+AES_NR) * AES_NB + 4; 
 -- TODO natural with unsigned 
 
 begin
