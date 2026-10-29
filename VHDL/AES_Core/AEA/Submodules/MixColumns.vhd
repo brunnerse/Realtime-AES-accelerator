@@ -33,7 +33,6 @@ entity MixColumns is
            dOut : out block_t;
            encrypt : in STD_LOGIC;
            EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
            Resetn : in STD_LOGIC);
 end entity;
@@ -122,10 +121,8 @@ variable extColLine : integer;
 begin
 if rising_edge(Clock) then
     if Resetn = '0' then
-        EnO <= '0';
         stateOut <= (others => (others => '-'));
     else
-        EnO <= EnI;
         if EnI = '1' then
             if encrypt = '1' then
                 for col in AES_NB-1 downto 0 loop

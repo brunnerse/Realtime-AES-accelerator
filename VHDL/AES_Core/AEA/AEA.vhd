@@ -42,7 +42,7 @@ architecture RTL of AEA is
 
 -- TODO idea: For both enc and dec, the first step is an ARK
 
-type state_t is (Idle, Init, OnlyKeyExp, Rounds);
+type state_t is (Idle, OnlyKeyExp, Rounds);
 
 signal currentRound : integer range 1 to AES_NR; -- TODO replace with unsigned(4 downto 0)  (max is 14)
 signal state : state_t;
@@ -61,7 +61,11 @@ signal dInSB : block_t;
 --type block_array_t is array(natural range<>) of block_t;
 --signal subDOut : block_array_t(2 downto 0);
 signal dOutSB, dOutMC, dOutARK : block_t;
-signal subEn, prevSubEn : unsigned(2 downto 0);
+signal subEn, prevSubEn : unsigned(2 downto 0); -- TODO use sub-indizes for subEn
+
+constant EN_IDX_ARK : natural := 0;
+constant EN_IDX_SB : natural := 1;
+constant EN_IDX_MC : natural := 2;
 
 begin
 
@@ -77,23 +81,22 @@ keyExp : entity work.KeyExpansion
 ARK : entity work.AddRoundKey
         port map(dIn => dataState, dOut => dOutARK, 
             roundKey => roundKey, -- TODO roundKey or UserKey depending on en-/decrypt and round
-                EnI => subEn(0) or EnI, -- First step is always an ARK
-                EnO => open, Clock => Clock, Resetn => Resetn);
+            EnI => subEn(EN_IDX_ARK) or EnI, -- First step is always an ARK
+            Clock => Clock, Resetn => Resetn);
 
 -- SR and SB as one connected entity
 SR : entity work.ShiftRows
         generic map(synchronous => false)
-        port map(dIn => dataState, dOut => dInSB, encrypt => encrypt,
-                EnI => '1', EnO => open, Clock => '0', Resetn => '1');
+        port map(dIn => dataState, dOut => dInSB, encrypt => encrypt);
 
 SB : entity work.SubBytes
         port map(dIn => dInSB, dOut => dOutSB, encrypt => encrypt,
-                EnI => subEn(1), EnO => open, Clock => Clock, Resetn => Resetn);
+                EnI => subEn(EN_IDX_SB), Clock => Clock, Resetn => Resetn);
 
 
 MC : entity work.MixColumns
         port map(dIn => dataState, dOut => dOutMC, encrypt => encrypt,
-                EnI => subEn(2), EnO => open, Clock => Clock, Resetn => Resetn);
+                EnI => subEn(EN_IDX_MC), Clock => Clock, Resetn => Resetn);
 
 
 --------------------------------
@@ -109,11 +112,12 @@ begin
 if rising_edge(Clock) then
     keyExpCalcNextKey <= '0';
 
-    -- TODO Stop calculating new round keys in the last round
-    if EnI = '1' then -- ARK is always the first thing happening
+    -- Calculate next round key immediately after start, since ARK is always the first thing happening
+    if EnI = '1' then
         keyExpCalcNextKey <= '1';
     end if;
 
+    -- Calculate new rounds keys, except in the last round  
     if subEn(0) = '1' and state /= Idle and currentRound /= AES_NR then
         keyExpCalcNextKey <= '1';
     end if;
@@ -121,8 +125,10 @@ end if;
 end process;
 
 
-prevSubEn <= subEn when rising_edge(Clock);
+-- Do not update when EnO is set so datastate stays constant
+prevSubEn <= subEn when rising_edge(Clock) and EnO = '0';
 
+-- Assign dataState the output data of the component that was enabled in the last cycle
 process (all)
 begin
     if EnI = '1' then
@@ -153,17 +159,17 @@ process (Clock)
 begin
 if rising_edge(Clock) then
 
-    -- TODO in theory, we could avoid the enable signals alltogether 
-    -- TODO do the enable signals improve power efficiency??
-
     if Resetn = '0' then
         v_En := (others => '0'); 
-        v_En(0) := '1';
+        v_En(0) := '0';
     else
         if EnI = '1' then
-            v_En := v_En rol 1;
-        end if;
-        if state /= Idle then
+            -- First step after initial AddRoundKey is SubBytes for both
+            -- encryption (first round) and decryption (last round, since MixColumns is skipped)
+            v_En := (EN_IDX_SB => '1', others => '0'); 
+        elsif EnO = '1' then
+            v_En := (others => '0');
+        else
             if encrypt = '1' then
                 v_En := v_En rol 1;
             else
@@ -178,7 +184,6 @@ if rising_edge(Clock) then
                     v_En := v_En ror 1;
                 end if;
             end if;
-
         end if;
     end if;
 
@@ -221,10 +226,6 @@ if rising_edge(Clock) then
                     end if;
                 end if; 
 
-            when Init => 
-                -- Delay just once
---                state <= Rounds;
-            
             when OnlyKeyExp => 
                 -- Usually, KeyExpansion and Rounds run in parallel.
                 -- In state OnlyKeyExp, only the KeyExpansion runs. 
@@ -246,7 +247,6 @@ if rising_edge(Clock) then
             when Rounds =>
                 -- Update currentRound and state in the last cycle before the round finishes
                 if roundIsLastCycle = '1' then
-
                     
                     roundSkipMixColumns <= '0'; -- Reset roundSkipMixColumns for the next round, if any
 
@@ -260,7 +260,6 @@ if rising_edge(Clock) then
                         -- Last round finishes in next cycle
                         state <= Idle;
                         EnO <= '1';
-                        --currentRound <= currentRound; -- Do not increment anymore
                     else
                         currentRound <= currentRound + 1;
                     end if;

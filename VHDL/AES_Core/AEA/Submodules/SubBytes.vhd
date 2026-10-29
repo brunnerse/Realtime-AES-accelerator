@@ -36,7 +36,6 @@ entity SubBytes is
            dOut : out block_t;
            encrypt : in STD_LOGIC;
            EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
            Resetn : in STD_LOGIC);
 end entity;
@@ -79,19 +78,6 @@ if rising_edge(Clock) then
 end if;
 end process;
 end generate;
-
-
-
-process (Clock)
-begin
-if rising_edge(Clock) then
-    if Resetn = '0' then
-        EnO <= '0';
-    else
-        EnO <= EnI;
-    end if;
-end if;
-end process;
 
 
 end architecture;

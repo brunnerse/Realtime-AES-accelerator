@@ -40,7 +40,6 @@ entity AddRoundKey is
            dout : out block_t;
            roundkey : in block_t;
            EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
            Resetn : in STD_LOGIC);
 end entity;
@@ -50,7 +49,6 @@ architecture RTL of AddRoundKey is
 begin
 
 GenASync: if not synchronous generate
-EnO <= EnI;
 dOut <= din xor roundkey;
 end generate;
 
@@ -59,10 +57,8 @@ process (Clock)
 begin
 if rising_edge(Clock) then
     if Resetn = '0' then
-        EnO <= '0';
         dOut <= (others => '-');
     else
-        EnO <= EnI;
         if EnI = '1' then
             dOut <= din xor roundkey;
 --            report "[AddRoundKey] with key " & to_hstring(to_bitvector(key));

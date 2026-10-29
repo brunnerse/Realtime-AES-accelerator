@@ -34,10 +34,9 @@ entity ShiftRows is
     Port ( dIn : in block_t;
            dOut : out block_t;
            encrypt : in STD_LOGIC;
-           EnI : in STD_LOGIC;
-           EnO : out STD_LOGIC;
-           Clock : in STD_LOGIC;
-           Resetn : in STD_LOGIC);
+           EnI : in STD_LOGIC := '1';
+           Clock : in STD_LOGIC := '0';
+           Resetn : in STD_LOGIC := '1');
 end entity;
 
 architecture RTL of ShiftRows is
@@ -91,7 +90,6 @@ begin
 
 
 GenAsync: if not synchronous generate
-    EnO <= EnI;
     dOut <= shift_rows(dIn, encrypt = '1');
 end generate;
 
@@ -103,10 +101,8 @@ begin
 
 if rising_edge(Clock) then
     if Resetn = '0' then
-        EnO <= '0';
         dOut <= (others => '-');
     else
-        EnO <= EnI;
         dOut <= shift_rows(dIn, encrypt = '1');
     end if;
 
