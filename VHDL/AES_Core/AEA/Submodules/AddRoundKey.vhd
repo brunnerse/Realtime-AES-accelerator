@@ -61,7 +61,7 @@ if rising_edge(Clock) then
     else
         if EnI = '1' then
             dOut <= din xor roundkey;
---            report "[AddRoundKey] with key " & to_hstring(to_bitvector(key));
+            report "[AddRoundKey] with key " & to_hstring(to_bitvector(roundKey));
         end if;
     end if;
 end if;

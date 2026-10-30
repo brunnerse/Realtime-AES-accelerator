@@ -69,7 +69,7 @@ ATTRIBUTE X_INTERFACE_INFO of WrAddr: SIGNAL is
 
 -- signal definitions
 signal dInAEA, dOutAEA : block_t;
-signal encryptGCM, encryptAEA, EnIAEA, EnOAEA, keyExpandFlagAEA : std_logic;
+signal encryptGCM, encryptAEA, EnIAEA, EnOAEA, keyExpandAEA : std_logic;
 
 -- signal to mode components
 signal EnIMNT, EnIGCM, EnOMNT, EnOGCM, EnIAEAMNT, EnIAEAGCM, EnOAEAMNT, EnOAEAGCM, WrEnMNT, WrEnGCM : std_logic;
@@ -79,7 +79,7 @@ begin
 
 algorithm : entity work.AEA
             port map(dIn => dInAEA, dOut => dOutAEA, key => Key,
-                     encrypt => encryptAEA, keyExpandFlag => keyExpandFlagAEA,
+                     encrypt => encryptAEA, keyExpand => keyExpandAEA,
                      EnI => EnIAEA, EnO => EnOAEA,
                      Clock => Clock, Resetn => Resetn);
 
@@ -106,7 +106,7 @@ encryptGCM <= not mode(1);
 -- Set encrypt and keyExpandFlag signals according to the mode
 encryptAEA <= not mode(1) when chaining_mode = CHAINING_MODE_ECB or chaining_mode = CHAINING_MODE_CBC else
             '1'; -- always set AEA unit to encryption in CTR or GCMmode
-keyExpandFlagAEA <= mode(0) when chaining_mode = CHAINING_MODE_ECB or chaining_mode = CHAINING_MODE_CBC else
+keyExpandAEA <= mode(0) when chaining_mode = CHAINING_MODE_ECB or chaining_mode = CHAINING_MODE_CBC else
             '0'; -- never key expand in CTR or GCM mode
 
 EnIGCM <= EnI when chaining_mode = CHAINING_MODE_GCM else
