@@ -90,6 +90,7 @@ begin
     W(AES_NK-1) := newWord;  
 end procedure;
 
+
 -- TODO wordIdx must (probably) be the idx of the word being calculated 
 function calcPrevWord(W : words_t; wordIdx : natural; RCon : rcon_t) return word_t is
     variable v_prevW : word_t;
@@ -121,6 +122,7 @@ begin
     return v_prevW;
 end function;
 
+
 procedure updateWordsInv(variable W : inout words_t; newWord : in word_t) is
 begin
     for i in AES_NK-1 downto 1 loop
@@ -129,11 +131,6 @@ begin
 
     W(0) := newWord;  
 end procedure;
-
-
-
-
-
 
 
 procedure calcNextRcon(signal RCon : inout rcon_t) is 
@@ -145,6 +142,7 @@ begin
         RCon <= (RCon(6 downto 0) & '0') xor x"1b"; 
     end if;
 end procedure;
+
 
 procedure calcPrevRcon(signal RCon : inout rcon_t) is 
 begin
@@ -170,17 +168,18 @@ signal RCon : rcon_t;
 signal finalWords : words_t;
 signal finalRcon : rcon_t;
 
-begin
+signal W : words_t;
+signal nextWordIdx : integer;
 
---assert AES_NK = 4 report "Module does not support AES_NK /= 4!" severity failure;
+begin
 
 process (Clock)
 
-variable v_W : words_t; 
--- v_nextWordIdx equals index of next word to calculate,
--- i.e. for reverse, it decrements (technically prevWordIdx)
-variable v_nextWordIdx : integer range -4 to (1+AES_NR) * AES_NB + 4; 
--- TODO natural with unsigned 
+    variable v_W : words_t; 
+    -- v_nextWordIdx equals index of next word to calculate,
+    -- i.e. for reverse, it decrements (technically prevWordIdx)
+    variable v_nextWordIdx : integer range -4 to (1+AES_NR) * AES_NB + 4; 
+    -- TODO natural with unsigned 
 
 begin
 if rising_edge(Clock) then
@@ -217,6 +216,7 @@ if rising_edge(Clock) then
                     -- We calculate W_next = W_i, which is then inserted by shifting the entire W
 
                     --TODO for AES192/AES256, we only need half an update or no update in the last round
+                    --  TODO that is probably easier to do once we implement two-cycle keyexpansion
                     updateWords(v_W, 
                         calcNextWord(v_W, v_nextWordIdx, RCon));
 
@@ -229,7 +229,10 @@ if rising_edge(Clock) then
 
                 -- Store the most recently calculated W and RCon so the reverse keyexpansion can use them 
                 finalWords <= v_W;
-                finalRcon <= RCon;
+
+--                if v_nextWordIdx <= AES_NR*4 then -- TODO when to update Rcon?
+                    finalRcon <= RCon;
+--                end if;
             else
                 -- Reverse KeyExpansion
 
@@ -258,7 +261,8 @@ if rising_edge(Clock) then
     end loop;
     
     -- TODO remove again
-    finalWords <= v_W;
+    W <= v_W;
+    nextWordIdx  <= v_nextWordIdx;
 end if;
 end process;
 
