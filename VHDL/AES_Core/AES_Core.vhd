@@ -46,7 +46,6 @@ entity AES_Core is
            dOut : out block_t;
            EnI : in std_logic;
            EnO : out std_logic;
--- keysize : in std_logic_vector(MODE_LEN-1 downto 0)
            mode : in mode_t;
            chaining_mode : in mode_t; 
            GCMPhase : in mode_t; 
@@ -75,6 +74,7 @@ signal encryptGCM, encryptAEA, EnIAEA, EnOAEA, keyExpandAEA : std_logic;
 signal EnIMNT, EnIGCM, EnOMNT, EnOGCM, EnIAEAMNT, EnIAEAGCM, EnOAEAMNT, EnOAEAGCM, WrEnMNT, WrEnGCM : std_logic;
 signal dOutMNT, dOutGCM, dInAEAMNT, dInAEAGCM, WrDataMNT, WrDataGCM : block_t;
 signal WrAddrMNT, WrAddrGCM : std_logic_vector(ADDR_REGISTER_BITS-1 downto 0);
+
 begin
 
 algorithm : entity work.AEA
@@ -110,7 +110,7 @@ keyExpandAEA <= mode(0) when chaining_mode = CHAINING_MODE_ECB or chaining_mode 
             '0'; -- never key expand in CTR or GCM mode
 
 EnIGCM <= EnI when chaining_mode = CHAINING_MODE_GCM else
- '0';
+          '0';
 with chaining_mode select
 EnIMNT <= EnI when CHAINING_MODE_ECB | CHAINING_MODE_CBC | CHAINING_MODE_CTR,
           '0' when others;

@@ -23,9 +23,7 @@ architecture RTL of BinarySearch is
 
 constant NUM_CHANNELS: natural := (NUM_CHANNELS_IN+1)/2 * 2; -- Number of channels rounded up to multiple of 
 
-subtype channel_range is integer range NUM_CHANNELS-1 downto 0;
 type IdxArrayType is array(natural range<>) of integer range MAX_CHANNELS-1 downto 0;
-
 
 signal Priority : PrioArrayType(NUM_CHANNELS-1 downto 0);
 signal En       : std_logic_vector(NUM_CHANNELS-1 downto 0);

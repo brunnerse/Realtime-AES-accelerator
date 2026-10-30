@@ -140,6 +140,7 @@ begin
 
     if isTestCaseEnabled(DECRYPT_y_1)  -- Decrypt with same key with no break in between
     then 
+        wait for 50 ns; -- TODO try with 0 wait time
         encrypt <= '0'; keyExpand <= '0';
         dIn <= ciphertext_y;
         startAndWaitForCompletion;

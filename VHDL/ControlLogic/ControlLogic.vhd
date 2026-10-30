@@ -83,33 +83,8 @@ entity ControlLogic is
 end entity;
 
 architecture RTL of ControlLogic is
--- helper function, must be at the beginning because it is used in the constants
--- log2 that rounds up
-function log2( i : natural) return integer is
-    variable temp    : integer := 1;
-    variable ret_val : integer := 0; 
-  begin					
-    while temp < i loop
-      ret_val := ret_val + 1;
-      temp    := temp * 2;     
-    end loop;
-    
-    return ret_val;
-end function;
-
-function SwapEndian(x : std_logic_vector) return std_logic_vector is
-variable r : std_logic_vector(x'RANGE);
-variable idx : integer;
-begin
-for i in x'LENGTH/8-1 downto 0 loop
-    idx := (x'LENGTH/8-1-i)*8;
-    r(idx+7 downto idx) := x(i*8+7 downto i*8);
-end loop;
-return r;
-end function;  
 
 
-  
   -- define constants
 constant DATA_WIDTH_BYTES : integer := DATA_WIDTH/8;
 -- range of the index for the channel
@@ -443,7 +418,6 @@ end procedure;
                         state <= Idle;
                     end if;    
                 end if;
-            when others =>
        end case;
     end if;
 end if;

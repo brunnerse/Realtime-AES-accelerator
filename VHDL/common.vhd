@@ -56,7 +56,46 @@ subtype num_channels_range is integer range 1 to MAX_CHANNELS;
 constant NUM_PRIORITY_BITS : integer := ADDR_CHANNEL_BITS;
 type PrioArrayType is array(natural range<>) of std_logic_vector(NUM_PRIORITY_BITS-1 downto 0);
 
+-------------------
+-- helper functions 
+
+-- log2 that rounds up
+function log2( i : natural) return integer;
+
+-- reverses the byte order
+function SwapEndian(x : std_logic_vector) return std_logic_vector;
+
 end package;
+
+package body common is
+
+function log2( i : natural) return integer is
+    variable temp    : integer := 1;
+    variable ret_val : integer := 0; 
+  begin					
+    while temp < i loop
+      ret_val := ret_val + 1;
+      temp    := temp * 2;     
+    end loop;
+    
+    return ret_val;
+end function;
+
+function SwapEndian(x : std_logic_vector) return std_logic_vector is
+    variable r : std_logic_vector(x'RANGE);
+    variable idx : integer;
+  begin
+    for i in x'LENGTH/8-1 downto 0 loop
+      idx := (x'LENGTH/8-1-i)*8;
+      r(idx+7 downto idx) := x(i*8+7 downto i*8);
+    end loop;
+
+    return r;
+end function;  
+
+
+
+end package body;
 
 
 package addresses is

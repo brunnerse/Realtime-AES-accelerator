@@ -26,12 +26,12 @@ void __attribute__((weak)) phex(uint8_t* str) {
 
 
 
-int main() 
+int main(int argc, char **argv) 
 {
     uint8_t *key = key1; 
     uint8_t *in = plaintext1; 
     
-    printf("Plaintext data:\n\t");
+    printf("Key:\n\t");
     phex(key);
 
     // Generate round keys
@@ -45,6 +45,10 @@ int main()
     printf("-----------\nCiphertext:\n\t");
     phex(in);
     printf("\n\n");
+
+
+    if (argc > 1)
+        return 0;
 
 
     printf("\n\nECB decrypt:\n\t");

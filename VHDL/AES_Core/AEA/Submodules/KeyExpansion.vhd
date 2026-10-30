@@ -157,11 +157,14 @@ end procedure;
 -- The Index of the key that is being calculated in this cycle
 signal RCon : rcon_t;
 
-signal finalWords : words_t;
 signal finalRcon : rcon_t;
+signal finalWords : words_t;
 
 signal W : words_t;
 signal nextWordIdx : integer;
+
+signal update_ctr : unsigned(log2(CYCLES_PER_KEY)-1 downto 0);
+
 
 begin
 
@@ -174,7 +177,7 @@ process (Clock)
     -- v_nextWordIdx equals index of next word to calculate,
     -- i.e. for reverse, it decrements (technically prevWordIdx)
     variable v_nextWordIdx : integer range -4 to (1+AES_NR) * AES_NB + 4; 
-    -- TODO natural with unsigned 
+    -- TODO replace natural with unsigned 
 
 begin
 if rising_edge(Clock) then
@@ -182,6 +185,9 @@ if rising_edge(Clock) then
         v_W := (others => (others => '-'));
         finalWords <= (others => (others => '-'));
         finalRCon <= (others => '-');
+
+        update_ctr <= to_unsigned(0, update_ctr'LENGTH);
+
     else
         -- TODO test different init scheme 
         if init = '1' then
@@ -206,8 +212,12 @@ if rising_edge(Clock) then
                 v_nextWordIdx := 4 + AES_NR * 4 - 4;
             end if;
 
-        elsif calcNextRoundKey = '1' or v_nextWordIdx rem AES_NB /= 0 then
+            update_ctr <= to_unsigned(0, update_ctr'LENGTH);
+
+        elsif calcNextRoundKey = '1' or (update_ctr'LENGTH > 0 and update_ctr /= 0) then
             -- Calculate words for next round key until another full key has been calculated
+
+            update_ctr <= update_ctr + 1;
 
             if reverse /= '1' then
 
