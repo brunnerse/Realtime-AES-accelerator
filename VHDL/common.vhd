@@ -3,17 +3,19 @@ use IEEE.STD_LOGIC_1164.ALL;
 
 package common is
 
+------------------------
 -- AEA definitions
-constant AES_MAX_KEY_SIZE : integer := 256; -- TODO
 
-constant AES_KEY_SIZE : integer := 128; 
+-- Keysize 128, 192 or 256 up to AES_MAX_KEY_SIZE
+constant AES_MAX_KEY_SIZE : integer := 256; 
+
 
 -- The official AES standard always uses a block size of 128
 constant AES_BLOCK_SIZE : integer := 128;
 
-constant AES_NR : natural := 10;            -- Number of rounds
-CONSTANT AES_NK : natural := AES_KEY_SIZE/32;   -- Number of columns in the cipher key
+constant AES_MAX_NK : natural := AES_MAX_KEY_SIZE/32; -- Max Number of columns in cipher key 
 CONSTANT AES_NB : natural := AES_BLOCK_SIZE/32; -- Number of columns in a block
+
 
 subtype block_t is std_logic_vector(AES_BLOCK_SIZE-1 downto 0);
 subtype key_t is std_logic_vector(AES_MAX_KEY_SIZE-1 downto 0);

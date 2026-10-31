@@ -23,6 +23,9 @@ end entity;
 
 architecture RTL of AEA is
 
+-- TODO adapt according to keysize
+signal AES_NR : natural := 14;            -- Number of rounds
+
 
 type state_t is (Idle, KeyExpansion, Rounds, PreARK);
 
@@ -49,6 +52,10 @@ signal subEn, prevSubEn : unsigned(2 downto 0);
 constant EN_IDX_ARK : natural := 0;
 constant EN_IDX_SB : natural := 1;
 constant EN_IDX_MC : natural := 2;
+
+
+
+
 
 begin
 

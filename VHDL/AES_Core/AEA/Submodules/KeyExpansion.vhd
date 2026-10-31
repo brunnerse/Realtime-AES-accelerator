@@ -27,9 +27,19 @@ end entity;
 
 architecture RTL of KeyExpansion is
 
+constant AES_KEY_SIZE : natural := 256;
+
+-- TODO make AES_NR obsolete
+constant AES_NR : natural := 14;            -- Number of rounds
+
+-- TODO make AES_NK variable 
+constant AES_NK : natural := AES_KEY_SIZE/32;   -- Number of columns in the cipher key
+
+
+
 subtype rcon_t is STD_LOGIC_VECTOR(7 downto 0);
 subtype word_t is STD_LOGIC_VECTOR(31 downto 0);
-type words_t is array(0 to AES_NK-1) of word_t; 
+type words_t is array(0 to AES_MAX_NK-1) of word_t; 
 
 subtype wordidx_t is unsigned(5 downto 0);  -- Max value 53?
 

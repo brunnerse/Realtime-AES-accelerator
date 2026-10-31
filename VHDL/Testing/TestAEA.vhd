@@ -48,7 +48,8 @@ entity TestAEA is
     Generic (
 --        g_TEST_CASES: case_t := ENCRYPT_y or DECRYPT_y_1 or KEYEXP_x or DEC_KEYEXP_x 
 --        g_TEST_CASES: case_t := ENCRYPT_Y or DEC_KEYEXP_Y
-        g_TEST_CASES: case_t := ALL_CASES
+        g_TEST_CASES: case_t := ALL_CASES;
+        g_KEYSIZE : mode_t := KEYSIZE_128
     );
 end entity;
 
@@ -90,6 +91,7 @@ begin
 aeaEnc : entity work.AEA port map (dIn => dIn, dOut => dOut, key => testKey, 
         encrypt => encrypt, 
         keyExpand => keyExpand, 
+        keysize => g_KEYSIZE,
         EnI => EnI, EnO => EnO, 
         Clock => Clock, Resetn => Resetn);
 
