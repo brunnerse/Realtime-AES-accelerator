@@ -40,8 +40,10 @@ entity AddRoundKey is
            dout : out block_t;
            roundkey : in block_t;
            EnI : in STD_LOGIC;
+           EnO : out STD_LOGIC;
            Clock : in STD_LOGIC;
-           Resetn : in STD_LOGIC);
+           Resetn : in STD_LOGIC
+        );
 end entity;
 
 architecture RTL of AddRoundKey is
@@ -64,6 +66,9 @@ if rising_edge(Clock) then
             report "[AddRoundKey] with key " & to_hstring(to_bitvector(roundKey));
         end if;
     end if;
+
+    EnO <= EnI;
+
 end if;
 end process;
 end generate;

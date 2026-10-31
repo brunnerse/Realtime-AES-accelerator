@@ -46,8 +46,9 @@ use work.test_pkg.ALL;
 
 entity TestAEA is
     Generic (
-        g_TEST_CASES: case_t := ENCRYPT_y or DECRYPT_y_1 or KEYEXP_x or DEC_KEYEXP_x 
---        g_TEST_CASES: case_t := DEC_KEYEXP_Y; 
+--        g_TEST_CASES: case_t := ENCRYPT_y or DECRYPT_y_1 or KEYEXP_x or DEC_KEYEXP_x 
+--        g_TEST_CASES: case_t := ENCRYPT_Y or DEC_KEYEXP_Y
+        g_TEST_CASES: case_t := ALL_CASES
     );
 end entity;
 
@@ -140,7 +141,7 @@ begin
 
     if isTestCaseEnabled(DECRYPT_y_1)  -- Decrypt with same key with no break in between
     then 
-        wait for 50 ns; -- TODO try with 0 wait time
+        --wait for 50 ns; -- TODO try with 0 wait time
         encrypt <= '0'; keyExpand <= '0';
         dIn <= ciphertext_y;
         startAndWaitForCompletion;
@@ -168,7 +169,7 @@ begin
         startAndWaitForCompletion;
     end if;
 
-    wait for 20 ns;  -- TODO try with/without wait phase
+    --wait for 20 ns;  -- TODO try with/without wait phase
 
     if isTestCaseEnabled(DEC_KEYEXP_x)  -- Decrypt after keyexpansion 
     then

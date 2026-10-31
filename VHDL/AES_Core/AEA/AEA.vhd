@@ -23,16 +23,15 @@ end entity;
 architecture RTL of AEA is
 
 
-type state_t is (Idle, OnlyKeyExp, Rounds);
+type state_t is (Idle, KeyExpansion, Rounds, PreARK);
+
+signal prevEnI : std_logic;
 
 signal currentRound : unsigned(3 downto 0); 
 signal state : state_t;
 
 signal roundKey : block_t;
-
--- signals for the KeyExpansion, which is only used for decryption
 signal keyexpInit, keyexpCalcNextKey, keyexpReverse : std_logic;
-signal prevEnI : std_logic;
 
 signal dataState : block_t;
 signal dInSB : block_t;
@@ -42,10 +41,9 @@ signal dInARK : block_t;
 signal keyARK : block_t;
 signal EnARK : std_logic;
 
---type block_array_t is array(natural range<>) of block_t;
---signal subDOut : block_array_t(2 downto 0);
+
 signal dOutSB, dOutMC, dOutARK : block_t;
-signal subEn, prevSubEn : unsigned(2 downto 0); -- TODO use sub-indizes for subEn
+signal subEn, prevSubEn : unsigned(2 downto 0); 
 
 constant EN_IDX_ARK : natural := 0;
 constant EN_IDX_SB : natural := 1;
@@ -107,15 +105,20 @@ begin
         end if;
     end if;
 
-    if state = OnlyKeyExp then
+    -- Encryption: First cycle init, second cycle roudn key calculation
+    if prevEnI = '1' and encrypt = '1' then
+        keyExpCalcNextKey <= '1'; 
+    end if;
+
+    if state = KeyExpansion then
         keyExpCalcNextKey <= '1'; -- Run KeyExpansion one cycle later since initializing in the first cycle 
         keyExpReverse <= '0';
     end if;
 
     -- Always start calculating next key once we use the current one
-    if state = Rounds and EnARK = '1' then
+    if EnARK = '1' then
         if currentRound = AES_NR then
-            -- At the end, reset back to init state (but always for decryption)
+            -- In the last round, reset back to decryption init state for next run 
             keyExpReverse <= '1';
             keyExpInit <= '1';
         else
@@ -123,9 +126,6 @@ begin
         end if;
     end if;
 
-    if prevEnI = '1' and encrypt = '1' then
-        keyExpCalcNextKey <= '1'; -- Run KeyExpansion one cycle later since initializing in the first cycle 
-    end if;
 
 end process;
 
@@ -142,7 +142,7 @@ keyARK <= roundKey when state = Rounds or encrypt = '0' else
 
 
 -- Do not update when EnO is set so datastate stays constant
-prevSubEn <= subEn when rising_edge(Clock); -- and EnO = '0';
+prevSubEn <= subEn when rising_edge(Clock);
 
 -- Assign dataState the output data of the component that was enabled in the last cycle
 process (all)
@@ -162,41 +162,6 @@ end process;
 dOut <= dOutARK;
 
 
--- TODO integrate process in state machine?
-/*
-process (Clock)
-begin
-if rising_edge(Clock) then
-
-    if Resetn = '0' then
-        subEn <= (others => '0'); 
-    else
-        if EnI = '1' then
-            -- First step after initial AddRoundKey is SubBytes for both
-            -- encryption (first round) and decryption (last round, since MixColumns is skipped)
-            subEn <= (EN_IDX_SB => '1', others => '0'); 
-            -- This way, we automatically skip MixColumns in the first decryption round
-        elsif state = Idle then 
-            subEn <= (others => '0');
-        else
-            if encrypt = '1' then
-                subEn <= subEn rol 1; -- Encryption: Run steps in loop in order
-            else
-                subEn <= subEn ror 1; -- Decryption: Run steps in loop in reverse order
-            end if;
-
-            -- In last round of encryption: Skip MixColumns, go straight from SB to ARK
-            if currentRound = AES_NR and encrypt = '1' and subEn(EN_IDX_SB) = '1' then
-                subEn <= (EN_IDX_ARK => '1', others => '0'); 
-            end if;
-        end if;
-    end if;
-end if;
-end process;
-*/
-
-
-               
 
 -- State Machine that coordinates the rounds
 process (Clock)
@@ -222,7 +187,7 @@ if rising_edge(Clock) then
                 if EnI = '1'  then
                     -- Depending on keyExpand, either do keyexpansion first or go directly to Rounds
                     if keyExpand = '1' then
-                        state <= OnlyKeyExp;
+                        state <= KeyExpansion;
                         keycalc_count := to_unsigned(0, keycalc_count'length);
                     else
                         state <= Rounds;
@@ -230,14 +195,11 @@ if rising_edge(Clock) then
                         -- encryption (first round) and decryption (last round, since MixColumns is skipped)
                         subEn <= (EN_IDX_SB => '1', others => '0'); 
                     end if;
-
-
-
                 end if; 
 
-            when OnlyKeyExp => 
+            when KeyExpansion => 
                 -- Usually, KeyExpansion and Rounds run in parallel.
-                -- In state OnlyKeyExp, only the KeyExpansion runs. 
+                -- In state KeyExpansion, only the KeyExpansion runs. 
 
                 assert keyExpand = '1' severity failure;
 
@@ -252,25 +214,19 @@ if rising_edge(Clock) then
                             state <= Idle; -- For encryption, stop after last roundkey has been calculated 
                             EnO <= '1';
                         else
-                            currentRound <= to_unsigned(1, currentRound'length);
-                            -- First step after initial AddRoundKey is SubBytes for both
-                            -- encryption (first round) and decryption (last round, since MixColumns is skipped)
-                            subEn <= (EN_IDX_SB => '1', others => '0'); 
-                            state <= Rounds; -- For decryption, start rounds for actual decryption
+                            subEn <= (EN_IDX_ARK => '1', others => '0'); 
+                            state <= PreARK;
                         end if;
                     end if;
                 else
                     keycalc_count := keycalc_count + 1; 
-
-                    -- Check if finished in next cycle
-                    if keycalc_count = CYCLES_PER_ROUNDKEY-1 and currentRound = AES_NR then
-                        if encrypt = '0' then
-                            subEn <= (EN_IDX_ARK => '1', others => '0'); 
-                        end if;
-
-                    end if;
                 end if;
-
+            
+            when PreARK =>
+                currentRound <= to_unsigned(1, currentRound'length);
+                state <= Rounds; 
+                -- Next step is SB since MixColumns is skipped
+                subEn <= (EN_IDX_SB => '1', others => '0'); 
 
             -- RoundState: AEA is executing Rounds         
             when Rounds =>

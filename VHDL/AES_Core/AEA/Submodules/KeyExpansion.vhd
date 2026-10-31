@@ -224,7 +224,6 @@ if rising_edge(Clock) then
                 -- Do up to NB updates since next round key is always NB words
                 for i in 0 to AES_NB/CYCLES_PER_KEY-1 loop
                     -- Calculate one word, then shift them all
-                    --TODO for AES192/AES256, we only need half an update or no update in the last round
                     updateWords(v_W, 
                         calcNextWord(v_W, v_nextWordIdx, RCon));
 
