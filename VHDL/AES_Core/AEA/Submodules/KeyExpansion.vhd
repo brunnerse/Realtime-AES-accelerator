@@ -31,9 +31,10 @@ subtype rcon_t is STD_LOGIC_VECTOR(7 downto 0);
 subtype word_t is STD_LOGIC_VECTOR(31 downto 0);
 type words_t is array(0 to AES_NK-1) of word_t; 
 
+subtype wordidx_t is unsigned(5 downto 0);  -- Max value 53?
 
 
-function calcNextWord(W : words_t; wordIdx : natural; RCon : rcon_t) return word_t is
+function calcNextWord(W : words_t; wordIdx : wordidx_t; RCon : rcon_t) return word_t is
     variable v_nextW : word_t;
     variable v_temp : STD_LOGIC_VECTOR(31 downto 0);          
 begin  
@@ -70,7 +71,7 @@ end function;
 
 
 -- wordIdx is the idx of the word being calculated 
-function calcPrevWord(W : words_t; wordIdx : natural; RCon : rcon_t) return word_t is
+function calcPrevWord(W : words_t; wordIdx : wordidx_t; RCon : rcon_t) return word_t is
     variable v_prevW : word_t;
     variable v_temp : STD_LOGIC_VECTOR(31 downto 0);          
 begin  
@@ -161,7 +162,7 @@ signal finalRcon : rcon_t;
 signal finalWords : words_t;
 
 signal W : words_t;
-signal nextWordIdx : integer;
+signal nextWordIdx : wordidx_t;
 
 signal update_ctr : unsigned(log2(CYCLES_PER_KEY)-1 downto 0);
 
@@ -176,8 +177,7 @@ process (Clock)
     variable v_W : words_t; 
     -- v_nextWordIdx equals index of next word to calculate,
     -- i.e. for reverse, it decrements (technically prevWordIdx)
-    variable v_nextWordIdx : integer range -4 to (1+AES_NR) * AES_NB + 4; 
-    -- TODO replace natural with unsigned 
+    variable v_nextWordIdx : unsigned(5 downto 0); -- Max value 56 (for AES256) -> 6 bits sufficient
 
 begin
 if rising_edge(Clock) then
@@ -196,7 +196,7 @@ if rising_edge(Clock) then
                     v_W(i) := userKey(userKey'HIGH-32*i downto userKey'HIGH-31-32*i); 
                 end loop;
 
-                v_nextWordIdx := AES_NK;
+                v_nextWordIdx := to_unsigned(AES_NK, wordidx_t'LENGTH);
 
                 RCon <= x"01"; 
 
@@ -209,7 +209,7 @@ if rising_edge(Clock) then
                 v_W := finalWords;
                 RCon <= finalRcon; 
 
-                v_nextWordIdx := 4 + AES_NR * 4 - 4;
+                v_nextWordIdx := to_unsigned(4 + AES_NR * AES_NB - 4, wordidx_t'LENGTH);
             end if;
 
             update_ctr <= to_unsigned(0, update_ctr'LENGTH);
