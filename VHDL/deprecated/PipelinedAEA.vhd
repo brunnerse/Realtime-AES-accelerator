@@ -53,7 +53,7 @@ signal EnIPreARK, EnOPreARK : std_logic;
 
 signal EnIRounds, EnORounds : std_logic_vector(AES_NR downto 1);
 
-type block_array_t is array of block_t;
+type block_array_t is array(1 to AES_NR) of block_t;
 
 signal dInRounds, dOutRounds : block_array_t(AES_NR downto 1);
 
@@ -69,14 +69,17 @@ preARK : entity work.AddRoundKey
              port map(dIn => dInPreARK, dOut => dOutPreARK, roundKey => key(block_t'RANGE),
                       EnI => EnIPreARK, EnO => EnOPreARK, Clock => Clock, Resetn => Resetn);
 
-for r in 1 to AES_NR generate
+gen_rounds: for r in 1 to AES_NR generate
+    constant sMC : std_logic_vector(1 to AES_NR) := (AES_NR => '1', others => '0');
+begin
     entity work.AEA_Round
         port map(dIn => dInRounds(r), dOut => dOutRounds(r), roundKey => roundKeys(r), encrypt => encrypt,
-                skipMixColumns => '1' when r = AES_NR else '0',
+                skipMixColumns => sMC(r), 
                 EnI => EnIRounds(r), EnO => EnORounds(r), isLastCycle => open,
                 Clock => Clock, Resetn => Resetn
         );
     
+    process(all) begin
     if r = 1 then 
         EnIRounds(r) <= EnOPreARK when encrypt = '1' else EnORounds(r+1);
         dInRounds(r) <= dOutPreARK when encrypt = '1' else dOutRounds(r+1);
@@ -89,6 +92,7 @@ for r in 1 to AES_NR generate
         EnIRounds(r) <= EnORounds(r-1) when encrypt = '1' else EnORounds(r+1);
         dInRounds(r) <= dOutRounds(r-1) when encrypt = '1' else dOutRounds(r+1);
     end if;
+    end process;
 
        
 end generate;       
