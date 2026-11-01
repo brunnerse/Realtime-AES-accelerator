@@ -23,15 +23,24 @@ end entity;
 
 architecture RTL of AEA is
 
--- TODO adapt according to keysize
-signal AES_NR : natural := 14;            -- Number of rounds
+
+subtype round_t is unsigned(3 downto 0); -- Max round number is 14 -> 4 bit
+type nr_array_t is array(0 to 2) of round_t;
+
+constant AES_NR_SEL : nr_array_t := (           -- Number of rounds
+    to_integer(unsigned(KEYSIZE_128)) => to_unsigned(10, round_t'LENGTH),
+    to_integer(unsigned(KEYSIZE_192)) => to_unsigned(12, round_t'LENGTH),
+    to_integer(unsigned(KEYSIZE_256)) => to_unsigned(14, round_t'LENGTH)
+);
+
+signal aes_nr : round_t;
 
 
 type state_t is (Idle, KeyExpansion, Rounds, PreARK);
 
 signal prevEnI : std_logic;
 
-signal currentRound : unsigned(3 downto 0); 
+signal currentRound : round_t; 
 signal state : state_t;
 
 signal roundKey : block_t;
@@ -56,12 +65,14 @@ constant EN_IDX_MC : natural := 2;
 
 
 
-
 begin
+
+
+
 
 keyExp : entity work.KeyExpansion
             generic map (CYCLES_PER_KEY => CYCLES_PER_ROUNDKEY)
-            port map(userKey => key, init => keyexpInit, 
+            port map(userKey => key, init => keyexpInit, keysize => keysize, 
                 reverse => keyexpReverse, calcNextRoundKey => keyexpCalcNextKey,
                 roundKey => roundKey, 
                 Clock => Clock, Resetn => Resetn);
@@ -88,6 +99,9 @@ MC : entity work.MixColumns
         port map(dIn => dataState, dOut => dOutMC, encrypt => encrypt,
                 EnI => subEn(EN_IDX_MC), Clock => Clock, Resetn => Resetn);
 
+    
+--------------------------------
+aes_nr <= AES_NR_SEL(to_integer(unsigned(keysize))); -- TODO better as register??
 
 --------------------------------
 -- KeyExpansion control 
@@ -125,7 +139,7 @@ begin
 
     -- Always start calculating next key once we use the current one
     if EnARK = '1' then
-        if currentRound = AES_NR then
+        if currentRound = aes_nr then
             -- In the last round, reset back to decryption init state for next run 
             keyExpReverse <= '1';
             keyExpInit <= '1';
@@ -217,7 +231,7 @@ if rising_edge(Clock) then
 
                     currentRound <= currentRound + 1;
 
-                    if currentRound = AES_NR then
+                    if currentRound = aes_nr then
                         if encrypt = '1' then
                             state <= Idle; -- For encryption, stop after last roundkey has been calculated 
                             EnO <= '1';
@@ -246,7 +260,7 @@ if rising_edge(Clock) then
                 end if;
 
                 -- In last round of encryption: Skip MixColumns, go straight from SB to ARK
-                if currentRound = AES_NR and encrypt = '1' and subEn(EN_IDX_SB) = '1' then
+                if currentRound = aes_nr and encrypt = '1' and subEn(EN_IDX_SB) = '1' then
                     subEn <= (EN_IDX_ARK => '1', others => '0'); 
                 end if;
 
@@ -254,7 +268,7 @@ if rising_edge(Clock) then
                 if subEn(EN_IDX_ARK) = '1' then 
 
                     -- Update round number, or quit in last round
-                    if currentRound = AES_NR then
+                    if currentRound = aes_nr then
                         -- Last round finishes in next cycle
 
                         state <= Idle;

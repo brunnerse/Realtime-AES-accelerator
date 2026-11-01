@@ -15,6 +15,7 @@ entity KeyExpansion is
     Port (  userKey : in key_t; 
             init : in STD_LOGIC;
             reverse : in STD_LOGIC;
+            keysize : in mode_t := KEYSIZE_256;
 
             calcNextRoundKey : in STD_LOGIC;
 --
@@ -27,34 +28,27 @@ end entity;
 
 architecture RTL of KeyExpansion is
 
-constant AES_KEY_SIZE : natural := 256;
 
--- TODO make AES_NR obsolete
-constant AES_NR : natural := 14;            -- Number of rounds
-
--- TODO make AES_NK variable 
-constant AES_NK : natural := AES_KEY_SIZE/32;   -- Number of columns in the cipher key
-
-
+subtype wordidx_t is unsigned(5 downto 0);  -- Max value 56 for AES256
+type wordidx_array_t is array(0 to 2) of wordidx_t;
 
 subtype rcon_t is STD_LOGIC_VECTOR(7 downto 0);
 subtype word_t is STD_LOGIC_VECTOR(31 downto 0);
 type words_t is array(0 to AES_MAX_NK-1) of word_t; 
 
-subtype wordidx_t is unsigned(5 downto 0);  -- Max value 53?
 
 
-function calcNextWord(W : words_t; wordIdx : wordidx_t; RCon : rcon_t) return word_t is
+function calcNextWord(W : words_t; wordIdx : wordidx_t; RCon : rcon_t; Nk : wordidx_t) return word_t is
     variable v_nextW : word_t;
     variable v_temp : STD_LOGIC_VECTOR(31 downto 0);          
 begin  
     -- We essentially calculate W(i) from W(i-AES_NK) to W(i-1) 
     -- wordIdx equals i
 
-    v_temp := W(AES_NK-1); 
+    v_temp := W(to_integer(Nk)-1); 
 
     -- TODO use something more efficient than rem?
-    if wordIdx rem AES_NK = 0 then -- TODO key size as parameter
+    if wordIdx rem Nk = 0 then 
         -- Rotate word: rol 8
         v_temp := v_temp(23 downto 0) & v_temp(31 downto 24);
         -- perform substitution for each byte 
@@ -64,7 +58,7 @@ begin
 
         --report "Word " & to_string(wordIdx) & ": Used Rcon  " & to_hstring(Rcon);
 
-    elsif AES_NK > 6 and wordIdx rem AES_NK = 4 then
+    elsif Nk > 6 and wordIdx rem Nk = 4 then
         -- Special rule for AES256: sbox substitution for middle word
         v_temp := SubBytesInVec(v_temp); 
     end if;
@@ -81,17 +75,17 @@ end function;
 
 
 -- wordIdx is the idx of the word being calculated 
-function calcPrevWord(W : words_t; wordIdx : wordidx_t; RCon : rcon_t) return word_t is
+function calcPrevWord(W : words_t; wordIdx : wordidx_t; RCon : rcon_t; Nk : wordidx_t) return word_t is
     variable v_prevW : word_t;
     variable v_temp : STD_LOGIC_VECTOR(31 downto 0);          
 begin  
     -- We essentially calculate W(i) from W(i+1) to W(i+AES_NK) 
     -- wordIdx equals i
 
-    v_temp := W(AES_NK-2);  
+    v_temp := W(to_integer(Nk)-2);  
 
     -- TODO use something more efficient than rem?
-    if wordIdx rem AES_NK = 0 then 
+    if wordIdx rem Nk = 0 then 
         -- Rotate word: rol 8
         v_temp := v_temp(23 downto 0) & v_temp(31 downto 24);
         -- perform substitution for each byte 
@@ -101,12 +95,12 @@ begin
 
         --report "Word " & to_string(wordIdx) & ": Used Rcon  " & to_hstring(Rcon);
 
-    elsif AES_NK > 6 and wordIdx rem AES_NK = 4 then
+    elsif Nk > 6 and wordIdx rem Nk = 4 then
         -- Special rule for AES256: sbox substitution for middle word
         v_temp := SubBytesInVec(v_temp); 
     end if;
     
-    v_prevW := W(AES_NK-1) xor v_temp; -- W(0) = W{i-N}
+    v_prevW := W(to_integer(Nk)-1) xor v_temp; -- W(0) = W{i-N}
 
     --report "Word " & to_string(wordIdx) & ": " & to_hstring(v_prevW);
 
@@ -116,19 +110,19 @@ end function;
 
 ----------
 -- Procedures to update Words by shifting in the next/previous word on the left/right 
-procedure updateWords(variable W : inout words_t; newWord : in word_t) is
+procedure updateWords(variable W : inout words_t; newWord : in word_t; Nk : in wordidx_t) is
 begin
 
-    for i in 0 to AES_NK-2 loop
+    for i in 0 to AES_MAX_NK-2 loop
         W(i) := W(i+1);   
     end loop;
 
-    W(AES_NK-1) := newWord;  
+    W(to_integer(Nk)-1) := newWord; 
 end procedure;
 
 procedure updateWordsInv(variable W : inout words_t; newWord : in word_t) is
 begin
-    for i in AES_NK-1 downto 1 loop
+    for i in AES_MAX_NK-1 downto 1 loop
         W(i) := W(i-1);   
     end loop;
 
@@ -177,10 +171,36 @@ signal nextWordIdx : wordidx_t;
 signal update_ctr : unsigned(log2(CYCLES_PER_KEY)-1 downto 0);
 
 
+
+constant AES_NK_SEL : wordidx_array_t := (     
+    to_integer(unsigned(KEYSIZE_128)) => to_unsigned(128/32, wordidx_t'LENGTH),
+    to_integer(unsigned(KEYSIZE_192)) => to_unsigned(192/32, wordidx_t'LENGTH),
+    to_integer(unsigned(KEYSIZE_256)) => to_unsigned(256/32, wordidx_t'LENGTH)
+);
+
+-- Starting point for wordidx on reversal (when calculating from the last round key)
+constant AES_NB_TIMES_NR_SEL : wordidx_array_t := (  -- Equals NR * NR      
+    to_integer(unsigned(KEYSIZE_128)) => to_unsigned(10 * 4, wordidx_t'LENGTH), -- 40
+    to_integer(unsigned(KEYSIZE_192)) => to_unsigned(12 * 4, wordidx_t'LENGTH), -- 48
+    to_integer(unsigned(KEYSIZE_256)) => to_unsigned(14 * 4, wordidx_t'LENGTH) -- 56
+);
+
+signal aes_nk : wordidx_t;
+signal aes_wordidx_max : wordidx_t;
+
 begin
 
 assert CYCLES_PER_KEY /= 3 severity failure;
 
+process (Clock)
+begin
+if rising_edge(Clock) then
+    if init = '1' then
+        aes_nk <= AES_NK_SEL(to_integer(unsigned(keysize))); 
+        aes_wordidx_max <= AES_NB_TIMES_NR_SEL(to_integer(unsigned(keysize)));
+    end if;
+end if;
+end process;
 
 process (Clock)
 
@@ -202,11 +222,13 @@ if rising_edge(Clock) then
         -- TODO test different init scheme 
         if init = '1' then
             if reverse /= '1' then
-                for i in 0 to AES_NK-1 loop
+                -- For simplicity, we always set all words to the userKey, even if Nk < AES_MAX_NK
+                for i in 0 to AES_MAX_NK-1 loop
                     v_W(i) := userKey(userKey'HIGH-32*i downto userKey'HIGH-31-32*i); 
                 end loop;
 
-                v_nextWordIdx := to_unsigned(AES_NK, wordidx_t'LENGTH);
+                -- Next Idx is the word after the ones we initialized 
+                v_nextWordIdx := AES_NK_SEL(to_integer(unsigned(keysize))); --to_unsigned(AES_NK, wordidx_t'LENGTH);
 
                 RCon <= x"01"; 
 
@@ -219,7 +241,8 @@ if rising_edge(Clock) then
                 v_W := finalWords;
                 RCon <= finalRcon; 
 
-                v_nextWordIdx := to_unsigned(4 + AES_NR * AES_NB - 4, wordidx_t'LENGTH);
+                -- Next idx is the last word of second-last round key: AES_NR * AES_NB - 1 
+                v_nextWordIdx := AES_NB_TIMES_NR_SEL(to_integer(unsigned(keysize))); 
             end if;
 
             update_ctr <= to_unsigned(0, update_ctr'LENGTH);
@@ -230,19 +253,18 @@ if rising_edge(Clock) then
             update_ctr <= update_ctr + 1;
 
             if reverse /= '1' then
-
                 -- Do up to NB updates since next round key is always NB words
                 for i in 0 to AES_NB/CYCLES_PER_KEY-1 loop
                     -- Calculate one word, then shift them all
                     updateWords(v_W, 
-                        calcNextWord(v_W, v_nextWordIdx, RCon));
+                        calcNextWord(v_W, v_nextWordIdx, RCon, aes_nk), aes_nk);
 
                     -- Check if we used the RCon constant 
-                    if v_nextWordIdx rem AES_NK = 0 then
+                    if v_nextWordIdx rem aes_nk = 0 then
 
                         finalRcon <= RCon; -- Store the lastest used RCon in finalRCon
 
-                        if v_nextWordIdx < AES_NR*4 then
+                        if v_nextWordIdx < aes_wordidx_max then 
                             calcNextRcon(RCon); -- Calculate the next RCon
                         end if;
                     end if;
@@ -262,10 +284,10 @@ if rising_edge(Clock) then
 
                     -- Calculate one word, then shift them all
                     updateWordsInv(v_W, 
-                        calcPrevWord(v_W, v_nextWordIdx, RCon));
+                        calcPrevWord(v_W, v_nextWordIdx, RCon, aes_nk));
 
                     -- Check if we used the RCon constant 
-                    if v_nextWordIdx rem AES_NK = 0 then
+                    if v_nextWordIdx rem aes_nk = 0 then
                         calcPrevRcon(RCon);
                     end if;
 

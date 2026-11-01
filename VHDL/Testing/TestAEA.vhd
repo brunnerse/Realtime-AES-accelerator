@@ -46,10 +46,10 @@ use work.test_pkg.ALL;
 
 entity TestAEA is
     Generic (
---        g_TEST_CASES: case_t := ENCRYPT_y or DECRYPT_y_1 or KEYEXP_x or DEC_KEYEXP_x 
---        g_TEST_CASES: case_t := ENCRYPT_Y or DEC_KEYEXP_Y
+--        g_TEST_CASES: case_t := ENCRYPT_y or DECRYPT_y_1 or KEYEXP_x or DEC_KEYEXP_x;
+--        g_TEST_CASES: case_t := ENCRYPT_Y or DEC_KEYEXP_Y;
         g_TEST_CASES: case_t := ALL_CASES;
-        g_KEYSIZE : mode_t := KEYSIZE_128
+        g_KEYSIZE : mode_t := KEYSIZE_256
     );
 end entity;
 
