@@ -11,6 +11,7 @@ use IEEE.NUMERIC_STD.ALL;
 entity KeyExpansion is
     Generic (
         CYCLES_PER_KEY : natural range 1 to 4 := 2
+        -- TODO add generic to configure if with/without configurable key size
     );
     Port (  userKey : in key_t; 
             init : in STD_LOGIC;
@@ -38,71 +39,39 @@ type words_t is array(0 to AES_MAX_NK-1) of word_t;
 
 
 
-function calcNextWord(W : words_t; wordIdx : wordidx_t; RCon : rcon_t; Nk : wordidx_t) return word_t is
-    variable v_nextW : word_t;
-    variable v_temp : STD_LOGIC_VECTOR(31 downto 0);          
-begin  
-    -- We essentially calculate W(i) from W(i-AES_NK) to W(i-1) 
-    -- wordIdx equals i
-
-    v_temp := W(to_integer(Nk)-1); 
-
-    -- TODO use something more efficient than rem?
-    if wordIdx rem Nk = 0 then 
-        -- Rotate word: rol 8
-        v_temp := v_temp(23 downto 0) & v_temp(31 downto 24);
-        -- perform substitution for each byte 
-        v_temp := SubBytesInVec(v_temp); 
-        -- xor with Rcon constant
-        v_temp(31 downto 24) := v_temp(31 downto 24) xor Rcon; -- Only highest byte, since Rcon is extended to  [Rcon 00 00 00]
-
-        --report "Word " & to_string(wordIdx) & ": Used Rcon  " & to_hstring(Rcon);
-
-    elsif Nk > 6 and wordIdx rem Nk = 4 then
-        -- Special rule for AES256: sbox substitution for middle word
-        v_temp := SubBytesInVec(v_temp); 
-    end if;
-    
-    v_nextW := W(0) xor v_temp; -- W(0) = W{i-N}
-
-    --report "Word " & to_string(wordIdx) & ": " & to_hstring(v_nextW);
-
-    return v_nextW;
-end function;
-
-
-
-
 
 -- wordIdx is the idx of the word being calculated 
-function calcPrevWord(W : words_t; wordIdx : wordidx_t; RCon : rcon_t; Nk : wordidx_t) return word_t is
+function calcNewWord(W : words_t; RCon : rcon_t; 
+    reverse_dir : boolean; isRoundkeyStartIdx : boolean; isRoundkeyHalfIdx : boolean;
+    Nk : wordidx_t
+) return word_t is
     variable v_prevW : word_t;
     variable v_temp : STD_LOGIC_VECTOR(31 downto 0);          
 begin  
     -- We essentially calculate W(i) from W(i+1) to W(i+AES_NK) 
     -- wordIdx equals i
 
-    v_temp := W(to_integer(Nk)-2);  
+    if not reverse_dir then
+        v_temp := W(to_integer(Nk)-1);  
+        v_prevW := W(0);
+    else
+        v_temp := W(to_integer(Nk)-2);  
+        v_prevW := W(to_integer(Nk)-1);
+    end if;
 
     -- TODO use something more efficient than rem?
-    if wordIdx rem Nk = 0 then 
-        -- Rotate word: rol 8
-        v_temp := v_temp(23 downto 0) & v_temp(31 downto 24);
-        -- perform substitution for each byte 
-        v_temp := SubBytesInVec(v_temp); 
+    if isRoundkeyStartIdx then 
+        v_temp := v_temp(23 downto 0) & v_temp(31 downto 24); -- Rotate word: rol 8
+    end if;
+    if isRoundkeyStartIdx or isRoundkeyHalfIdx then
+        v_temp := SubBytesInVec(v_temp);  -- perform substitution for each byte 
+    end if;
+    if isRoundkeyStartIdx then
         -- xor with Rcon constant
         v_temp(31 downto 24) := v_temp(31 downto 24) xor Rcon; -- Only highest byte, since Rcon is extended to  [Rcon 00 00 00]
-
-        --report "Word " & to_string(wordIdx) & ": Used Rcon  " & to_hstring(Rcon);
-
-    elsif Nk > 6 and wordIdx rem Nk = 4 then
-        -- Special rule for AES256: sbox substitution for middle word
-        v_temp := SubBytesInVec(v_temp); 
     end if;
-    
-    v_prevW := W(to_integer(Nk)-1) xor v_temp; -- W(0) = W{i-N}
 
-    --report "Word " & to_string(wordIdx) & ": " & to_hstring(v_prevW);
+    return v_prevW xor v_temp; 
 
     return v_prevW;
 end function;
@@ -110,24 +79,19 @@ end function;
 
 ----------
 -- Procedures to update Words by shifting in the next/previous word on the left/right 
-procedure updateWords(variable W : inout words_t; newWord : in word_t; Nk : in wordidx_t) is
+procedure shiftWords(variable W : inout words_t; shiftLeft : boolean) is 
 begin
-
-    for i in 0 to AES_MAX_NK-2 loop
-        W(i) := W(i+1);   
-    end loop;
-
-    W(to_integer(Nk)-1) := newWord; 
+    if shiftLeft then
+        for i in 0 to AES_MAX_NK-2 loop
+            W(i) := W(i+1);   
+        end loop;
+    else
+        for i in AES_MAX_NK-1 downto 1 loop
+            W(i) := W(i-1);   
+        end loop;
+    end if;
 end procedure;
 
-procedure updateWordsInv(variable W : inout words_t; newWord : in word_t) is
-begin
-    for i in AES_MAX_NK-1 downto 1 loop
-        W(i) := W(i-1);   
-    end loop;
-
-    W(0) := newWord;  
-end procedure;
 
 
 procedure calcNextRcon(signal RCon : inout rcon_t) is 
@@ -203,8 +167,10 @@ end if;
 end process;
 
 process (Clock)
+    -- TODO instead of nextWordIdx, use wordidxRemNk variable
 
     variable v_W : words_t; 
+    variable v_newW : word_t;
     -- v_nextWordIdx equals index of next word to calculate,
     -- i.e. for reverse, it decrements (technically prevWordIdx)
     variable v_nextWordIdx : unsigned(5 downto 0); -- Max value 56 (for AES256) -> 6 bits sufficient
@@ -252,49 +218,51 @@ if rising_edge(Clock) then
 
             update_ctr <= update_ctr + 1;
 
-            if reverse /= '1' then
-                -- Do up to NB updates since next round key is always NB words
-                for i in 0 to AES_NB/CYCLES_PER_KEY-1 loop
-                    -- Calculate one word, then shift them all
-                    updateWords(v_W, 
-                        calcNextWord(v_W, v_nextWordIdx, RCon, aes_nk), aes_nk);
+            -- Do up to NB updates since next round key is always NB words
+            for i in 0 to AES_NB/CYCLES_PER_KEY-1 loop
+                
+                if reverse = '1' then
+                    v_nextWordIdx := v_nextWordIdx - 1;
+                end if;
 
-                    -- Check if we used the RCon constant 
-                    if v_nextWordIdx rem aes_nk = 0 then
+                v_newW := calcNewWord(v_W, RCon, reverse = '1', v_nextWordIdx rem aes_nk = 0,
+                       aes_nk > 6 and v_nextWordIdx rem aes_nk = 4, aes_nk);
+
+                -- Insert newW into words, either at the end (for forward) or at the beginning (for reverse) 
+                if reverse /= '1' then
+                    shiftWords(v_W, true); -- Shift words left to make space for new word
+                    v_W(to_integer(aes_nk)-1) := v_newW; 
+                else
+                    shiftWords(v_W, false); -- Shift words right to make space for new word
+                    v_W(0) := v_newW;
+                end if;
+
+                -- Check if we used the RCon constant 
+                if v_nextWordIdx rem aes_nk = 0 then
+
+                    if reverse /= '1' then
 
                         finalRcon <= RCon; -- Store the lastest used RCon in finalRCon
 
-                        if v_nextWordIdx < aes_wordidx_max then 
+                        if v_nextWordIdx < aes_wordidx_max then -- TODO we can skip this if we do an INIT step after keyexpansion 
                             calcNextRcon(RCon); -- Calculate the next RCon
                         end if;
+                    else
+                        calcPrevRcon(RCon); -- Calculate the previous RCon
                     end if;
 
-                    v_nextWordIdx := v_nextWordIdx + 1;
-                end loop;
+                end if;
 
+                if reverse /= '1' then
+                    v_nextWordIdx := v_nextWordIdx + 1;
+                end if;
+            end loop;
+
+            if reverse /= '1' then
                 -- Store the most recently calculated W as finalW 
                 finalWords <= v_W;
-            else
-                -- Reverse KeyExpansion
-
-                -- Do up to NB updates since next round key is always NB words
-                for i in 0 to AES_NB/CYCLES_PER_KEY-1 loop
-
-                    v_nextWordIdx := v_nextWordIdx - 1;
-
-                    -- Calculate one word, then shift them all
-                    updateWordsInv(v_W, 
-                        calcPrevWord(v_W, v_nextWordIdx, RCon, aes_nk));
-
-                    -- Check if we used the RCon constant 
-                    if v_nextWordIdx rem aes_nk = 0 then
-                        calcPrevRcon(RCon);
-                    end if;
-
-                end loop;
-            end if;
+            end if; 
         end if;
-
     end if;
 
     -- Round key always equals the four lowest words 
